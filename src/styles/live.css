@@ -372,3 +372,25 @@ details.game[open] > summary.game-h::before { transform: rotate(90deg); }
 .game-count { margin-left: auto; font-size: 11px; letter-spacing: .02em; text-transform: none; color: var(--muted); font-weight: 600; }
 #feed .ev.good, #feed .ev.bad { color: var(--text); }
 .lv-tabs .pill-count { white-space: nowrap; }
+
+/* ==== Responsive ==== */
+/* Short panels: a smaller stage (pop-ups scale with it), and none at all when
+   there's barely room for the feed. */
+@container view (max-height: 640px) {
+  .stage { height: 138px; }
+  .stage .pop { zoom: .72; }
+}
+@container view (max-height: 500px) {
+  .stage { display: none; }
+}
+/* Wide panels: cards flow into columns. */
+@container view (min-width: 660px) {
+  #feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px; align-items: start; }
+  #feed .ev { margin-bottom: 0; }
+  #feed .ev-when, #feed .recap { grid-column: 1 / -1; }
+  #feed .ev-when { margin: 6px 2px 0; }
+  #scoreboard { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; align-items: start; }
+  #scoreboard .match { margin-bottom: 0; }
+  .game-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
+  .game-list .ev { margin-bottom: 0; }
+}

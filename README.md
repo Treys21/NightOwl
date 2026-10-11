@@ -52,6 +52,7 @@ bar and press Enter.
 Night Owl, then click the owl and type your Sleeper username.
 
 **5. Open [sleeper.com](https://sleeper.com).** Night Owl appears in the corner.
+Drag it anywhere, and resize it from any edge.
 
 > Keep the `night-owl` folder where it is. Chrome runs Night Owl from it.
 

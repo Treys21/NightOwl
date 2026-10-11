@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.2.0
+- Resize the panel from any edge or corner, not just the bottom-right. One
+  size for every tab, remembered between visits; double-click the header to
+  reset it. The panel always stays inside the window, even when the browser
+  window shrinks.
+- Every tab adapts to the panel's size:
+  - **Narrow:** compact Draft table; shorter labels.
+  - **Short:** Live's stage shrinks, and hides when there's barely room for
+    the feed.
+  - **Wide:** Live plays, matchups and games, Lineups league cards, and Bets
+    players flow into columns.
+- Setup guide in the README written for non-technical fans, with a one-click
+  download link.
+
 ## 3.1.0
 - Live, rebuilt for busy slates: **Feed | Matchups | Games** tabs under the
   stage, pinned filters (helps me, hurts me, big plays, one league), compact

@@ -143,3 +143,9 @@
    each row's layout/paint self-contained. */
 .bt-item:not([open]) { content-visibility: auto; contain-intrinsic-size: auto 62px; }
 .bt-item { contain: layout paint; }
+
+/* Wide panels: player rows in columns, group headers across the top. */
+@container view (min-width: 680px) {
+  #bt-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); column-gap: 8px; align-items: start; }
+  #bt-body > .bt-group-h, #bt-body > .empty { grid-column: 1 / -1; }
+}

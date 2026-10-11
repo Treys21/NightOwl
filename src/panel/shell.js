@@ -27,7 +27,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     { id: 'lineups', label: 'Lineups' },
     { id: 'bets', label: 'Bets' }
   ];
-  const DEFAULT_WIDTH = 430;
+  // One size for every tool. Drag any edge or corner to change it; it's
+  // remembered. Double-click the header to go back to the default.
+  const DEFAULT_W = 430;
+  const DEFAULT_H = 780;
+  const MIN_W = 320;
+  const MIN_H = 300;
+  const GAP = 8; // keep this far inside the window
+  const EDGES = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 
   // The Night Owl mark ("Hybrid": cyan outer tube, pink inner tube); panel.css powers its tubes on.
   const BRAND = `
@@ -83,6 +90,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </header>
       ${TOOLS.map((t) => `<div class="view view-${t.id}" hidden></div>`).join('')}
       <div class="source-note" role="status" hidden></div>
+      ${EDGES.map((e) => `<div class="rz rz-${e}" data-edge="${e}" aria-hidden="true"></div>`).join('')}
     `;
     shadow.append(panel);
     document.documentElement.appendChild(host);
@@ -91,7 +99,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     showOutages(NightOwl.api.unavailable());
     place();
     apply();
-    watchSize();
+    enableResize();
+    window.addEventListener('resize', () => { place(); slideIndicator(); });
     setTimeout(slideIndicator, 400); // again once webfonts settle
   }
 
@@ -103,10 +112,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // Show the current tool and mount its view; everything else is unmounted.
   function apply() {
     const tool = toolOf(ui.tool);
-    const tall = tool !== 'draft'; // the board sizes to its rows
-    panel.classList.toggle('tall', tall);
     panel.classList.toggle('collapsed', ui.collapsed);
-    panel.style.height = ui.h && tall && !ui.collapsed ? `${ui.h}px` : '';
+    place();
     panel.querySelectorAll('[data-tool]').forEach((b) => {
       const on = b.dataset.tool === tool;
       b.classList.toggle('on', on);
@@ -147,31 +154,77 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
+  const viewW = () => document.documentElement.clientWidth || window.innerWidth;
+  const viewH = () => window.innerHeight;
+
+  // Size and position from the saved ui, clamped to the window.
   function place() {
-    if (ui.w) panel.style.width = `${ui.w}px`;
-    const width = ui.w || DEFAULT_WIDTH;
-    const x = ui.x === null ? window.innerWidth - width - 20 : ui.x;
+    const maxW = viewW() - GAP * 2;
+    const maxH = viewH() - GAP * 2;
+    const w = clamp(ui.w || DEFAULT_W, Math.min(MIN_W, maxW), maxW);
+    const h = clamp(ui.h || Math.min(DEFAULT_H, Math.round(viewH() * 0.86)), Math.min(MIN_H, maxH), maxH);
+    panel.style.width = `${w}px`;
+    panel.style.height = ui.collapsed ? '' : `${h}px`;
+    const x = ui.x === null ? viewW() - w - 20 : ui.x;
     const y = ui.y === null ? 80 : ui.y;
-    panel.style.left = `${clamp(x, 0, window.innerWidth - 100)}px`;
-    panel.style.top = `${clamp(y, 0, window.innerHeight - 60)}px`;
+    panel.style.left = `${clamp(x, GAP, viewW() - w - GAP)}px`;
+    panel.style.top = `${clamp(y, GAP, viewH() - (ui.collapsed ? 60 : h) - GAP)}px`;
   }
 
-  // Remember the size after the user drags the resize corner.
-  function watchSize() {
-    let timer = null;
-    new ResizeObserver(() => {
-      if (ui.collapsed) return;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        const patch = {};
-        const w = panel.offsetWidth;
-        const h = panel.offsetHeight;
-        if (w && w !== ui.w && panel.style.width) patch.w = ui.w = w;
-        if (h && h !== ui.h && panel.classList.contains('tall') && panel.style.height) patch.h = ui.h = h;
-        if (Object.keys(patch).length) storage.saveUi(patch);
-        slideIndicator();
-      }, 300);
-    }).observe(panel);
+  // Eight invisible handles around the frame. Dragging one moves that edge
+  // (or corner); the opposite edge stays put.
+  function enableResize() {
+    panel.querySelectorAll('.rz').forEach((handle) => {
+      handle.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0 || ui.collapsed) return;
+        event.preventDefault();
+        handle.setPointerCapture(event.pointerId);
+        const edge = handle.dataset.edge;
+        const start = panel.getBoundingClientRect();
+        const sx = event.clientX;
+        const sy = event.clientY;
+        panel.classList.add('resizing');
+
+        const onMove = (e) => {
+          const dx = e.clientX - sx;
+          const dy = e.clientY - sy;
+          let { left, top, width, height } = start;
+          if (edge.includes('e')) width = clamp(width + dx, MIN_W, viewW() - left - GAP);
+          if (edge.includes('s')) height = clamp(height + dy, MIN_H, viewH() - top - GAP);
+          if (edge.includes('w')) {
+            const w = clamp(width - dx, MIN_W, start.right - GAP);
+            left = start.right - w;
+            width = w;
+          }
+          if (edge.includes('n')) {
+            const h = clamp(height - dy, MIN_H, start.bottom - GAP);
+            top = start.bottom - h;
+            height = h;
+          }
+          Object.assign(panel.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+          slideIndicator();
+        };
+        const onUp = () => {
+          handle.removeEventListener('pointermove', onMove);
+          handle.removeEventListener('pointerup', onUp);
+          handle.removeEventListener('pointercancel', onUp);
+          panel.classList.remove('resizing');
+          const r = panel.getBoundingClientRect();
+          Object.assign(ui, { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) });
+          storage.saveUi({ x: ui.x, y: ui.y, w: ui.w, h: ui.h });
+        };
+        handle.addEventListener('pointermove', onMove);
+        handle.addEventListener('pointerup', onUp);
+        handle.addEventListener('pointercancel', onUp);
+      });
+    });
+  }
+
+  function resetSize() {
+    Object.assign(ui, { w: null, h: null });
+    storage.saveUi({ w: null, h: null });
+    place();
+    slideIndicator();
   }
 
   function wire() {
@@ -184,6 +237,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       b.addEventListener('click', () => setTool(b.dataset.tool));
     });
     enableDrag(panel.querySelector('header'));
+    panel.querySelector('header').addEventListener('dblclick', (e) => {
+      if (!e.target.closest('button')) resetSize();
+    });
   }
 
   function enableDrag(handle) {
@@ -196,8 +252,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const originY = parseInt(panel.style.top, 10) || 0;
 
       const onMove = (e) => {
-        panel.style.left = `${clamp(originX + e.clientX - startX, 0, window.innerWidth - 100)}px`;
-        panel.style.top = `${clamp(originY + e.clientY - startY, 0, window.innerHeight - 40)}px`;
+        const r = panel.getBoundingClientRect();
+        panel.style.left = `${clamp(originX + e.clientX - startX, GAP, viewW() - r.width - GAP)}px`;
+        panel.style.top = `${clamp(originY + e.clientY - startY, GAP, viewH() - r.height - GAP)}px`;
       };
       const onUp = () => {
         document.removeEventListener('mousemove', onMove);

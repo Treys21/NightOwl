@@ -285,7 +285,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <div class="lu-games">${logos}</div>
           <div class="lu-counts">${starting} starting · ${benched} benched${flags ? ` · <span class="lu-flagcount">${flags} to check</span>` : ''}${allSet ? '<span class="lu-allset">✓ All set</span>' : ''}</div>
         </summary>
-        ${blocks.join('') || '<p class="muted small empty">Nobody on your rosters plays in this window.</p>'}
+        ${blocks.length ? `<div class="lu-leagues">${blocks.join('')}</div>` : '<p class="muted small empty">Nobody on your rosters plays in this window.</p>'}
       </details>`);
     });
 

@@ -125,3 +125,9 @@
 .lu-more > summary::-webkit-details-marker { display: none; }
 .lu-more[open] > summary { display: none; }
 @media (prefers-reduced-motion: reduce) { .lu-ring.soon, .lu-allset, .lu-best::after, .lu-best-head > span:first-child::before { animation: none !important; } }
+
+/* Wide panels: league cards side by side within each kickoff window. */
+@container view (min-width: 700px) {
+  .lu-leagues { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; align-items: start; }
+  .lu-leagues > * { margin-bottom: 0; }
+}

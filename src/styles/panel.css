@@ -4,9 +4,7 @@
 :host { all: initial; }
 * { box-sizing: border-box; }
 .panel {
-  position: fixed; width: 430px; max-height: 70vh; display: flex; flex-direction: column;
-  /* Drag the bottom-right corner to resize; the size is remembered. */
-  resize: both; min-width: 360px; max-width: min(760px, 96vw); min-height: 240px;
+  position: fixed; width: 430px; height: 780px; display: flex; flex-direction: column;
   font: 13.5px/1.4 Inter, Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #fff; border-radius: 18px; isolation: isolate;
   box-shadow: 0 24px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04);
@@ -37,7 +35,6 @@
 @keyframes spin { to { transform: rotate(1turn); } }
 @keyframes pillflow { to { background-position: 300% 0; } }
 @media (prefers-reduced-motion: reduce) { .panel, .panel::before, .panel::after, .brand .outer, .brand .inner, .brand .eyes, .brand .pupil, .switch .ind { animation: none; transition: none; } }
-.panel.tall { height: min(780px, 86vh); max-height: 96vh; }
 .panel.collapsed { height: auto; }
 .panel.collapsed .view { display: none; }
 .panel.collapsed header { border-radius: 16.5px; margin-bottom: 1.5px; border-bottom: 0; }
@@ -93,3 +90,32 @@ header {
 }
 .source-note[hidden] { display: none; }
 .panel.collapsed .source-note { display: none; }
+
+/* Resize handles: thin strips on each edge, larger squares on the corners. */
+.rz { position: absolute; z-index: 5; }
+.rz-n, .rz-s { left: 14px; right: 14px; height: 7px; cursor: ns-resize; }
+.rz-e, .rz-w { top: 14px; bottom: 14px; width: 7px; cursor: ew-resize; }
+.rz-n { top: -2px; } .rz-s { bottom: -2px; } .rz-e { right: -2px; } .rz-w { left: -2px; }
+.rz-ne, .rz-nw, .rz-se, .rz-sw { width: 16px; height: 16px; }
+.rz-ne { top: -2px; right: -2px; cursor: nesw-resize; }
+.rz-sw { bottom: -2px; left: -2px; cursor: nesw-resize; }
+.rz-nw { top: -2px; left: -2px; cursor: nwse-resize; }
+.rz-se { bottom: -2px; right: -2px; cursor: nwse-resize; }
+/* A small grip so the bottom-right corner reads as draggable. */
+.rz-se::after {
+  content: ''; position: absolute; right: 6px; bottom: 6px; width: 7px; height: 7px;
+  border-right: 2px solid rgba(163,187,211,.35); border-bottom: 2px solid rgba(163,187,211,.35);
+  border-bottom-right-radius: 3px;
+}
+.panel.collapsed .rz { display: none; }
+.panel.resizing, .panel.resizing * { user-select: none; transition: none !important; }
+
+/* Each tool lays itself out from the size of its own view (container
+   queries), so every tab works at any panel size or shape. */
+.view { container: view / size; }
+/* On a wide panel the tool switch stops stretching. */
+.switch { max-width: 460px; }
+header .iconbtn { margin-left: auto; }
+@container view (max-width: 360px) {
+  .lv-count { display: none; }
+}

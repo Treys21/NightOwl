@@ -43,3 +43,20 @@ tbody tr:hover { background: rgba(163,187,211,.06); }
 .pos-pill.TE { color: #feae58; } .pos-pill.K { color: #bd66ff; } .pos-pill.DEF { color: #bf755d; }
 .chip:active { transform: scale(.92); }
 .warnbar { padding: 6px 12px; font-size: 12px; color: #feae58; background: rgba(254,174,88,.08); }
+
+/* Fixed-width columns: extra width goes to the player's name. */
+table { table-layout: fixed; }
+th:nth-child(1), td:nth-child(1) { width: 44px; }
+th:nth-child(3), td:nth-child(3) { width: 62px; }
+th:nth-child(4), td:nth-child(4) { width: 92px; }
+th:nth-child(5), td:nth-child(5) { width: 52px; }
+td:nth-child(2) { overflow: hidden; text-overflow: ellipsis; }
+@container view (max-width: 380px) {
+  th, td { padding: 6px 5px; }
+  th:nth-child(1), td:nth-child(1) { width: 30px; }
+  th:nth-child(3), td:nth-child(3) { width: 48px; }
+  th:nth-child(4), td:nth-child(4) { width: 70px; }
+  th:nth-child(5), td:nth-child(5) { width: 40px; }
+  td:nth-child(2) .meta { display: none; }
+  .controls { padding: 8px 10px; }
+}
