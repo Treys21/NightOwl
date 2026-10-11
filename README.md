@@ -3,9 +3,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Treys21/NightOwl/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Treys21/NightOwl?style=for-the-badge&labelColor=140f2e&color=3df5ff&label=release&cacheSeconds=3600"></a>
+  <a href="https://github.com/Treys21/NightOwl/releases/latest"><img alt="Download the latest release" src="https://img.shields.io/badge/download-latest%20release-3df5ff?style=for-the-badge&labelColor=140f2e&logo=googlechrome&logoColor=white"></a>
   <a href="https://github.com/Treys21/NightOwl/actions/workflows/ci.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/Treys21/NightOwl/ci.yml?branch=main&style=for-the-badge&labelColor=140f2e&color=b98bff&label=tests"></a>
-  <img alt="Chrome 116+" src="https://img.shields.io/badge/chrome-116%2B-ff4fd8?style=for-the-badge&labelColor=140f2e&logo=googlechrome&logoColor=white">
+  <img alt="Chrome 116+" src="https://img.shields.io/badge/chrome-116%2B-ff4fd8?style=for-the-badge&labelColor=140f2e">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-ffc94d?style=for-the-badge&labelColor=140f2e"></a>
 </p>
 
