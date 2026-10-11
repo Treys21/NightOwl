@@ -25,25 +25,36 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </div>
     </header>
     <div class="stage" id="stage"><div class="idle" id="stage-idle">Plays pop here the moment they happen</div></div>
+    <nav class="lv-tabs" id="lv-tabs">
+      <button data-view="feed" class="on">Feed <span class="lv-count" id="lv-count-feed"></span></button>
+      <button data-view="matchups">Matchups <span id="net-total"></span></button>
+      <button data-view="games">Games <span class="lv-count" id="lv-count-games"></span></button>
+    </nav>
     <div class="tool-scroll">
-    <section id="settings" class="card" hidden>
-      <div id="league-toggles"></div>
-      <p class="muted small">Username comes from the extension popup. Points use each league's own scoring settings.</p>
-    </section>
-    <p id="error" class="error" hidden></p>
-    <div id="games"></div>
-    <h2>Matchups <span id="net-total"></span></h2>
-    <div id="scoreboard"><p class="muted small empty">Loading your leagues…</p></div>
-    <div class="feed-head">
-      <h2>Live feed</h2>
-      <div class="tabs" id="filters">
-        <button data-filter="all" class="tab on">All</button>
-        <button data-filter="good" class="tab">Helps me</button>
-        <button data-filter="bad" class="tab">Hurts me</button>
-      </div>
-    </div>
-    <ol id="feed"></ol>
-    <p id="feed-empty" class="muted small empty">Every scoring play by your starters and your opponents' starters lands here, with what it did in each league.</p>
+      <section id="settings" class="card" hidden>
+        <div id="league-toggles"></div>
+        <p class="muted small">Username comes from the extension popup. Points use each league's own scoring settings.</p>
+      </section>
+      <p id="error" class="error" hidden></p>
+      <section data-pane="feed">
+        <div class="lv-toolbar">
+          <div class="tabs" id="filters">
+            <button data-filter="all" class="tab on">All</button>
+            <button data-filter="good" class="tab">Helps me</button>
+            <button data-filter="bad" class="tab">Hurts me</button>
+          </div>
+          <button id="lv-big" class="tab" title="Touchdowns and plays worth 4+ points in a league">Big plays</button>
+          <select id="lv-league" title="Show one league"><option value="">All leagues</option></select>
+        </div>
+        <ol id="feed"></ol>
+        <p id="feed-empty" class="muted small empty">Every scoring play by your starters and your opponents' starters lands here, with what it did in each league.</p>
+      </section>
+      <section data-pane="matchups" hidden>
+        <div id="scoreboard"><p class="muted small empty">Loading your leagues…</p></div>
+      </section>
+      <section data-pane="games" hidden>
+        <div id="games"></div>
+      </section>
     </div>
   `;
 
@@ -65,6 +76,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     events: [], // newest first, persisted per week
     schedule: { games: [], loadedAt: 0 },
     filter: 'all',
+    view: 'feed', // feed | matchups | games
+    league: '', // '' = all leagues
+    bigOnly: false,
+    gameOpen: new Map(), // game id -> open, once the user toggles it (live games start open)
     lastPoll: 0,
     timer: null,
     busy: false,
@@ -231,8 +246,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     renderIdle();
     renderGames();
     renderScoreboard();
+    renderLeagueSelect();
     renderFeed();
     renderLeagueToggles();
+    showView();
     root.querySelectorAll('img.face').forEach((img) => img.addEventListener('error', () => { img.style.visibility = 'hidden'; }));
   }
 
@@ -256,7 +273,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const leagues = activeLeagues();
     const byId = new Map(leagues.map((lg) => [lg.leagueId, lg]));
     const watch = tracker.watchList(leagues);
-    const games = state.schedule.games.filter((g) => g.status === 'in_game' || (g.status === 'pre_game' && g.date === today));
+    // Games on now come first, then the rest of today's in schedule order.
+    const games = state.schedule.games
+      .filter((g) => g.status === 'in_game' || (g.status === 'pre_game' && g.date === today))
+      .sort((a, b) => (b.status === 'in_game') - (a.status === 'in_game'));
 
     $('games').innerHTML = games.map((g) => {
       const rows = [...watch].filter(([pid]) => [g.home, g.away].includes(info(pid).team)).map(([pid, spots]) => {
@@ -267,13 +287,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           const pts = scoring.points(state.stats[pid], lg.scoring);
           return `<span class="impact ${side === 'me' ? 'helps' : 'hurts'}">${esc(lg.name)} · ${side === 'me' ? 'you' : 'opp'} ${fmt(pts)}</span>`;
         }).join('');
-        return { forMe, html: `<li class="ev" style="--tc:${teams.colors(p.team).primary}"><div class="ev-top"><span class="ev-who">${face(pid, p.team)}<span><span class="ev-name">${esc(p.name)}</span> <span class="muted small">${esc(p.pos)} · ${esc(p.team)}</span></span></span></div><div class="impacts">${chips}</div></li>` };
+        return { forMe, mine: spots.some((sp) => sp.side === 'me'), html: `<li class="ev" style="--tc:${teams.colors(p.team).primary}"><div class="ev-top"><span class="ev-who">${face(pid, p.team)}<span><span class="ev-name">${esc(p.name)}</span> <span class="muted small">${esc(p.pos)} · ${esc(p.team)}</span></span></span></div><div class="impacts">${chips}</div></li>` };
       }).sort((a, b) => b.forMe - a.forMe);
-      const status = g.status === 'in_game' ? '<span class="live-tag">LIVE</span>' : '<span class="muted">today</span>';
-      const mine = rows.filter((r) => r.forMe > 0).length;
-      return `<h2 class="game-h"><img alt="" src="${teams.logo(g.away)}">${esc(g.away)} <span class="muted">@</span> <img alt="" src="${teams.logo(g.home)}">${esc(g.home)} ${status} <span class="muted">· ${rows.length} starters (${mine} yours)</span></h2>`
-        + (rows.length ? `<ol class="game-list">${rows.map((r) => r.html).join('')}</ol>` : '<p class="muted small">None of your matchups have a starter in this game.</p>');
-    }).join('');
+      const status = g.status === 'in_game' ? '<span class="live-tag">LIVE</span>' : '<span class="muted small">later</span>';
+      const mine = rows.filter((r) => r.mine).length;
+      const id = String(g.game_id);
+      const open = state.gameOpen.has(id) ? state.gameOpen.get(id) : g.status === 'in_game';
+      return `<details class="game" data-game="${esc(id)}"${open ? ' open' : ''}>
+        <summary class="game-h"><img alt="" src="${teams.logo(g.away)}">${esc(g.away)} <span class="muted">@</span> <img alt="" src="${teams.logo(g.home)}">${esc(g.home)} ${status}<span class="game-count">${rows.length} starters · ${mine} yours</span></summary>
+        ${rows.length ? `<ol class="game-list">${rows.map((r) => r.html).join('')}</ol>` : '<p class="muted small">None of your matchups have a starter in this game.</p>'}
+      </details>`;
+    }).join('') || '<p class="muted small empty">No games on right now.</p>';
+    $('lv-count-games').textContent = games.filter((g) => g.status === 'in_game').length ? `${games.filter((g) => g.status === 'in_game').length} live` : '';
   }
 
   // Small round headshot (team logo for defenses) ringed in the team's color.
@@ -287,18 +312,28 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // to you net across leagues, who did it, and where. Touchdowns and other big
   // swings get a banner and a burst of confetti.
   const POP_MS = 2200;
-  const POP_GAP_MS = 900;
+  const POP_GAP_MS = 150; // after one pop leaves, before the next lands
+  const MAX_POPS = 3;
+  const BIG_PTS = 4;
+  const MIN_POP_PTS = 1; // smaller plays (a 3-yard run) go to the feed only
   const popQueue = [];
   let popping = false;
 
+  // One pop at a time. On a busy slate only the three biggest plays of a poll
+  // pop (the feed has the rest), and a new poll replaces plays still waiting.
   function celebrate(events) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    popQueue.push(...events.slice(0, 5));
+    const ranked = events.filter((ev) => isBig(ev) || maxImpact(ev) >= MIN_POP_PTS).sort((x, y) => (isBig(y) - isBig(x)) || (maxImpact(y) - maxImpact(x)));
+    if (!ranked.length) return;
+    popQueue.length = 0;
+    popQueue.push(...ranked.slice(0, MAX_POPS));
     if (!popping) nextPop();
   }
 
+  const maxImpact = (ev) => Math.max(0, ...ev.impacts.map((im) => Math.abs(im.pts)));
+
   function isBig(ev) {
-    return /TD|safety|2-pt/.test(ev.text) || ev.impacts.some((i) => Math.abs(i.pts) >= 6);
+    return /TD|safety|2-pt/.test(ev.text) || maxImpact(ev) >= BIG_PTS;
   }
 
   function nextPop() {
@@ -314,7 +349,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     layer.classList.add('busy');
 
     const big = isBig(ev);
-    const mood = ev.net > 0 ? 'good' : ev.net < 0 ? 'bad' : 'even';
+    const mood = moodOf(ev);
     const headline = /TD/.test(ev.text) ? 'TOUCHDOWN!' : /safety/.test(ev.text) ? 'SAFETY!' : big ? 'BIG PLAY' : '';
     const p = info(ev.pid);
     const team = ev.team || p.team;
@@ -331,13 +366,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       <div class="fig">${figure(ev, p, team, c)}</div>
       <div class="copy">
         ${headline ? `<div class="headline">${headline}</div>` : ''}
-        <div class="pts">${ev.net === 0 ? '±0' : signed(ev.net)}</div>
+        <div class="pts">${playValue(ev)}</div>
         <div class="who">${esc(ev.name)} <span>${esc(ev.pos)} · ${esc(team)}</span></div>
         <div class="what">${esc(ev.text)}</div>
-        <div class="where">${ev.impacts.map((im) => {
-          const forMe = im.side === 'me' ? im.pts : -im.pts;
-          return `<span class="impact ${forMe > 0 ? 'helps' : forMe < 0 ? 'hurts' : 'zero'}">${esc(im.leagueName)} ${im.side === 'me' ? 'you' : 'opp'} ${signed(im.pts)}</span>`;
-        }).join('')}</div>
+        <div class="where">${impactChips(ev)}</div>
       </div>`;
     // No headshot (rookies, some defenders): the jersey carries the figure alone.
     pop.querySelectorAll('img').forEach((img) => img.addEventListener('error', () => img.remove()));
@@ -347,8 +379,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (mood !== 'even') layer.classList.add(`glow-${mood}`);
     if (big) burst(layer, mood, c);
 
-    setTimeout(() => pop.remove(), POP_MS);
-    setTimeout(nextPop, popQueue.length ? POP_GAP_MS : POP_MS);
+    setTimeout(() => { pop.remove(); setTimeout(nextPop, POP_GAP_MS); }, POP_MS);
   }
 
   // Between plays the stage shows the last one, or what it's waiting on.
@@ -360,10 +391,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const lc = last ? teams.colors(last.team) : null;
     $('stage').style.setProperty('--idle-tint', lc ? lc.primary : 'transparent');
     $('stage-idle').innerHTML = last
-      ? `<span class="muted small">Last play · ${new Date(last.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+      ? `<span class="muted small">Last play · ${clockOf(last.ts)}</span>
          <span class="idle-who"><img alt="" src="${/^[A-Z]{2,3}$/.test(last.pid) ? teams.logo(last.team) : teams.headshot(last.pid)}"><b>${esc(last.name)}</b></span>
          <span>${esc(last.text)}</span>
-         <span class="${last.net > 0 ? 'good' : last.net < 0 ? 'bad' : 'muted'} last-net">${last.net === 0 ? '±0' : signed(last.net)}</span>`
+         <span class="impacts idle-impacts">${impactChips(last)}</span>`
       : `<span class="muted">${live ? `${esc(live.away)} @ ${esc(live.home)} is live — waiting for the next play` : 'Plays pop here the moment they happen'}</span>
          ${recap ? `<span class="muted small">Caught up on everything since ${clockOf(recap.since || recap.ts)}</span>` : ''}`;
   }
@@ -458,7 +489,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </details>`;
     }).join('') || '<p class="muted small">No in-season leagues found.</p>';
 
-    $('net-total').innerHTML = withOpp ? `<span class="pill-count ${winning * 2 >= withOpp ? 'good' : 'bad'}">leading ${winning}/${withOpp}</span>` : '';
+    $('net-total').innerHTML = withOpp ? `<span class="pill-count ${winning * 2 >= withOpp ? 'good' : 'bad'}" title="Leading in ${winning} of ${withOpp}">${winning}/${withOpp}</span>` : '';
     root.querySelectorAll('.match .big[data-to]').forEach(countUp);
     root.querySelectorAll('img.av').forEach((img) => img.addEventListener('error', () => img.replaceWith(Object.assign(document.createElement('span'), { className: img.className + ' blank', textContent: '•' }))));
   }
@@ -478,69 +509,121 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     requestAnimationFrame(step);
   }
 
+  // Per league, from your side: + when it helps you (your starter), − when it
+  // hurts (your opponent's). Never summed: leagues are separate contests.
+  const forMe = (im) => (im.side === 'me' ? im.pts : -im.pts);
+
+  function shownImpacts(ev) {
+    return state.league ? ev.impacts.filter((im) => im.leagueId === state.league) : ev.impacts;
+  }
+
   function impactChips(ev) {
-    return ev.impacts.map((im) => {
-      const forMe = im.side === 'me' ? im.pts : -im.pts;
-      const cls = forMe > 0 ? 'helps' : forMe < 0 ? 'hurts' : 'zero';
-      const who = im.side === 'me' ? 'you' : 'opp';
-      return `<span class="impact ${cls}" title="${who === 'you' ? 'Your starter' : "Opponent's starter"}">${esc(im.leagueName)} · ${who} ${signed(im.pts)}</span>`;
+    return shownImpacts(ev).map((im) => {
+      const v = forMe(im);
+      const cls = v > 0 ? 'helps' : v < 0 ? 'hurts' : 'zero';
+      return `<span class="impact ${cls}" title="${im.side === 'me' ? 'Your starter' : "Your opponent's starter"} in ${esc(im.leagueName)}">${esc(im.leagueName)} <b>${signed(v)}</b></span>`;
     }).join('');
   }
 
-  const netClass = (net) => (net > 0 ? 'good' : net < 0 ? 'bad' : '');
+  function moodOf(ev) {
+    const vals = shownImpacts(ev).map(forMe).filter((v) => v !== 0);
+    if (!vals.length) return 'even';
+    if (vals.every((v) => v > 0)) return 'good';
+    if (vals.every((v) => v < 0)) return 'bad';
+    return 'even';
+  }
 
-  function playCard(ev, isNew) {
-    const cls = netClass(ev.net);
-    return `<li class="ev ${cls}${isNew ? ' new' : ''}" style="--tc:${teams.colors(ev.team).primary}">
+  // What the play was worth to the player: one number when every league scores
+  // it alike, else the range ("+1.8–2.3 pts").
+  function playValue(ev) {
+    const pts = [...new Set(ev.impacts.map((im) => im.pts))].sort((x, y) => x - y);
+    if (pts.length === 1) return `${signed(pts[0])}<small> pts</small>`;
+    return `${signed(pts[0])}–${fmt(pts[pts.length - 1])}<small> pts</small>`;
+  }
+
+  function matchesFilters(ev) {
+    const shown = shownImpacts(ev);
+    if (!shown.length) return false;
+    if (state.bigOnly && !isBig(ev)) return false;
+    if (state.filter === 'all') return true;
+    const vals = shown.map(forMe);
+    return state.filter === 'good' ? vals.some((v) => v > 0) : vals.some((v) => v < 0);
+  }
+
+  function playRow(ev, isNew) {
+    const mood = moodOf(ev);
+    return `<li class="ev ${mood === 'even' ? '' : mood}${isNew ? ' new' : ''}${isBig(ev) ? ' big' : ''}" style="--tc:${teams.colors(ev.team).primary}">
         <div class="ev-top">
           <span class="ev-who">${face(ev.pid, ev.team)}<span><span class="ev-name">${esc(ev.name)}</span> <span class="muted small">${esc(ev.pos)} · ${esc(ev.team)}</span></span></span>
-          <span class="ev-net ${cls}" title="Net for you across all leagues">${signed(ev.net)}</span>
+          <span class="ev-val">${playValue(ev)}</span>
         </div>
         <div class="ev-text">${esc(ev.text || 'stat correction')}</div>
         <div class="impacts">${impactChips(ev)}</div>
-        <div class="ev-time">${clockOf(ev.ts)}</div>
       </li>`;
   }
 
   // Everything that changed while the panel was closed, folded into one card.
   function recapCard(group) {
-    const net = Math.round(group.reduce((sum, ev) => sum + ev.net, 0) * 100) / 100;
-    const cls = netClass(net);
     const since = group[0].since || group[0].ts; // events saved before 3.0.1 lack it
     const key = `${since}-${group[0].ts}`;
     const rows = group.map((ev) => `
       <div class="recap-row">
         <span class="ev-who">${face(ev.pid, ev.team)}<span><span class="ev-name">${esc(ev.name)}</span> <span class="muted small">${esc(ev.text || 'stat correction')}</span></span></span>
-        <span class="recap-net ${netClass(ev.net)}">${signed(ev.net)}</span>
         <div class="impacts">${impactChips(ev)}</div>
       </div>`).join('');
     return `<li class="recap"><details data-recap="${key}"${state.openRecaps.has(key) ? ' open' : ''}>
         <summary>
           <span class="recap-title"><b>While you were away</b><span class="muted small">${clockOf(since)} – ${clockOf(group[0].ts)} · ${group.length} player${group.length === 1 ? '' : 's'}</span></span>
-          <span class="ev-net ${cls}" title="Net for you across all leagues">${signed(net)}</span>
         </summary>
         ${rows}
       </details></li>`;
   }
 
+  // Newest first, grouped by update so a busy slate reads in bursts.
   function renderFeed() {
-    const list = state.events.filter((ev) =>
-      state.filter === 'all' || (state.filter === 'good' ? ev.net > 0 : ev.net < 0));
+    const list = state.events.filter(matchesFilters);
     $('feed-empty').hidden = list.length > 0;
+    $('feed-empty').textContent = state.events.length
+      ? 'No plays match these filters.'
+      : "Every scoring play by your starters and your opponents' starters lands here, with what it did in each league.";
     const first = state.seenEventIds.size === 0;
     const html = [];
+    let lastTs = null;
     for (let i = 0; i < list.length; i++) {
       const ev = list[i];
-      if (!ev.catchUp) {
-        html.push(playCard(ev, !first && !state.seenEventIds.has(ev.id)));
+      if (ev.catchUp) {
+        const group = [ev];
+        while (list[i + 1] && list[i + 1].catchUp && list[i + 1].ts === ev.ts) group.push(list[++i]);
+        html.push(recapCard(group));
+        lastTs = null;
         continue;
       }
-      const group = [ev];
-      while (list[i + 1] && list[i + 1].catchUp && list[i + 1].ts === ev.ts) group.push(list[++i]);
-      html.push(recapCard(group));
+      if (ev.ts !== lastTs) {
+        let n = 1;
+        while (list[i + n] && !list[i + n].catchUp && list[i + n].ts === ev.ts) n++;
+        html.push(`<li class="ev-when"><span>${clockOf(ev.ts)}</span>${n > 1 ? `<span>${n} plays</span>` : ''}</li>`);
+        lastTs = ev.ts;
+      }
+      html.push(playRow(ev, !first && !state.seenEventIds.has(ev.id)));
     }
     $('feed').innerHTML = html.join('');
+    $('lv-count-feed').textContent = state.events.length ? String(state.events.filter((ev) => !ev.catchUp).length) : '';
     for (const ev of state.events) state.seenEventIds.add(ev.id);
+  }
+
+  function renderLeagueSelect() {
+    const sel = $('lv-league');
+    if (!state.ctx) return;
+    const leagues = activeLeagues();
+    if (state.league && !leagues.some((lg) => lg.leagueId === state.league)) state.league = '';
+    sel.innerHTML = '<option value="">All leagues</option>' + leagues.map((lg) =>
+      `<option value="${esc(lg.leagueId)}"${lg.leagueId === state.league ? ' selected' : ''}>${esc(lg.name)}</option>`).join('');
+  }
+
+  function showView() {
+    for (const b of $('lv-tabs').children) b.classList.toggle('on', b.dataset.view === state.view);
+    root.querySelectorAll('[data-pane]').forEach((pane) => { pane.hidden = pane.dataset.pane !== state.view; });
+    $('lv-big').classList.toggle('on', state.bigOnly);
   }
 
   function renderLeagueToggles() {
@@ -561,13 +644,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // Username is shared with the draft board (set in the popup); league
   // exclusions are the tracker's own.
   async function saveSettings() {
-    await storage.set({ 'live.settings': { excluded: state.settings.excluded } });
+    await storage.set({ 'live.settings': { excluded: state.settings.excluded, view: state.view, bigOnly: state.bigOnly } });
   }
 
   async function loadSettings() {
     const shared = await storage.get('settings', {});
     const own = await storage.get('live.settings', {});
     state.settings = { username: (shared.username || '').trim(), excluded: own.excluded || [] };
+    if (own.view) state.view = own.view;
+    state.bigOnly = !!own.bigOnly;
   }
 
   // Username changed in the popup: start over for the new account.
@@ -626,6 +711,32 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const key = e.target.dataset && e.target.dataset.recap;
       if (!key) return;
       if (e.target.open) state.openRecaps.add(key); else state.openRecaps.delete(key);
+    }, true);
+
+    $('lv-tabs').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-view]');
+      if (!b) return;
+      state.view = b.dataset.view;
+      showView();
+      root.querySelector('.tool-scroll').scrollTop = 0;
+      saveSettings();
+    });
+
+    $('lv-big').addEventListener('click', () => {
+      state.bigOnly = !state.bigOnly;
+      showView();
+      renderFeed();
+      saveSettings();
+    });
+
+    $('lv-league').addEventListener('change', (e) => {
+      state.league = e.target.value;
+      renderFeed();
+    });
+
+    $('games').addEventListener('toggle', (e) => {
+      const id = e.target.dataset && e.target.dataset.game;
+      if (id) state.gameOpen.set(id, e.target.open);
     }, true);
 
     $('filters').addEventListener('click', (e) => {

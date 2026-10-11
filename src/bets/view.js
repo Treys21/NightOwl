@@ -351,7 +351,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       ? `<span class="bt-key"><span class="bt-key-lbl">${esc(key.label)}</span> <b>${num(key.line)}</b>${keyLive
         ? ` <span class="bt-key-live${keyLive.hit ? ' hit' : ''}">${keyLive.hit ? '✓ ' : ''}${num(keyLive.value)}</span>`
         : `${keyHr ? ` <span class="bt-key-hr${keyHr.over * 2 > keyHr.games ? ' good' : ''}">${keyHr.over}/${keyHr.games}</span>` : ''}${keyLean != null && Math.abs(keyLean) >= 0.5 ? ` <span class="bt-key-lean ${keyLean > 0 ? 'up' : 'down'}">${keyLean > 0 ? '▲' : '▼'}</span>` : ''}`}</span>`
-      : '<span class="muted small">no lines yet</span>';
+      : `<span class="muted small">${inPlay ? 'lines closed at kickoff' : 'no lines yet'}</span>`;
     const justCashed = markets.some((m) => state.fresh.has(`${pid}:${m.type}`));
     return `<details class="bt-item${mine ? ' mine' : ' theirs'}${justCashed ? ' cashing' : ''}${state.justOpened.has(pid) ? ' opening' : ''}" data-key="p:${esc(pid)}" data-pid="${esc(pid)}" style="--tc:${teams.colors(p.team).primary}"${open ? ' open' : ''}>
       <summary>

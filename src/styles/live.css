@@ -62,7 +62,6 @@
 .bad { color: var(--pink); }
 
 /* Feed */
-.feed-head { display: flex; align-items: center; justify-content: space-between; }
 .tabs { display: flex; gap: 4px; }
 .tab { font: 600 12px Poppins, sans-serif; padding: 3px 9px; background: var(--teal-soft); color: var(--teal); }
 .tab.on { background: var(--teal); color: var(--teal-ink); }
@@ -85,11 +84,8 @@
 .ev-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .ev-who > span { min-width: 0; overflow-wrap: anywhere; }
 .ev-name { font-weight: 700; }
-.ev-net { font: 800 16px Poppins, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; padding: 1px 8px; border-radius: 8px; align-self: flex-start; background: var(--chip); }
-.ev-net.good { background: var(--teal-soft); }
-.ev-net.bad { background: var(--pink-soft); }
 .ev-text { color: var(--sub); margin: 5px 0 8px 38px; overflow-wrap: anywhere; }
-.ev .impacts, .ev .ev-time { margin-left: 38px; }
+.ev .impacts { margin-left: 38px; }
 .impacts { display: flex; flex-wrap: wrap; gap: 4px; }
 .impact { font-size: 12px; font-weight: 600; border-radius: 8px; padding: 2px 7px; font-variant-numeric: tabular-nums; }
 .impact.helps { background: var(--teal-soft); color: var(--teal); }
@@ -98,7 +94,6 @@
 .game-list { list-style: none; padding: 0; margin: 0; }
 .game-list .ev { padding: 7px 12px; }
 .game-list .impacts { margin-top: 4px; }
-.ev-time { font-size: 11px; color: var(--muted); margin-top: 5px; }
 
 .tool [hidden] { display: none !important; }
 
@@ -134,7 +129,6 @@
 @keyframes shimmer { 60%, 100% { left: 110%; } }
 .stage .idle-who { display: flex; align-items: center; gap: 6px; color: #fff; }
 .stage .idle-who img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; object-position: 50% 18%; background: #fff; }
-.stage .last-net { font: 800 26px Poppins, sans-serif; }
 .stage.glow-good { animation: glowgood 1.4s ease-out; }
 .stage.glow-bad { animation: glowbad 1.4s ease-out; }
 @keyframes glowgood { from { box-shadow: inset 0 0 70px rgba(0, 206, 184, .55); } to { box-shadow: inset 0 0 0 rgba(0, 206, 184, 0); } }
@@ -324,6 +318,59 @@
   padding: 8px 12px; border-top: 1px solid rgba(163, 187, 211, .08);
 }
 .recap-row .impacts { grid-column: 1 / -1; margin-left: 38px; }
-.recap-net { font: 700 13px Poppins, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.recap-net.good { color: var(--teal); }
-.recap-net.bad { color: var(--pink); }
+
+/* ==== Game-day layout: Feed | Matchups | Games ==== */
+.lv-tabs {
+  flex: none; display: flex; gap: 4px; margin: 4px 12px 6px; padding: 3px;
+  border-radius: 11px; background: rgba(0, 0, 0, .25);
+}
+.lv-tabs button {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font: 600 12.5px Poppins, sans-serif; padding: 5px 6px; border-radius: 8px;
+  background: none; color: var(--sub);
+}
+.lv-tabs button:hover { color: var(--text); }
+.lv-tabs button.on { background: var(--chip); color: var(--text); box-shadow: inset 0 0 0 1px rgba(163, 187, 211, .14); }
+.lv-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lv-count:empty { display: none; }
+.lv-tabs .pill-count { font-size: 10.5px; padding: 0 6px; }
+
+/* Filters stay pinned while the feed scrolls under them. */
+.lv-toolbar {
+  position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 0 -12px 8px; padding: 8px 12px; background: var(--bg);
+  border-bottom: 1px solid rgba(163, 187, 211, .08);
+}
+#lv-league {
+  margin-left: auto; max-width: 150px; font: 600 12px Inter, sans-serif; color: var(--text);
+  background: var(--chip); border: 1px solid rgba(163, 187, 211, .14); border-radius: 8px; padding: 3px 6px;
+}
+
+/* Compact play rows. */
+#feed .ev { padding: 8px 10px 8px 12px; margin-bottom: 6px; }
+#feed .ev-text { margin: 3px 0 6px 38px; font-size: 12.5px; }
+#feed .ev .impacts { margin-left: 38px; }
+.ev-val { font: 700 12.5px Poppins, sans-serif; color: var(--sub); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ev-val small, .pop .pts small { font-size: .62em; font-weight: 600; opacity: .7; }
+.ev.big .ev-val { color: #ffc94d; }
+.ev.big { box-shadow: inset 0 0 0 1px rgba(255, 201, 77, .28); }
+.impact b { font-weight: 800; }
+.ev-when {
+  display: flex; justify-content: space-between; margin: 10px 2px 5px;
+  font: 600 11px Poppins, sans-serif; letter-spacing: .04em; color: var(--muted);
+}
+.ev-when:first-child { margin-top: 0; }
+.stage .idle-impacts { justify-content: center; max-width: 100%; }
+
+/* Games: one collapsible block per game; live games start open. */
+details.game { margin-bottom: 4px; }
+summary.game-h {
+  display: flex; align-items: center; gap: 6px; padding: 8px 2px; cursor: pointer; list-style: none;
+  font: 700 12px Poppins, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--sub);
+}
+summary.game-h::-webkit-details-marker { display: none; }
+summary.game-h::before { content: '▸'; color: var(--muted); transition: transform .2s; }
+details.game[open] > summary.game-h::before { transform: rotate(90deg); }
+.game-count { margin-left: auto; font-size: 11px; letter-spacing: .02em; text-transform: none; color: var(--muted); font-weight: 600; }
+#feed .ev.good, #feed .ev.bad { color: var(--text); }
+.lv-tabs .pill-count { white-space: nowrap; }
