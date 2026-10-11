@@ -84,4 +84,5 @@ the browser.
    fails if they differ) and add a `CHANGELOG.md` entry.
 2. Run `npm run verify && npm run package`.
 3. Commit, push to `main`, then
-   `gh release create v<version> dist/night-owl-v<version>.zip --notes-file <notes>`.
+   `gh release create v<version> dist/night-owl-v<version>.zip dist/night-owl.zip --notes-file <notes>`.
+   Keep the `night-owl.zip` asset: the README's download link points at it.
