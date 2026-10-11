@@ -62,9 +62,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   // ESPN refuses requests carrying a sleeper.com Origin; the background worker
-  // fetches them with the extension's own. Outside the extension (tests), fetch.
+  // fetches them with the extension's own. The worker itself (no document),
+  // and tests outside the extension, fetch directly.
   function viaBackground(url) {
-    if (!(globalThis.chrome && chrome.runtime && chrome.runtime.sendMessage)) return getJson(url);
+    const inPage = typeof document !== 'undefined';
+    if (!inPage || !(globalThis.chrome && chrome.runtime && chrome.runtime.sendMessage)) return getJson(url);
     return request(url, () => new Promise((resolve, reject) => {
       chrome.runtime.sendMessage({ type: 'nightowl-fetch', url }, (res) => {
         if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
@@ -117,6 +119,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const data = await viaBackground(`${ESPN_SITE}/scoreboard?seasontype=${type}&week=${week}&dates=${season}`);
       return data.events || [];
     },
+    // League-wide injury report: { injuries: [{ injuries: [{ status, athlete }] }] }.
+    injuries: () => viaBackground(`${ESPN_SITE}/injuries`),
     // DraftKings player props for one ESPN event, all pages (capped at 4).
     async propBets(eventId) {
       const base = `${ESPN_CORE}/events/${eventId}/competitions/${eventId}/odds/100/propBets?limit=1000`;

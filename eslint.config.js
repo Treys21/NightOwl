@@ -19,6 +19,10 @@ module.exports = [
     languageOptions: { ecmaVersion: 2022, sourceType: 'commonjs', globals: globals.node }
   },
   {
+    files: ['src/background.js'],
+    languageOptions: { globals: { ...globals.serviceworker, chrome: 'readonly' } }
+  },
+  {
     files: ['tools/preview/shim.js'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'script', globals: globals.browser }
   },

@@ -158,7 +158,80 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return phi((me.mean - opp.mean) / sd);
   }
 
-  NightOwl.season = { optimal, biggestMiss, allPlay, standings, outlook, winProbability, phi };
+  // Small seeded PRNG (mulberry32) so odds don't jitter between refreshes.
+  function rng(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const hash = (text) => [...String(text)].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261);
+
+  /**
+   * Each team's scoring as mean and spread, from its weekly scores, pulled
+   * toward the league average early in the season (few weeks = noisy).
+   */
+  function teamStrength(weeks, rosterId) {
+    const all = weeks.flatMap((w) => Object.values(w)).filter((v) => v != null);
+    const leagueMean = all.length ? all.reduce((a, b) => a + b, 0) / all.length : 100;
+    const mine = weeks.map((w) => w[rosterId]).filter((v) => v != null);
+    const n = mine.length;
+    const avg = n ? mine.reduce((a, b) => a + b, 0) / n : leagueMean;
+    const PRIOR = 3; // weeks of league-average weight
+    const mean = (avg * n + leagueMean * PRIOR) / (n + PRIOR);
+    const sd = Math.max(leagueMean * 0.12, n > 1 ? Math.sqrt(mine.reduce((a, b) => a + (b - avg) ** 2, 0) / (n - 1)) : leagueMean * 0.18);
+    return { mean, sd };
+  }
+
+  /**
+   * Chance each team makes the playoffs, by simulating the rest of the
+   * regular season many times.
+   *   teams:     [{ rosterId, wins, ties, pf, mean, sd }]
+   *   schedule:  remaining weeks, each a list of [rosterIdA, rosterIdB] pairs
+   *   playoffTeams, medianGame, sims, seed
+   * -> { [rosterId]: probability }
+   */
+  function playoffOdds({ teams, schedule, playoffTeams, medianGame = false, sims = 2000, seed = 1 }) {
+    const made = Object.fromEntries(teams.map((t) => [t.rosterId, 0]));
+    if (!playoffTeams || !teams.length) return made;
+    const rand = rng(seed);
+    const normal = () => {
+      const u = Math.max(rand(), 1e-12);
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand());
+    };
+    const byId = new Map(teams.map((t) => [t.rosterId, t]));
+    for (let s = 0; s < sims; s++) {
+      const wins = new Map(teams.map((t) => [t.rosterId, t.wins + (t.ties || 0) / 2]));
+      const pf = new Map(teams.map((t) => [t.rosterId, t.pf]));
+      for (const week of schedule) {
+        const score = new Map();
+        for (const t of teams) {
+          const v = Math.max(0, t.mean + t.sd * normal());
+          score.set(t.rosterId, v);
+          pf.set(t.rosterId, pf.get(t.rosterId) + v);
+        }
+        for (const [a, b] of week) {
+          if (!byId.has(a) || !byId.has(b)) continue;
+          const winner = score.get(a) >= score.get(b) ? a : b;
+          wins.set(winner, wins.get(winner) + 1);
+        }
+        if (medianGame) {
+          const order = [...score.entries()].sort((x, y) => y[1] - x[1]);
+          for (let i = 0; i < Math.floor(order.length / 2); i++) wins.set(order[i][0], wins.get(order[i][0]) + 1);
+        }
+      }
+      const ranked = teams.map((t) => t.rosterId).sort((a, b) => wins.get(b) - wins.get(a) || pf.get(b) - pf.get(a));
+      for (let i = 0; i < Math.min(playoffTeams, ranked.length); i++) made[ranked[i]]++;
+    }
+    for (const id of Object.keys(made)) made[id] /= sims;
+    return made;
+  }
+
+  NightOwl.season = { optimal, biggestMiss, allPlay, standings, outlook, winProbability, phi, teamStrength, playoffOdds, hash };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.season;

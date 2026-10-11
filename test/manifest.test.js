@@ -43,7 +43,7 @@ test('only the hosts the extension actually calls', () => {
     'https://sports.core.api.espn.com/*',
     'https://theringer.com/*'
   ]);
-  assert.deepEqual(manifest.permissions.slice().sort(), ['storage', 'unlimitedStorage']);
+  assert.deepEqual(manifest.permissions.slice().sort(), ['alarms', 'notifications', 'storage', 'unlimitedStorage']);
 });
 
 test('the background relay only forwards allow-listed hosts', () => {

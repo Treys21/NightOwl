@@ -98,5 +98,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return espnIndex.get(String(espnId)) || null;
   }
 
-  NightOwl.players = { load, info, list, remember, byEspn };
+  /** ESPN athlete id for a Sleeper player id, or ''. */
+  const espnId = (pid) => (map[pid] && map[pid][6]) || '';
+
+  NightOwl.players = { load, info, list, remember, byEspn, espnId };
 })(globalThis.NightOwl);

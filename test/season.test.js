@@ -67,3 +67,30 @@ test('remaining share of a game from ESPN status', () => {
   assert.equal(lineups.remainingShare({ type: { state: 'in' }, period: 3, clock: 450 }), (900 + 450) / 3600);
   assert.equal(lineups.remainingShare({ type: { state: 'in' }, period: 5, clock: 300 }), 0.02);
 });
+
+test('team strength pulls a short track record toward the league average', () => {
+  const weeks = [{ 1: 150, 2: 100, 3: 100, 4: 50 }];
+  const strong = season.teamStrength(weeks, 1);
+  assert.ok(strong.mean > 100 && strong.mean < 150, String(strong.mean));
+  assert.ok(strong.sd > 0);
+});
+
+test('playoff odds: clinched, eliminated, and a coin flip', () => {
+  const team = (rosterId, wins, pf = 500) => ({ rosterId, wins, ties: 0, pf, mean: 100, sd: 15 });
+  // One week left, 2 of 4 make it. Team 1 can't be caught; team 4 can't catch up.
+  const teams = [team(1, 9), team(2, 6), team(3, 6), team(4, 3)];
+  const odds = season.playoffOdds({ teams, schedule: [[[1, 4], [2, 3]]], playoffTeams: 2, sims: 4000, seed: 7 });
+  assert.equal(odds[1], 1);
+  assert.equal(odds[4], 0);
+  assert.ok(Math.abs(odds[2] - 0.5) < 0.05, `even teams ~50%: ${odds[2]}`);
+  assert.ok(Math.abs(odds[2] + odds[3] - 1) < 1e-9);
+  // Same seed, same answer.
+  assert.deepEqual(season.playoffOdds({ teams, schedule: [[[1, 4], [2, 3]]], playoffTeams: 2, sims: 4000, seed: 7 }), odds);
+});
+
+test('playoff odds count the median game', () => {
+  const teams = [1, 2, 3, 4].map((id) => ({ rosterId: id, wins: id === 4 ? 2 : 0, ties: 0, pf: 0, mean: id === 4 ? 200 : 80, sd: 1 }));
+  // Team 4 is far better: it wins its game and the median game every week.
+  const odds = season.playoffOdds({ teams, schedule: [[[1, 2], [3, 4]]], playoffTeams: 1, medianGame: true, sims: 200 });
+  assert.equal(odds[4], 1);
+});

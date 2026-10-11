@@ -61,3 +61,26 @@ test('api names a failing feed and clears it on recovery', async () => {
   assert.deepEqual(api.unavailable(), []);
   assert.deepEqual(seen, ['ESPN odds and kickoffs', '']);
 });
+
+test('the background worker starts, with every script it imports', () => {
+  const noop = () => {};
+  const listeners = [];
+  const event = () => ({ addListener: (fn) => listeners.push(fn) });
+  const context = {
+    console, setTimeout, clearTimeout, fetch: async () => ({ ok: false }),
+    chrome: {
+      runtime: { id: 'test', getURL: (p) => p, onMessage: event(), onInstalled: event(), onStartup: event() },
+      storage: { local: { get: (k, cb) => cb({}), set: (i, cb) => cb && cb(), remove: (k, cb) => cb && cb() }, onChanged: event() },
+      alarms: { create: noop, onAlarm: event() },
+      notifications: { create: noop, clear: noop, onClicked: event() },
+      tabs: { create: noop }
+    }
+  };
+  context.globalThis = context;
+  context.importScripts = (...files) => files.forEach((f) =>
+    vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), context, { filename: f }));
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(root, manifest.background.service_worker), 'utf8'), context);
+  assert.ok(context.NightOwl.alerts && context.NightOwl.api.injuries);
+  assert.equal(listeners.length, 5); // message, installed, startup, alarm, notification click
+});

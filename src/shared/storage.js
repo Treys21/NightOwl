@@ -10,7 +10,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const DEFAULTS = {
-    settings: { username: '', userId: null, format: 'half-ppr' },
+    settings: { username: '', userId: null, format: 'half-ppr', alerts: true },
     rankings: [], // [{ rank, name, position, team }]
     ui: {
       x: null,

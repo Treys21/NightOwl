@@ -12,7 +12,9 @@
   },
   "permissions": [
     "storage",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "alarms",
+    "notifications"
   ],
   "host_permissions": [
     "https://api.sleeper.app/*",

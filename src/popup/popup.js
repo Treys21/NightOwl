@@ -32,6 +32,10 @@
     formatEl.value = settings.format || 'half-ppr';
     formatEl.addEventListener('change', () => NightOwl.storage.saveSettings({ format: formatEl.value }));
 
+    const alertsEl = document.getElementById('alerts');
+    alertsEl.checked = settings.alerts !== false;
+    alertsEl.addEventListener('change', () => NightOwl.storage.saveSettings({ alerts: alertsEl.checked }));
+
     usernameEl.value = settings.username || '';
     userStatusEl.textContent = settings.userId ? `✓ connected as ` : (settings.username ? 'not found yet: check the spelling' : 'add your username to turn on Live, Lineups and Bets');
 
