@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Treys21/NightOwl/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Treys21/NightOwl?style=for-the-badge&labelColor=140f2e&color=3df5ff&label=release"></a>
+  <a href="https://github.com/Treys21/NightOwl/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Treys21/NightOwl?style=for-the-badge&labelColor=140f2e&color=3df5ff&label=release&cacheSeconds=3600"></a>
   <a href="https://github.com/Treys21/NightOwl/actions/workflows/ci.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/Treys21/NightOwl/ci.yml?branch=main&style=for-the-badge&labelColor=140f2e&color=b98bff&label=tests"></a>
   <img alt="Chrome 116+" src="https://img.shields.io/badge/chrome-116%2B-ff4fd8?style=for-the-badge&labelColor=140f2e&logo=googlechrome&logoColor=white">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-ffc94d?style=for-the-badge&labelColor=140f2e"></a>
@@ -26,10 +26,10 @@
 
 <table align="center">
   <tr>
-    <td align="center" width="25%"><img src="docs/images/live.png" alt="Live feed" width="100%"><br><b>Live</b><br><sub>Every play, scored per league</sub></td>
-    <td align="center" width="25%"><img src="docs/images/lineups.png" alt="Lineups" width="100%"><br><b>Lineups</b><br><sub>Optimal lineup before kickoff</sub></td>
-    <td align="center" width="25%"><img src="docs/images/bets.png" alt="Bets" width="100%"><br><b>Bets</b><br><sub>Lines and odds for your starters</sub></td>
-    <td align="center" width="25%"><img src="docs/images/draft.png" alt="Draft board" width="100%"><br><b>Draft</b><br><sub>Your rankings, live in the draft room</sub></td>
+    <td align="center" valign="top" width="25%"><img src="docs/images/live.png" alt="Live feed" width="100%"><br><b>Live</b><br><sub>Every play, scored per league</sub></td>
+    <td align="center" valign="top" width="25%"><img src="docs/images/lineups.png" alt="Lineups" width="100%"><br><b>Lineups</b><br><sub>Optimal lineup before kickoff</sub></td>
+    <td align="center" valign="top" width="25%"><img src="docs/images/bets.png" alt="Bets" width="100%"><br><b>Bets</b><br><sub>Lines and odds for your starters</sub></td>
+    <td align="center" valign="top" width="25%"><img src="docs/images/draft.png" alt="Draft board" width="100%"><br><b>Draft</b><br><sub>Your rankings, live in the draft room</sub></td>
   </tr>
 </table>
 
