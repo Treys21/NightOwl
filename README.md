@@ -49,18 +49,16 @@ bar and press Enter.
 
 <img src="docs/images/chrome-steps.png" alt="Developer mode switch and Load unpacked button in Chrome" width="100%">
 
-**4. Add your username.** Click the puzzle piece next to the address bar, pin
-Night Owl, then click the owl and type your Sleeper username.
-
-**5. Open [sleeper.com](https://sleeper.com).** Night Owl appears in the corner.
-Drag it anywhere, and resize it from any edge.
+**4. Open [sleeper.com](https://sleeper.com)** and type your Sleeper username in
+the Night Owl panel. That's it. Drag the panel anywhere, and resize it from any edge.
 
 > Keep the `night-owl` folder where it is. Chrome runs Night Owl from it.
 
 **Updating:** download the new zip, unzip it over the old folder, and click the
 ↻ arrow on Night Owl's card in `chrome://extensions`.
 
-Night Owl runs entirely in your browser: no account, no tracking.
+Night Owl runs entirely in your browser: no account, no tracking. It can also
+notify you when one of your starters is ruled out before kickoff (switch it off in the popup).
 Something not working? [Let me know](https://github.com/Treys21/NightOwl/issues/new/choose).
 
 <sub>Made by [Anik Patel](https://github.com/Treys21) · MIT · Not affiliated with Sleeper · [How it works](CONTRIBUTING.md)</sub>

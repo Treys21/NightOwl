@@ -8,7 +8,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, tracker, scoring, teams, players, storage } = NightOwl;
-  const { escape: esc, points: fmt, signed, clock: clockOf } = NightOwl.format;
+  const { escape: esc, points: fmt, signed, clock: clockOf, short }  = NightOwl.format;
   let root = null; // the element we render into, inside the panel's shadow root
   const $ = (id) => root.querySelector(`#${id}`);
 
@@ -20,8 +20,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <span id="updated" class="muted small"></span>
       </div>
       <div class="actions">
-        <button id="refresh" class="icon" title="Refresh now">↻</button>
-        <button id="settings-btn" class="icon" title="Leagues to track">⚙</button>
+        <button id="refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button>
+        <button id="settings-btn" class="icon" title="Leagues to track" aria-label="Leagues to track">⚙</button>
       </div>
     </header>
     <div class="stage" id="stage"><div class="idle" id="stage-idle">Plays pop here the moment they happen</div></div>
@@ -47,7 +47,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <select id="lv-league" title="Show one league"><option value="">All leagues</option></select>
         </div>
         <ol id="feed"></ol>
-        <p id="feed-empty" class="muted small empty">Every scoring play by your starters and your opponents' starters lands here, with what it did in each league.</p>
+        <p id="feed-empty" class="muted small empty">New scoring plays by your starters and your opponents' show up here as they happen, with what each did in every league.</p>
       </section>
       <section data-pane="matchups" hidden>
         <div id="scoreboard"><p class="muted small empty">Loading your leagues…</p></div>
@@ -58,7 +58,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </div>
   `;
 
-  const NEED_USERNAME = 'Add your Sleeper username in the extension popup (click the toolbar icon) to get started.';
+  const NEED_USERNAME = 'Add your Sleeper username to get started.';
   const LIVE_POLL_MS = 15000;
   const IDLE_POLL_MS = 120000;
   const CONTEXT_TTL_MS = 5 * 60000; // lineups can change until each game locks
@@ -76,6 +76,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     projAt: 0,
     clocks: [], // ESPN games with the share of each still to play
     clocksAt: 0,
+    trend: { key: null, series: {} }, // leagueId -> [[ts, chance]] for this week
     snapshot: null, // { key, stats } last diffed snapshot, persisted
     events: [], // newest first, persisted per week
     schedule: { games: [], loadedAt: 0 },
@@ -225,6 +226,42 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return NightOwl.season.winProbability(side(lg.matchup.mine), side(lg.matchup.opp));
   }
 
+  // Starters whose game isn't over yet (including ones not started).
+  const stillToPlay = (side) => (side ? side.starters.filter((pid) => remainingFor(info(pid).team) > 0).length : 0);
+
+  // Win chance over the day, one point per poll (persisted for the week).
+  function recordTrend(ctx) {
+    const key = weekKey(ctx);
+    if (state.trend.key !== key) state.trend = { key, series: {} };
+    const now = Date.now();
+    for (const lg of activeLeagues()) {
+      const chance = winChance(lg);
+      if (chance == null) continue;
+      const series = state.trend.series[lg.leagueId] || (state.trend.series[lg.leagueId] = []);
+      const last = series[series.length - 1];
+      if (last && Math.abs(last[1] - chance) < 0.005 && now - last[0] < 15 * 60000) continue;
+      series.push([now, Math.round(chance * 1000) / 1000]);
+      if (series.length > 400) series.splice(0, series.length - 400);
+    }
+    storage.set({ 'live.trend': state.trend });
+  }
+
+  // A small line of your win chance through the day, 50% marked.
+  function trendSvg(series) {
+    if (!series || series.length < 2) return '';
+    const w = 300;
+    const h = 44;
+    const t0 = series[0][0];
+    const span = Math.max(1, series[series.length - 1][0] - t0);
+    const pts = series.map(([t, p]) => `${((t - t0) / span * w).toFixed(1)},${((1 - p) * h).toFixed(1)}`).join(' ');
+    const end = series[series.length - 1][1];
+    return `<div class="trend"><span class="muted small">Win chance today</span>
+      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="${h / 2}" x2="${w}" y2="${h / 2}" class="mid"/>
+        <polyline points="${pts}" class="${end >= 0.5 ? 'good' : 'bad'}"/>
+      </svg></div>`;
+  }
+
   // ---- the poll ---------------------------------------------------------
   async function poll(force) {
     if (state.busy || !root || !state.settings.username) return;
@@ -247,6 +284,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
       state.stats = cur;
       await loadOutlook(ctx);
+      recordTrend(ctx);
 
       const leagues = activeLeagues();
       const key = weekKey(ctx);
@@ -259,7 +297,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (fresh.length) state.events = fresh.concat(state.events).slice(0, MAX_EVENTS);
         if (!gap) celebrate(fresh);
       } else {
-        state.events = [];
+        // First look this week (or this install): everything so far becomes a
+        // "So far today" recap instead of an empty feed.
+        const fresh = tracker.diffEvents(tracker.trimSnapshot({}, leagues), cur, leagues, info, Date.now());
+        for (const ev of fresh) { ev.catchUp = true; ev.firstLook = true; ev.since = ev.ts; }
+        if (fresh.length) state.openRecaps.add(`${fresh[0].since}-${fresh[0].ts}`); // start it open
+        state.events = fresh;
       }
       state.snapshot = { key, at: Date.now(), stats: tracker.trimSnapshot(cur, leagues) };
       state.lastPoll = Date.now();
@@ -291,7 +334,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!root) return;
     const ctx = state.ctx;
     if (ctx) $('week-label').textContent = `Week ${ctx.week}${ctx.seasonType === 'post' ? ' playoffs' : ''}`;
-    $('updated').textContent = state.lastPoll ? new Date(state.lastPoll).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '';
+    $('updated').textContent = state.lastPoll ? `updated ${clockOf(state.lastPoll)}` : '';
     renderIdle();
     renderGames();
     renderScoreboard();
@@ -437,15 +480,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const last = state.events.find((ev) => !ev.catchUp);
     const recap = !last && state.events[0];
     const live = state.schedule.games.find((g) => g.status === 'in_game');
-    const lc = last ? teams.colors(last.team) : null;
-    $('stage').style.setProperty('--idle-tint', lc ? lc.primary : 'transparent');
     $('stage-idle').innerHTML = last
       ? `<span class="muted small">Last play · ${clockOf(last.ts)}</span>
          <span class="idle-who"><img alt="" src="${/^[A-Z]{2,3}$/.test(last.pid) ? teams.logo(last.team) : teams.headshot(last.pid)}"><b>${esc(last.name)}</b></span>
          <span>${esc(last.text)}</span>
          <span class="impacts idle-impacts">${impactChips(last)}</span>`
       : `<span class="muted">${live ? `${esc(live.away)} @ ${esc(live.home)} is live. Waiting for the next play.` : 'Plays pop here the moment they happen'}</span>
-         ${recap ? `<span class="muted small">Caught up on everything since ${clockOf(recap.since || recap.ts)}</span>` : ''}`;
+         ${recap && !recap.firstLook ? `<span class="muted small">Caught up on everything since ${clockOf(recap.since || recap.ts)}</span>` : ''}`;
   }
 
   // The player in uniform: a jersey in team colors with their number, their
@@ -505,6 +546,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const prev = state.prevScores || {};
     state.prevScores = {};
     let winning = 0;
+    let favored = 0;
+    let withChance = 0;
     let withOpp = 0;
 
     $('scoreboard').innerHTML = leagues.map((lg) => {
@@ -514,30 +557,34 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (s.margin != null) { withOpp++; if (s.margin > 0) winning++; }
       const before = prev[lg.leagueId];
       const moved = before && (before.mine !== s.mine || before.opp !== s.opp);
-      const mood = s.margin > 0 ? 'win' : s.margin < 0 ? 'lose' : 'tie';
       const chance = winChance(lg);
+      // Once odds exist the card's tone follows them, so a card never says
+      // "losing" next to "Win 96%". The score gap stays neutral.
+      const mood = chance != null ? (chance >= 0.5 ? 'win' : 'lose') : s.margin > 0 ? 'win' : s.margin < 0 ? 'lose' : 'tie';
+      if (chance != null) { withChance++; if (chance >= 0.5) favored++; }
       // The bar shows your chance to win once projections are in, else your
       // share of the combined score.
       const pct = s.opp == null ? 100 : chance == null ? share(s.mine, s.opp) : Math.round(chance * 100);
       const odds = chance == null ? '' : `<span class="winpct ${chance >= 0.5 ? 'good' : 'bad'}" title="Chance to win, from live points plus projections for the time left">Win ${pctLabel(chance)}</span>`;
       return `<details class="match ${mood}${moved ? ' flash' : ''}" data-id="${lg.leagueId}"${open.has(lg.leagueId) ? ' open' : ''}>
         <summary>
-          <div class="m-league"><span class="lname">${esc(lg.name)}</span>${odds}${s.margin == null ? '' : `<span class="margin ${mood}">${signed(s.margin)}</span>`}</div>
+          <div class="m-league"><span class="lname">${esc(lg.name)}</span>${odds}${s.margin == null ? '' : `<span class="margin${chance == null ? ` ${mood}` : ''}">${signed(s.margin)}</span>`}</div>
           <div class="m-row">
             ${avatarImg(lg.myAvatar, lg.myName, 'me')}
             <div class="m-side me">
-              <span class="tname">${esc(lg.myName)}</span>
+              <span class="tname">${esc(lg.myName)}${chance == null ? '' : ` · ${stillToPlay(lg.matchup.mine)} to play`}</span>
               <span class="big${moved && before.mine !== s.mine ? ' bump' : ''}" data-from="${before ? before.mine : s.mine}" data-to="${s.mine}">${fmt(s.mine)}</span>
             </div>
             <span class="vs">VS</span>
             <div class="m-side opp">
-              <span class="tname">${esc(lg.oppName || 'Bye week')}</span>
+              <span class="tname">${esc(lg.oppName || 'Bye week')}${chance == null || !lg.matchup.opp ? '' : ` · ${stillToPlay(lg.matchup.opp)} to play`}</span>
               <span class="big${moved && before.opp !== s.opp ? ' bump' : ''}" data-from="${before ? before.opp : s.opp}" data-to="${s.opp == null ? '' : s.opp}">${fmt(s.opp)}</span>
             </div>
             ${lg.oppName ? avatarImg(lg.oppAvatar, lg.oppName, 'opp') : ''}
           </div>
-          ${s.opp == null ? '' : `<span class="wp"><span style="width:${pct}%"></span><i style="left:${pct}%"></i></span>`}
+          ${s.opp == null ? '' : `<span class="wp" role="img" aria-label="${chance == null ? `Your share of points: ${pct}%` : `Win chance: ${pct}%`}" title="${chance == null ? 'Your share of the points so far' : 'Your chance to win'}"><span style="width:${pct}%"></span><i style="left:${pct}%"></i></span>`}
         </summary>
+        ${trendSvg(state.trend.series[lg.leagueId])}
         <div class="lineups">
           <div><h3>${esc(lg.myName)}</h3>${lineup(lg, lg.matchup.mine)}</div>
           <div><h3>${esc(lg.oppName || '')}</h3>${lineup(lg, lg.matchup.opp)}</div>
@@ -545,7 +592,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </details>`;
     }).join('') || '<p class="muted small">No in-season leagues found.</p>';
 
-    $('net-total').innerHTML = withOpp ? `<span class="pill-count ${winning * 2 >= withOpp ? 'good' : 'bad'}" title="Leading in ${winning} of ${withOpp}">${winning}/${withOpp}</span>` : '';
+    // Once win odds exist, count where you're favored (what matters); before
+    // that, where you're ahead right now.
+    $('net-total').innerHTML = withChance
+      ? `<span class="pill-count ${favored * 2 >= withChance ? 'good' : 'bad'}" title="Favored to win ${favored} of ${withChance}">${favored}/${withChance} favored</span>`
+      : withOpp ? `<span class="pill-count ${winning * 2 >= withOpp ? 'good' : 'bad'}" title="Leading in ${winning} of ${withOpp}">${winning}/${withOpp} up</span>` : '';
     root.querySelectorAll('.match .big[data-to]').forEach(countUp);
     root.querySelectorAll('img.av').forEach((img) => img.addEventListener('error', () => img.replaceWith(Object.assign(document.createElement('span'), { className: img.className + ' blank', textContent: '•' }))));
   }
@@ -577,7 +628,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return shownImpacts(ev).map((im) => {
       const v = forMe(im);
       const cls = v > 0 ? 'helps' : v < 0 ? 'hurts' : 'zero';
-      return `<span class="impact ${cls}" title="${im.side === 'me' ? 'Your starter' : "Your opponent's starter"} in ${esc(im.leagueName)}">${esc(im.leagueName)} <b>${signed(v)}</b></span>`;
+      return `<span class="impact ${cls}" title="${im.side === 'me' ? 'Your starter' : "Your opponent's starter"} in ${esc(im.leagueName)}">${esc(im.leagueName)} <b>${signed(v, short)}</b></span>`;
     }).join('');
   }
 
@@ -629,7 +680,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </div>`).join('');
     return `<li class="recap"><details data-recap="${key}"${state.openRecaps.has(key) ? ' open' : ''}>
         <summary>
-          <span class="recap-title"><b>While you were away</b><span class="muted small">${clockOf(since)} – ${clockOf(group[0].ts)} · ${group.length} player${group.length === 1 ? '' : 's'}</span></span>
+          <span class="recap-title"><b>${group[0].firstLook ? 'So far today' : 'While you were away'}</b><span class="muted small">${group[0].firstLook ? `up to ${clockOf(group[0].ts)}` : `${clockOf(since)} – ${clockOf(group[0].ts)}`} · ${group.length} player${group.length === 1 ? '' : 's'}</span></span>
         </summary>
         ${rows}
       </details></li>`;
@@ -641,7 +692,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('feed-empty').hidden = list.length > 0;
     $('feed-empty').textContent = state.events.length
       ? 'No plays match these filters.'
-      : "Every scoring play by your starters and your opponents' starters lands here, with what it did in each league.";
+      : "New scoring plays by your starters and your opponents' show up here as they happen, with what each did in every league.";
     const first = state.seenEventIds.size === 0;
     const html = [];
     let lastTs = null;
@@ -663,7 +714,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       html.push(playRow(ev, !first && !state.seenEventIds.has(ev.id)));
     }
     $('feed').innerHTML = html.join('');
-    $('lv-count-feed').textContent = state.events.length ? String(state.events.filter((ev) => !ev.catchUp).length) : '';
+    $('lv-count-feed').textContent = String(state.events.filter((ev) => !ev.catchUp).length || '');
     for (const ev of state.events) state.seenEventIds.add(ev.id);
   }
 
@@ -808,6 +859,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.ctx = await storage.get('live.ctx', null);
     if (state.ctx && state.ctx.username !== state.settings.username) state.ctx = null;
     state.snapshot = await storage.get('live.snapshot', null);
+    state.trend = await storage.get('live.trend', { key: null, series: {} });
     const saved = await storage.get('live.events', null);
     if (saved && state.snapshot && saved.key === state.snapshot.key) state.events = saved.list;
     render();

@@ -30,7 +30,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const MARKUP = `
     <header class="bar">
       <div class="title"><strong>Season</strong><span id="se-week" class="muted small"></span></div>
-      <div class="actions"><button id="se-refresh" class="icon" title="Refresh now">↻</button></div>
+      <div class="actions"><button id="se-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button></div>
     </header>
     <div class="tool-scroll">
       <p id="se-error" class="error" hidden></p>
@@ -52,6 +52,28 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
     if (fetched.length) await storage.set({ [key]: cached });
     return weeks.map((w) => cached[w]).filter(Boolean);
+  }
+
+  // The rest of the regular season's pairings ([[rosterA, rosterB], ...] per
+  // week). Sleeper publishes the whole schedule up front, so it's cached.
+  async function remainingSchedule(leagueId, fromWeek, untilWeek) {
+    const key = `season.schedule.${leagueId}`;
+    const cached = await storage.get(key, {});
+    const weeks = [];
+    for (let w = fromWeek; w < untilWeek; w++) weeks.push(w);
+    const missing = weeks.filter((w) => !cached[w]);
+    const fetched = await Promise.all(missing.map((w) => api.matchups(leagueId, w).then((m) => [w, m])));
+    for (const [w, matchups] of fetched) {
+      const byMatch = new Map();
+      for (const m of matchups || []) {
+        if (m.matchup_id == null) continue;
+        if (!byMatch.has(m.matchup_id)) byMatch.set(m.matchup_id, []);
+        byMatch.get(m.matchup_id).push(m.roster_id);
+      }
+      cached[w] = [...byMatch.values()].filter((pair) => pair.length === 2);
+    }
+    if (fetched.length) await storage.set({ [key]: cached });
+    return weeks.map((w) => cached[w] || []);
   }
 
   // Last finished week for your team: actual vs best possible, and the
@@ -82,7 +104,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const shared = await storage.get('settings', {});
     const own = await storage.get('live.settings', {});
     const username = (shared.username || '').trim();
-    if (!username) throw new Error('Add your Sleeper username in the extension popup (click the toolbar icon) to get started.');
+    if (!username) throw new Error('Add your Sleeper username to get started.');
     if (username !== state.username) { state.username = username; state.userId = null; }
     const excluded = new Set(own.excluded || []);
 
@@ -113,10 +135,29 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const names = new Map(users.map((u) => [u.user_id, (u.metadata && u.metadata.team_name) || u.display_name]));
       const medianGame = !!(lg.settings && lg.settings.league_average_match);
       const rows = season.standings(rosters, weeks, { medianGame }).map((row) => Object.assign(row, { name: names.get(row.ownerId) || `Team ${row.rosterId}` }));
+      const playoffTeams = (lg.settings && lg.settings.playoff_teams) || 0;
+      const playoffStart = (lg.settings && lg.settings.playoff_week_start) || 15;
+      if (playoffTeams && week < playoffStart) {
+        try {
+          const schedule = await remainingSchedule(lg.league_id, week, playoffStart);
+          const odds = season.playoffOdds({
+            teams: rows.map((r) => Object.assign({ rosterId: r.rosterId, wins: r.wins, ties: r.ties, pf: r.pf }, season.teamStrength(weeks, r.rosterId))),
+            schedule,
+            playoffTeams,
+            medianGame,
+            sims: 2000,
+            seed: season.hash(`${lg.league_id}:${week}`)
+          });
+          for (const r of rows) r.playoffOdds = odds[r.rosterId];
+        } catch (err) {
+          console.warn('[Night Owl season] playoff odds unavailable', err);
+        }
+      }
       return {
         leagueId: lg.league_id,
         name: lg.name.trim(),
-        playoffTeams: (lg.settings && lg.settings.playoff_teams) || 0,
+        playoffTeams,
+        medianGame,
         rows,
         me: rows.find((r) => r.rosterId === mine.roster_id),
         review: finished.length ? weekReview(lg, lastWeek || [], mine, finished[finished.length - 1]) : null
@@ -150,8 +191,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const tail = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
     return `${n}${tail}`;
   };
-  const record = (w, l, t) => `${w}-${l}${t ? `-${t}` : ''}`;
+  const record = (w, l, t) => `${w}–${l}${t ? `–${t}` : ''}`;
   const luckText = (luck) => (luck == null ? '–' : luck === 0 ? 'even' : `${luck > 0 ? '+' : '−'}${num(Math.abs(luck))} ${Math.abs(luck) === 1 ? 'win' : 'wins'}`);
+  const oddsLabel = (p) => (p >= 0.995 ? '>99%' : p > 0 && p < 0.005 ? '<1%' : percent(p));
   const playerName = (pid) => (pid ? players.info(pid).name : 'an empty slot');
 
   function reviewLine(r) {
@@ -171,7 +213,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function table(lg) {
     const cut = lg.playoffTeams;
     return `<table class="se-table">
-      <thead><tr><th>#</th><th>Team</th><th title="Wins-losses">Record</th><th title="Record if you played every team every week">All-play</th><th title="Points for">PF</th><th title="Wins above what your scores earned">Luck</th></tr></thead>
+      <thead><tr><th>#</th><th>Team</th><th title="Wins-losses">Record</th><th title="Record if you played every team every week">All-play</th><th title="Points for">PF</th><th title="Wins above what your scores earned">Luck</th>${lg.rows.some((r) => r.playoffOdds != null) ? '<th title="Chance to make the playoffs">Playoffs</th>' : ''}</tr></thead>
       <tbody>${lg.rows.map((r) => `
         <tr class="${r === lg.me ? 'me' : ''}${cut && r.rank === cut ? ' cut' : ''}">
           <td>${r.rank}</td>
@@ -180,6 +222,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <td>${record(r.allPlay.w, r.allPlay.l, r.allPlay.t)}</td>
           <td>${num(r.pf)}</td>
           <td class="${r.luck > 0 ? 'up' : r.luck < 0 ? 'down' : ''}">${r.luck == null ? '–' : `${r.luck > 0 ? '+' : r.luck < 0 ? '−' : ''}${num(Math.abs(r.luck))}`}</td>
+          ${r.playoffOdds == null ? '' : `<td>${oddsLabel(r.playoffOdds)}</td>`}
         </tr>`).join('')}</tbody>
     </table>${cut ? `<p class="muted small se-note">Line under ${ordinal(cut)}: playoff cut.</p>` : ''}`;
   }
@@ -194,9 +237,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <span class="se-rank${inPlayoffs ? ' in' : ''}" title="${inPlayoffs ? 'In a playoff spot' : 'Outside the playoff spots'}">${ordinal(m.rank)} of ${lg.rows.length}</span>
         </div>
         <div class="se-stats">
-          <span><b>${record(m.wins, m.losses, m.ties)}</b> record</span>
+          <span><b>${record(m.wins, m.losses, m.ties)}</b> record${lg.medianGame ? ' <i class="se-aside" title="This league also plays the league median every week">incl. median</i>' : ''}</span>
           <span><b>${record(m.allPlay.w, m.allPlay.l, m.allPlay.t)}</b> all-play</span>
           <span class="${m.luck > 0 ? 'up' : m.luck < 0 ? 'down' : ''}"><b>${luckText(m.luck)}</b> luck</span>
+          ${m.playoffOdds == null ? '' : `<span class="${m.playoffOdds >= 0.5 ? 'up' : 'down'}"><b>${oddsLabel(m.playoffOdds)}</b> playoff odds</span>`}
           ${m.efficiency == null ? '' : `<span><b>${percent(m.efficiency)}</b> of max points</span>`}
         </div>
         ${reviewLine(lg.review)}

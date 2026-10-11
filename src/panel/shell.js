@@ -56,6 +56,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   let panel = null;
   let mounting = null;
   let active = null; // id of the mounted view, if any
+  let needsSetup = false; // no Sleeper username yet
 
   const toolOf = (value) => (TOOLS.some((t) => t.id === value) ? value : 'live');
   const viewOf = (id) => NightOwl.views && NightOwl.views[id];
@@ -73,6 +74,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     unmountActive();
     document.getElementById(HOST_ID)?.remove();
     ui = await storage.getUi();
+    needsSetup = !(await storage.getSettings()).username;
 
     const host = document.createElement('div');
     host.id = HOST_ID;
@@ -91,6 +93,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <button class="iconbtn" data-act="collapse"></button>
       </header>
       ${TOOLS.map((t) => `<div class="view view-${t.id}" hidden></div>`).join('')}
+      <form class="setup" hidden>
+        <div class="setup-mark">${BRAND}</div>
+        <h2>Welcome to Night Owl</h2>
+        <p>Type your Sleeper username to see your leagues.</p>
+        <div class="setup-row">
+          <input name="username" type="text" placeholder="Sleeper username" autocomplete="username" spellcheck="false" aria-label="Sleeper username" required>
+          <button type="submit">Start</button>
+        </div>
+        <p class="setup-msg" role="status"></p>
+        <p class="setup-note">It's the name on your Sleeper profile. Night Owl only reads public league data, and nothing leaves your browser.</p>
+      </form>
       <div class="source-note" role="status" hidden></div>
       ${EDGES.map((e) => `<div class="rz rz-${e}" data-edge="${e}" aria-hidden="true"></div>`).join('')}
     `;
@@ -98,6 +111,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     document.documentElement.appendChild(host);
 
     wire();
+    wireSetup();
     showOutages(NightOwl.api.unavailable());
     place();
     apply();
@@ -123,11 +137,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
     const collapse = panel.querySelector('[data-act="collapse"]');
     collapse.textContent = ui.collapsed ? '▢' : '—';
-    collapse.title = ui.collapsed ? 'Expand' : 'Collapse';
-    for (const t of TOOLS) panel.querySelector(`.view-${t.id}`).hidden = t.id !== tool;
+    collapse.title = ui.collapsed ? 'Expand' : 'Minimize';
+    collapse.setAttribute('aria-label', collapse.title);
+    // Everything but the draft board needs your username first.
+    const setup = needsSetup && tool !== 'draft' && !ui.collapsed;
+    for (const t of TOOLS) panel.querySelector(`.view-${t.id}`).hidden = setup || t.id !== tool;
+    panel.querySelector('.setup').hidden = !setup;
     slideIndicator();
 
-    const next = ui.collapsed ? null : tool;
+    const next = ui.collapsed || setup ? null : tool;
     if (next === active) return;
     unmountActive();
     if (next && viewOf(next)) {
@@ -280,6 +298,42 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       : '';
   }
   NightOwl.api.onAvailability(showOutages);
+
+  // First-run setup: look the username up, then save it. The settings change
+  // brings every tool to life (here and in the popup).
+  function wireSetup() {
+    const form = panel.querySelector('.setup');
+    const msg = form.querySelector('.setup-msg');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = form.username.value.trim();
+      if (!username) return;
+      const button = form.querySelector('button');
+      button.disabled = true;
+      msg.textContent = 'Looking you up…';
+      try {
+        const user = await NightOwl.api.user(username);
+        if (user && user.user_id) {
+          msg.textContent = '';
+          await storage.saveSettings({ username, userId: user.user_id });
+        } else {
+          msg.textContent = `No Sleeper user named "${username}". Check the spelling.`;
+        }
+      } catch {
+        msg.textContent = "Couldn't reach Sleeper. Try again in a moment.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+    storage.onChanged((changes) => {
+      if (!changes.settings || !panel) return;
+      const next = !((changes.settings.newValue || {}).username);
+      if (next !== needsSetup) {
+        needsSetup = next;
+        apply();
+      }
+    });
+  }
 
   /** The page URL changed (Sleeper is a single-page app). */
   function navigated() {

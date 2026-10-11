@@ -14,7 +14,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     { key: 'name', label: 'Player' },
     { key: 'position', label: 'Pos' },
     { key: 'status', label: 'Status' },
-    { key: 'delta', label: 'Δ', title: 'Pick minus your rank: + fell to a value, − went early' }
+    { key: 'delta', label: 'Value', title: 'Pick minus your rank: + fell to a value, − went early' }
   ];
   const EMPTY = {
     loading: 'Loading the draft…',
@@ -38,7 +38,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function sortRows(rows, prefs) {
     const dir = prefs.sortDir === 'asc' ? 1 : -1;
+    // Who's still available matters most: drafted players sink below them,
+    // except when sorting by status or value, which are about the picks.
+    const sinkDrafted = prefs.sortBy !== 'status' && prefs.sortBy !== 'delta';
     return rows.slice().sort((a, b) => {
+      if (sinkDrafted && !a.pickNo !== !b.pickNo) return a.pickNo ? 1 : -1;
       const av = sortValue(a, prefs.sortBy);
       const bv = sortValue(b, prefs.sortBy);
       if (typeof av === 'string' || typeof bv === 'string') return String(av || '').localeCompare(String(bv || '')) * dir;
@@ -86,11 +90,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       : rows.length ? tableHtml(rows, prefs) : '<div class="empty">Nothing matches the current filter.</div>';
 
     el.innerHTML = `
-      ${state.myTurn ? '<div class="turn">YOU ARE ON THE CLOCK</div>' : ''}
+      ${state.myTurn ? `<div class="turn">You're on the clock${state.message ? ` · ${esc(state.message)}` : ''}</div>` : ''}
       <div class="controls">
         ${POSITIONS.map((p) => `<button class="chip ${prefs.position === p ? 'active' : ''}" data-pos="${p}">${p}</button>`).join('')}
         <label class="toggle"><input type="checkbox" data-act="hide-drafted" ${prefs.hideDrafted ? 'checked' : ''}/> hide drafted</label>
-        <span class="status ${state.kind || ''}">${esc(state.message || '')}</span>
+        <span class="status ${state.kind || ''}">${state.myTurn ? '' : esc(state.message || '')}</span>
       </div>
       ${unmatched > 0 && state.status === 'ok'
         ? `<div class="warnbar">${unmatched} ranked player${unmatched === 1 ? '' : 's'} didn't match a Sleeper player. Check the spelling in the popup.</div>`

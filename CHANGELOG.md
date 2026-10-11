@@ -1,5 +1,41 @@
 # Changelog
 
+## 3.4.0
+New:
+- **Setup inside the panel:** type your Sleeper username right in the panel
+  the first time you open it. The popup is no longer required.
+- **Lineup alerts:** a Chrome notification when one of your starters is ruled
+  out, put on IR, or on bye before his game locks, from ESPN's injury report.
+  Click it to open that league's lineup page; switch alerts off in the popup.
+- **Playoff odds** in Season, for you and every team in each league, from
+  2,000 simulations of the rest of the regular season (median games included).
+- **Live matchups** show how many starters each side still has to play, a
+  win-chance line through the day, and how many matchups you're favored in.
+- **Bets** keeps closing lines even if the tab wasn't open before kickoff
+  (the background worker saves them), and players without a line show their
+  live stats instead of a dead end.
+
+Polish, from a design review:
+- Live opens with a **So far today** recap instead of an empty feed mid-slate.
+- Lineups only says "All set" when there's truly nothing to fix.
+- Calmer look: a quiet panel frame that turns teal while your games are on, a
+  solid tab highlight, and no decorative glows, sweeps or sparkles. Rows are
+  neutral; team colours stay in the play pop-ups.
+- The idle Live stage shrinks to a strip between plays.
+- Optimal lineup suggestions are teal; amber is only for warnings.
+- Bets toolbar: kickoff times in a dropdown, two rows instead of four.
+- Draft board lists available players first, "Value" column, pick number in
+  the on-the-clock banner.
+- Season notes median-game records and shows which leagues expand.
+- Visible keyboard focus, larger tap targets, labelled icon buttons.
+- Matchup cards take their colour from the win chance, so a card never looks
+  like a loss next to "Win 96%". The score gap stays neutral.
+- Live bets read as progress: "38 of 54.5 rec yds".
+- Lineup counts match what's listed, with one word ("to fix") everywhere; a
+  backup list shows projections instead of negative gains.
+- The recap folds bonus scoring keys into "big-play bonus" and keeps each
+  player to two lines.
+
 ## 3.3.0
 Ideas from r/fantasyfootballcoding and other Sleeper tools.
 - New **Season** tab: every league in one place, with your rank, record,

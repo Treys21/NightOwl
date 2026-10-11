@@ -40,7 +40,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const MARKUP = `
     <header class="bar">
       <div class="title"><strong>Lineups</strong><span id="lu-week" class="muted small"></span></div>
-      <div class="actions"><button id="lu-refresh" class="icon" title="Refresh now">↻</button></div>
+      <div class="actions"><button id="lu-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button></div>
     </header>
     <div class="tool-scroll">
       <p id="lu-error" class="error" hidden></p>
@@ -53,7 +53,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const shared = await storage.get('settings', {});
     const own = await storage.get('live.settings', {});
     const username = (shared.username || '').trim();
-    if (!username) throw new Error('Add your Sleeper username in the extension popup (click the toolbar icon) to get started.');
+    if (!username) throw new Error('Add your Sleeper username to get started.');
     if (username !== state.username) { state.userId = null; state.username = username; }
     state.excluded = own.excluded || [];
 
@@ -167,22 +167,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // your lineup's projection: teal + means the swap helps, grey − means it hurts.
   function optionsList(r) {
     if (!r.options || !r.options.length) return '';
-    const label = r.status === 'start' ? 'Swap out for' : 'Start over';
+    // With nothing to gain, the list is a backup plan: show projections, not
+    // a row of negative "gains".
+    const anyGain = r.options.some((o) => o.gain > 0);
+    const label = !anyGain && r.status === 'start' ? 'Backup if he sits · proj'
+      : `${r.status === 'start' ? 'Swap out for' : 'Start over'} · ${anyGain ? 'pts gained' : 'pts lost'}`;
     const chip = (o) => {
       const cls = o.gain > 0 ? 'up' : o.gain < 0 ? 'down' : '';
       const effect = o.gain > 0 ? `gains ${fmt(o.gain)}` : o.gain < 0 ? `loses ${fmt(-o.gain)}` : 'is a wash';
       const where = o.via
-        ? `${esc(slotLabel(o.slot))}, ${esc(o.via.name)} → ${esc(slotLabel(o.via.slot))}`
+        ? `${esc(slotLabel(o.slot))} (${esc(o.via.name)} moves to ${esc(slotLabel(o.via.slot))})`
         : esc(slotLabel(o.slot));
       const title = r.status === 'start'
         ? `Benching ${r.name} for ${o.name} (${fmt(o.proj)} proj) ${effect}`
         : `Starting ${r.name} over ${o.name} (${fmt(o.proj)} proj) ${effect}`;
       return `<span class="lu-opt ${cls}" title="${esc(title)}${o.via ? ` (${esc(o.via.name)} slides to ${esc(slotLabel(o.via.slot))})` : ''}">
-        <b>${esc(o.name)}</b><span class="lu-opt-slot">${where}</span><span class="lu-gain ${cls}">${o.gain > 0 ? '+' : o.gain < 0 ? '−' : '±'}${fmt(Math.abs(o.gain))}</span></span>`;
+        <b>${esc(o.name)}</b><span class="lu-opt-slot">${where}</span>${!anyGain && r.status === 'start'
+    ? `<span class="lu-gain">${fmt(o.proj)}</span>`
+    : `<span class="lu-gain ${cls}">${o.gain > 0 ? '+' : o.gain < 0 ? '−' : '±'}${fmt(Math.abs(o.gain))}</span>`}</span>`;
     };
     const top = r.options.slice(0, 3).map(chip).join('');
     const rest = r.options.slice(3);
-    const anyGain = r.options.some((o) => o.gain > 0);
     return `<div class="lu-opts${anyGain ? '' : ' quiet'}"><span class="lu-opts-label">${label}</span>${top}${rest.length
       ? `<details class="lu-more"><summary>+${rest.length} more</summary>${rest.map(chip).join('')}</details>` : ''}</div>`;
   }
@@ -220,7 +225,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `<div class="lu-league">
       <div class="lu-league-head">
         <span class="lname">${esc(lg.name)}</span>
-        ${flags ? `<span class="lu-flagcount">${flags} to check</span>` : ''}
+        ${flags ? `<span class="lu-flagcount">${flags} to fix</span>` : ''}
         <a class="lu-edit" href="https://sleeper.com/leagues/${lg.leagueId}/team">Edit lineup ↗</a>
       </div>
       ${showBest ? bestBanner(lg) : ''}
@@ -262,18 +267,23 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       let starting = 0;
       let benched = 0;
       let flags = 0;
+      let better = 0; // leagues where the best lineup beats yours
       for (const lg of leagues) {
         const rows = sortRows(lg.rows.filter((r) => w.teams.has(r.team)));
         if (!rows.length) continue;
         starting += rows.filter((r) => r.status === 'start').length;
         benched += rows.filter((r) => r.status === 'bench').length;
         flags += rows.filter((r) => r.notes.some((n) => n.kind !== 'info')).length;
+        if (!bannered.has(lg.leagueId) && lg.best && lg.best.moves.length) better++;
         blocks.push(leagueBlock(lg, rows, !bannered.has(lg.leagueId)));
         bannered.add(lg.leagueId);
       }
       const open = i === 0 || state.open.has(w.kickoff);
       const soon = w.kickoff - Date.now() < 3600000;
-      const allSet = i === 0 && blocks.length && !flags;
+      // The count is what's on screen: flagged rows plus the Fix before
+      // kickoff items. "All set" also needs no better lineup on offer.
+      const toFix = flags + (i === 0 ? byes.length + empties.length : 0);
+      const allSet = i === 0 && blocks.length && !toFix && !better;
       const logos = w.games.slice(0, 8).map((g) => `<span class="lu-game"><img alt="" src="${teams.logo(g.away)}"><img alt="" src="${teams.logo(g.home)}"></span>`).join('');
       html.push(`<details class="lu-window${i === 0 ? ' next' : ''}" data-k="${w.kickoff}"${open ? ' open' : ''}>
         <summary>
@@ -283,7 +293,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
             <span class="lu-lock${soon ? ' soon' : ''}">locks in ${countdown(w.kickoff)}</span>
           </div>
           <div class="lu-games">${logos}</div>
-          <div class="lu-counts">${starting} starting · ${benched} benched${flags ? ` · <span class="lu-flagcount">${flags} to check</span>` : ''}${allSet ? '<span class="lu-allset">✓ All set</span>' : ''}</div>
+          <div class="lu-counts">${starting} starting · ${benched} benched${toFix ? ` · <span class="lu-flagcount">${toFix} to fix</span>` : ''}${allSet ? '<span class="lu-allset">✓ All set</span>' : ''}</div>
         </summary>
         ${blocks.length ? `<div class="lu-leagues">${blocks.join('')}</div>` : '<p class="muted small empty">Nobody on your rosters plays in this window.</p>'}
       </details>`);

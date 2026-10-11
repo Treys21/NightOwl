@@ -12,13 +12,13 @@
   animation: panel-in .5s cubic-bezier(.2,1.2,.4,1);
 }
 @keyframes panel-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
-/* Frame: a slowly turning gradient ring (the 1.5px gap between ::before and ::after). */
+/* Frame: a quiet 1.5px ring (the gap between ::before and ::after). It turns
+   teal while one of your games is on. */
 .panel::before {
-  content: ''; position: absolute; inset: -60%; z-index: -2;
-  background: conic-gradient(from 0deg, #00ceb8, #56c9f8, #bd66ff, #f75c8d, #feae58, #00ceb8);
-  animation: spin 9s linear infinite; opacity: .45; will-change: transform;
+  content: ''; position: absolute; inset: 0; z-index: -2; border-radius: 18px;
+  background: rgba(163,187,211,.2); transition: background .6s;
 }
-.panel.hot::before { animation-duration: 2.8s; opacity: 1; }
+.panel.hot::before { background: rgba(0,206,184,.5); }
 /* Aurora: three soft colour fields drifting behind everything. */
 .panel::after {
   content: ''; position: absolute; inset: 1.5px; z-index: -1; border-radius: 16.5px;
@@ -32,8 +32,6 @@
   /* Static on purpose: an animated background repaints everything above
      it every frame, which made scrolling the lists stutter. */
 }
-@keyframes spin { to { transform: rotate(1turn); } }
-@keyframes pillflow { to { background-position: 300% 0; } }
 @media (prefers-reduced-motion: reduce) { .panel, .panel::before, .panel::after, .brand .outer, .brand .inner, .brand .eyes, .brand .pupil, .switch .ind { animation: none; transition: none; } }
 .panel.collapsed { height: auto; }
 .panel.collapsed .view { display: none; }
@@ -48,7 +46,7 @@ header {
 /* The Night Owl mark ("Hybrid": cyan outer tube, pink inner tube). The tubes
    power on one after another when the panel opens (outer, inner, eyes); then
    the inner tube flickers and the pupils blink now and then. */
-.brand { width: 26px; height: 26px; flex: none; display: block; filter: drop-shadow(0 0 5px rgba(61,245,255,.4)) drop-shadow(0 0 3px rgba(255,79,216,.35)); }
+.brand { width: 26px; height: 26px; flex: none; display: block; }
 .brand .outer { animation: owl-on 1s .1s both; }
 .brand .inner { animation: owl-on 1s .45s both, owl-flicker 6s 3s infinite; }
 .brand .eyes { animation: owl-on 1s .8s both; }
@@ -62,10 +60,8 @@ header {
 }
 .switch .ind {
   position: absolute; top: 3px; bottom: 3px; left: 3px; width: 0; border-radius: 8px;
-  background: linear-gradient(120deg, #00ceb8, #2fe6d2, #56c9f8, #00ceb8);
-  background-size: 300% 100%; animation: pillflow 6s linear infinite;
-  box-shadow: 0 4px 16px rgba(0,206,184,.45), inset 0 1px 0 rgba(255,255,255,.35);
-  transition: left .4s cubic-bezier(.3,1.4,.5,1), width .4s cubic-bezier(.3,1.4,.5,1);
+  background: #00ceb8;
+  transition: left .25s cubic-bezier(.2,.8,.2,1), width .25s cubic-bezier(.2,.8,.2,1);
 }
 .switch button {
   position: relative; z-index: 1; flex: 1;
@@ -118,4 +114,41 @@ header {
 header .iconbtn { margin-left: auto; }
 @container view (max-width: 360px) {
   .lv-count { display: none; }
+}
+
+/* Keyboard focus is always visible; pointer clicks don't show it. */
+:is(button, a, summary, select, input, [tabindex]):focus-visible { outline: 2px solid #00ceb8; outline-offset: 2px; }
+/* Comfortable targets in a dense panel. */
+.iconbtn { min-width: 28px; min-height: 28px; }
+
+/* First-run setup, shown in place of a tool until a username is saved. */
+.setup {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 24px 22px; margin: 0 1.5px 1.5px; text-align: center; color: #bfcfe0;
+  font-size: 13px; container-type: inline-size;
+}
+.setup[hidden] { display: none; }
+.setup-mark .brand { width: 64px; height: 64px; }
+.setup h2 { margin: 6px 0 0; font: 700 18px Poppins, sans-serif; color: #fff; }
+.setup p { margin: 0; max-width: 300px; line-height: 1.45; }
+.setup-row { display: flex; gap: 6px; width: 100%; max-width: 300px; margin-top: 8px; }
+.setup input {
+  flex: 1; min-width: 0; font: 14px Inter, sans-serif; color: #fff; padding: 9px 12px; border-radius: 10px;
+  background: rgba(0,0,0,.35); border: 1px solid rgba(163,187,211,.2); outline: none;
+}
+.setup input:focus { border-color: #00ceb8; }
+.setup button {
+  font: 700 13px Poppins, sans-serif; color: #022047; background: #00ceb8; border: 0;
+  border-radius: 10px; padding: 0 16px; cursor: pointer;
+}
+.setup button:disabled { opacity: .6; cursor: wait; }
+.setup-msg { min-height: 18px; color: #feae58; font-size: 12px; }
+.setup-note { color: #8d9fbc; font-size: 11.5px; }
+.setup h2 { display: block; text-transform: none; letter-spacing: 0; }
+.setup h2::after { display: none; }
+
+/* Tab labels get room to breathe on the narrowest panels. */
+.panel { container: panel / inline-size; }
+@container panel (max-width: 360px) {
+  .switch button { padding: 5px 2px; font-size: 12px; }
 }

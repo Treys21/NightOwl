@@ -70,23 +70,31 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (m) return `${m[2]}+ ${UNIT[m[1]] || m[1].replace(/_/g, ' ')} bonus`;
     m = key.match(/^(pass|rush|rec)_(\d+)_(\d+)$/);
     if (m) return `${m[2]}-${m[3]} yd ${m[1]}`;
-    return key.replace(/^bonus_/, 'bonus ').replace(/_/g, ' ');
+    m = key.match(/^(pass|rush|rec)_(\d+)p$/);
+    if (m) return `${m[2]}+ yd ${m[1]}`;
+    m = key.match(/^bonus_rec_(te|rb|wr)$/);
+    if (m) return `${m[1].toUpperCase()} rec bonus`;
+    return key.replace(/^bonus_(.+)$/, '$1 bonus').replace(/_/g, ' ');
   }
 
   // "+1 rec · +15 rec yds" for the keys that matter in any of `scorings`.
   function describe(delta, scorings) {
     const parts = [];
+    const tags = [];
     for (const key of Object.keys(delta)) {
       if (HIDDEN.test(key)) continue;
       const scored = scorings.some((s) => s && s[key]);
       if (!scored && !ALWAYS.has(key)) continue;
       const v = delta[key];
-      // A one-off bonus reads as a tag ("40+ yd pass TD"), not a count.
-      const text = LABEL.has(key) || v !== 1 ? `${v > 0 ? '+' : ''}${v} ${LABEL.get(key) || humanize(key)}` : humanize(key);
-      parts.push({ key, text });
+      if (LABEL.has(key)) parts.push({ key, text: `${v > 0 ? '+' : ''}${v} ${LABEL.get(key)}` });
+      // A one-off bonus reads as a tag ("40+ yd pass TD"). Repeated ones
+      // (a summed catch-up) just echo stats already listed, so they fold away.
+      else if (v === 1) tags.push(humanize(key));
+      else if (v > 1) tags.fold = true;
     }
-    parts.sort((a, b) => (ORDER.has(a.key) ? ORDER.get(a.key) : 999) - (ORDER.has(b.key) ? ORDER.get(b.key) : 999));
-    return parts.map((p) => p.text).join(' · ');
+    parts.sort((a, b) => ORDER.get(a.key) - ORDER.get(b.key));
+    const extra = tags.length > 2 || (tags.fold && !tags.length) ? ['big-play bonus'] : tags;
+    return parts.map((p) => p.text).concat(extra).join(' · ');
   }
 
   NightOwl.scoring = { points, statDelta, deltaPoints, describe, round2 };

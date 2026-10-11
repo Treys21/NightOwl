@@ -125,6 +125,22 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   // Lines vanish at kickoff; keep the last known (closing) line per player and
   // market so live progress still has something to track against.
+  // What a player has done so far, by position, for when no line exists.
+  const LIVE_STATS = {
+    QB: [['pass_yd', 'pass yds'], ['pass_td', 'TD'], ['rush_yd', 'rush yds']],
+    RB: [['rush_yd', 'rush yds'], ['rec', 'rec'], ['rush_td', 'TD']],
+    WR: [['rec', 'rec'], ['rec_yd', 'yds'], ['rec_td', 'TD']],
+    TE: [['rec', 'rec'], ['rec_yd', 'yds'], ['rec_td', 'TD']],
+    K: [['fgm', 'FG'], ['xpm', 'XP']]
+  };
+  /** "4 rec · 38 yds so far", or '' when there's nothing to show. */
+  function liveLine(pos, stats) {
+    const parts = (LIVE_STATS[pos] || [])
+      .filter(([key], i) => i < 2 || (stats && stats[key]))
+      .map(([key, label]) => `${Math.round((stats && stats[key]) || 0)} ${label}`);
+    return parts.length ? `${parts.join(' · ')} so far` : '';
+  }
+
   function mergeLines(previous, fresh) {
     const out = Object.assign({}, previous || {});
     for (const [pid, markets] of Object.entries(fresh || {})) {
@@ -279,7 +295,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   NightOwl.bets = {
-    MARKETS, MILESTONES, statValue, impliedOver, american, parseLines, mergeLines, hitRate,
+    MARKETS, MILESTONES, statValue, liveLine, impliedOver, american, parseLines, mergeLines, hitRate,
     parseMilestones, impliedTotals, defenseRanks, progress, ordinal, keyMarket, SORTS, trimRungs
   };
 })(globalThis.NightOwl);

@@ -89,3 +89,7 @@ h2::after { content: ''; flex: 1; min-width: 20px; height: 1px; background: line
 
 /* Scroll performance: keep scroll chaining inside the panel. */
 .tool-scroll { overscroll-behavior: contain; }
+
+/* Comfortable targets in a dense panel. */
+button.icon { min-width: 28px; min-height: 28px; }
+.tab, .chip { min-height: 26px; }

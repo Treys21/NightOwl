@@ -12,6 +12,7 @@ importScripts(
   'shared/api.js',
   'shared/players.js',
   'lineups/core.js',
+  'bets/core.js',
   'alerts/core.js'
 );
 
@@ -37,7 +38,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 const ALARM = 'night-owl-lineups';
 const SENT_KEY = 'alerts.sent';
-const { api, storage, players, lineups, alerts } = globalThis.NightOwl;
+const { api, storage, players, lineups, alerts, bets } = globalThis.NightOwl;
+const LINES_KEY = 'bets.lines';
+const LINES_WINDOW_MS = 75 * 60000; // save closing lines in the hour before kickoff
 
 const schedule = () => chrome.alarms.create(ALARM, { periodInMinutes: 15, delayInMinutes: 1 });
 chrome.runtime.onInstalled.addListener(schedule);
@@ -46,13 +49,18 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) checkLineups().catch((err) => console.warn('[Night Owl alerts]', err));
 });
 
+// Runs every 15 minutes: keep closing lines, then check lineups.
 async function checkLineups() {
   const settings = await storage.getSettings();
-  if (!settings.username || settings.alerts === false) return;
+  if (!settings.username) return;
   const nfl = await api.state();
   if (nfl.season_type !== 'regular' && nfl.season_type !== 'post') return;
   const week = nfl.display_week || nfl.week;
   const seasonType = nfl.season_type === 'post' ? 'post' : 'regular';
+
+  const games = lineups.parseGames(await api.kickoffs(nfl.season, week, seasonType));
+  await saveClosingLines(games, `${nfl.season}-${seasonType}-${week}`).catch((err) => console.warn('[Night Owl lines]', err));
+  if (settings.alerts === false) return;
 
   let userId = settings.userId;
   if (!userId) {
@@ -73,11 +81,7 @@ async function checkLineups() {
     return set ? { leagueId: lg.league_id, name: lg.name.trim(), starters: set.starters || [] } : null;
   }))).filter(Boolean);
 
-  const [games, injuries] = await Promise.all([
-    api.kickoffs(nfl.season, week, seasonType).then(lineups.parseGames),
-    api.injuries().then(alerts.parseInjuries),
-    players.load()
-  ]);
+  const [injuries] = await Promise.all([api.injuries().then(alerts.parseInjuries), players.load()]);
   const kickoff = new Map();
   for (const g of games) { kickoff.set(g.home, g.kickoff); kickoff.set(g.away, g.kickoff); }
 
@@ -104,6 +108,18 @@ async function checkLineups() {
     sent.add(alert.key);
   }
   if (found.length) await storage.set({ [SENT_KEY]: [...sent].slice(-300) });
+}
+
+// Sleeper pulls a player's lines at kickoff. Merge in the latest ones shortly
+// before each game so Bets can still show the closing line and live progress,
+// even if the Bets tab wasn't open then.
+async function saveClosingLines(games, key) {
+  const now = Date.now();
+  if (!games.some((g) => g.kickoff > now && g.kickoff - now < LINES_WINDOW_MS)) return;
+  const saved = await storage.get(LINES_KEY, null);
+  const previous = saved && saved.key === key ? saved.lines : {};
+  const fresh = bets.parseLines(await api.lines());
+  await storage.set({ [LINES_KEY]: { key, lines: bets.mergeLines(previous, fresh) } });
 }
 
 // Clicking an alert opens that league's team page, where the lineup is set.

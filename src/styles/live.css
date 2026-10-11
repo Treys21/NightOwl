@@ -10,18 +10,18 @@
 .match:hover { transform: translateY(-1px); border-color: rgba(163, 187, 211, .18); }
 .match::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--line); }
 .match.win { box-shadow: inset 60px 0 60px -60px rgba(0, 206, 184, .35); }
-.match.win::before { background: var(--teal); box-shadow: 0 0 12px var(--teal); }
+.match.win::before { background: var(--teal); }
 .match.lose { box-shadow: inset 60px 0 60px -60px rgba(247, 92, 141, .3); }
-.match.lose::before { background: var(--pink); box-shadow: 0 0 12px var(--pink); }
+.match.lose::before { background: var(--pink); }
 .match[open] { background: linear-gradient(160deg, rgba(163, 187, 211, .1), rgba(163, 187, 211, .04)); }
 .match > summary { list-style: none; display: block; padding: 11px 12px 13px 14px; cursor: pointer; }
 .match > summary::-webkit-details-marker { display: none; }
 .m-league { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 9px; }
 .m-league .margin { flex: none; }
 .lname { font: 700 13px Poppins, sans-serif; color: var(--sub); min-width: 0; overflow-wrap: anywhere; }
-.margin { font: 700 12px Poppins, sans-serif; font-variant-numeric: tabular-nums; padding: 1px 8px; border-radius: 999px; background: var(--chip); }
-.margin.win { color: var(--teal-ink); background: var(--teal); box-shadow: 0 0 12px rgba(0, 206, 184, .4); }
-.margin.lose { color: #fff; background: var(--pink); box-shadow: 0 0 12px rgba(247, 92, 141, .35); }
+.margin { font: 700 12px Poppins, sans-serif; font-variant-numeric: tabular-nums; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--sub); }
+.margin.win { color: var(--teal-ink); background: var(--teal); }
+.margin.lose { color: #fff; background: var(--pink); }
 .m-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto minmax(0, 1fr) 30px; align-items: center; gap: 8px; }
 .av { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--chip); border: 2px solid var(--line); }
 .av.blank { display: grid; place-items: center; font: 700 13px Poppins, sans-serif; color: var(--sub); }
@@ -29,10 +29,10 @@
 .match.lose .av.opp { border-color: var(--pink); }
 .m-side { display: flex; flex-direction: column; min-width: 0; }
 .m-side.opp { align-items: flex-end; text-align: right; }
-.tname { font-size: 11px; line-height: 1.25; color: var(--muted); max-width: 100%; overflow-wrap: anywhere; }
+.tname { font-size: 11px; line-height: 1.25; color: var(--muted); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .big { font: 800 22px/1.1 Poppins, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .m-side.opp .big { color: var(--sub); }
-.match.win .m-side.me .big { color: #fff; text-shadow: 0 0 18px rgba(0, 206, 184, .45); }
+.match.win .m-side.me .big { color: #fff; }
 .match.lose .m-side.opp .big { color: #fff; }
 .vs { font: 800 10.5px Poppins, sans-serif; color: var(--muted); letter-spacing: .1em; padding: 3px 5px; border-radius: 6px; background: rgba(0, 0, 0, .25); }
 .wp { position: relative; display: block; height: 5px; border-radius: 3px; margin-top: 9px; background: linear-gradient(90deg, rgba(247, 92, 141, .5), var(--pink)); overflow: visible; }
@@ -68,7 +68,7 @@
 #feed { list-style: none; padding: 0; margin: 0; }
 .ev {
   position: relative; overflow: hidden; border-radius: 14px; padding: 11px 12px 11px 14px; margin-bottom: 8px;
-  background: linear-gradient(100deg, color-mix(in srgb, var(--tc, #262e3e) 22%, transparent), rgba(163, 187, 211, .03) 55%);
+  background: var(--card);
   border: 1px solid rgba(163, 187, 211, .07); border-left: 3px solid transparent;
   transition: transform .2s, border-color .2s;
 }
@@ -106,7 +106,7 @@
 /* The stage: a fixed strip just for play animations */
 .stage {
   flex: none; position: relative; height: 196px; overflow: hidden;
-  margin: 0 12px 4px; border-radius: 16px;
+  margin: 0 12px 4px; border-radius: 16px; transition: height .3s ease;
   background:
     radial-gradient(120% 90% at 50% 120%, rgba(0, 206, 184, .10), transparent 60%),
     repeating-linear-gradient(90deg, transparent 0 38px, rgba(163, 187, 211, .04) 38px 40px),
@@ -115,18 +115,11 @@
 }
 .stage .idle {
   position: absolute; inset: 0;
-  background: linear-gradient(115deg, color-mix(in srgb, var(--idle-tint, transparent) 28%, transparent), transparent 70%); display: flex; flex-direction: column; gap: 4px;
+  display: flex; flex-direction: column; gap: 4px;
   align-items: center; justify-content: center; text-align: center; padding: 0 16px;
   font-size: 13px; color: var(--sub); transition: opacity .3s;
 }
 .stage.busy .idle { opacity: 0; }
-.stage::after {
-  content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -40%; pointer-events: none;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .05), transparent);
-  animation: shimmer 4.5s ease-in-out infinite;
-}
-.stage.busy::after { display: none; }
-@keyframes shimmer { 60%, 100% { left: 110%; } }
 .stage .idle-who { display: flex; align-items: center; gap: 6px; color: #fff; }
 .stage .idle-who img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; object-position: 50% 18%; background: #fff; }
 .stage.glow-good { animation: glowgood 1.4s ease-out; }
@@ -218,7 +211,7 @@
   100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .big.bump, .ev.new, .pop, .pop *, .spark, .stage, .stage::after, .intro *, .live-tag { animation: none !important; }
+  .big.bump, .ev.new, .pop, .pop *, .spark, .stage, .intro *, .live-tag { animation: none !important; }
 }
 
 
@@ -237,64 +230,13 @@
 .card { background: rgba(31, 36, 49, .8); border: 1px solid rgba(163, 187, 211, .1); }
 /* Nothing on this row would help: keep the list but tone it down. */
 
-/* ==== Wow pass ==== */
-
-/* Glass: a faint top highlight on every card. */
-.match, .ev, .stage, .card {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 6px 18px rgba(0, 0, 0, .18);
-}
-.match.win { box-shadow: inset 60px 0 60px -60px rgba(0, 206, 184, .35), inset 0 1px 0 rgba(255, 255, 255, .06), 0 6px 18px rgba(0, 0, 0, .18); }
-.match.lose { box-shadow: inset 60px 0 60px -60px rgba(247, 92, 141, .3), inset 0 1px 0 rgba(255, 255, 255, .06), 0 6px 18px rgba(0, 0, 0, .18); }
-.match.win::before { animation: edgeglow 2.8s ease-in-out infinite; }
-@keyframes edgeglow { 50% { box-shadow: 0 0 18px var(--teal), 0 0 4px var(--teal); } }
-
-/* Light sweeps across a card on hover. */
-.match::after, .ev::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .08) 50%, transparent 65%);
-  transform: translateX(-110%); transition: transform .9s ease;
-}
-.match:hover::after, .ev:hover::after { transform: translateX(110%); }
-
-/* Gradient numerals. */
-.big {
-  background: linear-gradient(180deg, #ffffff 30%, #a3bbd3);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
-.m-side.opp .big { background-image: linear-gradient(180deg, #c9d6e3 30%, #677897); }
-.match.win .m-side.me .big { background-image: linear-gradient(180deg, #ffffff 10%, #00ceb8); text-shadow: none; filter: drop-shadow(0 0 10px rgba(0, 206, 184, .35)); }
-.match.lose .m-side.opp .big { background-image: linear-gradient(180deg, #ffffff 10%, #f75c8d); filter: drop-shadow(0 0 10px rgba(247, 92, 141, .3)); }
-
-/* Flowing gradient borders: next window (teal/violet), optimal banner (gold). */
-@keyframes borderflow { from { background-position: 0 0, 0% 0; } to { background-position: 0 0, 300% 0; } }
-@keyframes twinkle { 50% { transform: scale(1.35) rotate(20deg); opacity: .6; } }
-
-/* Stage idle: a slow star field while waiting for a play. */
-.stage .idle::before {
-  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .55;
-  background-image:
-    radial-gradient(1.5px 1.5px at 12% 22%, #fff, transparent),
-    radial-gradient(1px 1px at 28% 70%, #56c9f8, transparent),
-    radial-gradient(1.5px 1.5px at 46% 36%, #fff, transparent),
-    radial-gradient(1px 1px at 63% 82%, #bd66ff, transparent),
-    radial-gradient(1.5px 1.5px at 78% 28%, #00ceb8, transparent),
-    radial-gradient(1px 1px at 90% 64%, #fff, transparent),
-    radial-gradient(1px 1px at 36% 12%, #feae58, transparent),
-    radial-gradient(1.5px 1.5px at 55% 58%, #fff, transparent);
-  animation: stars 6s ease-in-out infinite alternate;
-}
-@keyframes stars { from { opacity: .25; transform: translateY(0); } to { opacity: .7; transform: translateY(-4px); } }
+/* Scores: you in white, your opponent quieter; the leader's score takes
+   teal (you) or pink (them). */
+.big { color: #fff; }
+.m-side.opp .big { color: var(--sub); }
+.match.win .m-side.me .big { color: var(--teal); }
+.match.lose .m-side.opp .big { color: var(--pink); }
 .stage .idle > * { position: relative; }
-
-/* Richer chips and pills. */
-.margin.lose { background: linear-gradient(135deg, #f75c8d, #ff86aa); }
-.face, .lu-head, .av { transition: transform .25s cubic-bezier(.2, 1.6, .4, 1); }
-.ev:hover .face, .match:hover .av { transform: scale(1.12) rotate(-4deg); }
-
-@media (prefers-reduced-motion: reduce) {
-  .match.win::before, .stage .idle::before { animation: none !important; }
-  .match::after, .ev::after { display: none; }
-}
 
 /* "While you were away": changes from a gap, folded into one quiet card so
    they never read as a single play. */
@@ -307,8 +249,8 @@
   padding: 10px 12px; cursor: pointer; list-style: none;
 }
 .recap summary::-webkit-details-marker { display: none; }
-.recap summary::before { content: '▸'; color: var(--muted); margin-right: 2px; transition: transform .2s; }
-.recap details[open] summary::before { transform: rotate(90deg); }
+.recap summary::before { content: '▾'; display: inline-block; font-size: 14px; color: var(--muted); margin-right: 4px; transform: rotate(-90deg); transition: transform .2s; }
+.recap details[open] summary::before { transform: none; }
 .recap-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .recap-title b { color: var(--text); }
 .recap-row {
@@ -377,7 +319,7 @@ details.game[open] > summary.game-h::before { transform: rotate(90deg); }
 /* Short panels: a smaller stage (pop-ups scale with it), and none at all when
    there's barely room for the feed. */
 @container view (max-height: 640px) {
-  .stage { height: 138px; }
+  .stage.busy { height: 138px; }
   .stage .pop { zoom: .72; }
 }
 @container view (max-height: 500px) {
@@ -397,3 +339,20 @@ details.game[open] > summary.game-h::before { transform: rotate(90deg); }
 .m-league .winpct { margin-left: auto; margin-right: 6px; font: 700 11.5px Poppins, sans-serif; font-variant-numeric: tabular-nums; }
 .m-league .winpct.good { color: var(--teal); }
 .m-league .winpct.bad { color: var(--pink); }
+
+/* Between plays the stage shrinks to a strip with the last play on two lines,
+   and grows back when a play lands. */
+.stage:not(.busy) { height: 76px; }
+.stage:not(.busy) .idle { flex-direction: row; flex-wrap: wrap; align-content: center; column-gap: 8px; row-gap: 3px; font-size: 12.5px; }
+.stage:not(.busy) .idle .idle-impacts { flex-basis: 100%; }
+.tab[data-filter="bad"] { background: var(--pink-soft); color: var(--pink); }
+.tab[data-filter="bad"].on { background: var(--pink); color: #fff; }
+
+/* Win chance through the day, inside an opened matchup. */
+.trend { margin: 2px 12px 8px; }
+.trend svg { display: block; width: 100%; height: 44px; margin-top: 4px; overflow: visible; }
+.trend .mid { stroke: var(--line); stroke-dasharray: 3 4; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.trend polyline { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.trend polyline.good { stroke: var(--teal); }
+.trend polyline.bad { stroke: var(--pink); }
+.recap-row .ev-who > span:last-child { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

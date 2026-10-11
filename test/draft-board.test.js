@@ -27,7 +27,8 @@ test('delta sorts values first when descending, unpicked last', () => {
   assert.deepEqual(names(sortRows(rows, prefs({ sortBy: 'delta', sortDir: 'desc' }))), [1, 3, 2, 4]);
 });
 
-test('names sort alphabetically and rank sorts numerically', () => {
-  assert.deepEqual(names(sortRows(rows, prefs({ sortBy: 'name' }))), [1, 2, 3, 4]);
-  assert.deepEqual(names(sortRows(rows, prefs({ sortDir: 'desc' }))), [4, 3, 2, 1]);
+test('available players come first, then drafted, each in sort order', () => {
+  assert.deepEqual(names(sortRows(rows, prefs({ sortBy: 'name' }))), [2, 4, 1, 3]);
+  assert.deepEqual(names(sortRows(rows, prefs())), [2, 4, 1, 3]);
+  assert.deepEqual(names(sortRows(rows, prefs({ sortDir: 'desc' }))), [4, 2, 3, 1]);
 });

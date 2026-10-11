@@ -59,13 +59,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <button data-who="mine" class="tab on">Mine</button>
           <button data-who="all" class="tab">+ Opponents</button>
         </div>
-        <button id="bt-refresh" class="icon" title="Refresh now">↻</button>
+        <button id="bt-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button>
       </div>
     </header>
     <div class="tool-scroll">
       <div class="bt-toolbar">
         <div class="bt-tool-row">
           <input id="bt-q" type="search" placeholder="Search player or team…" autocomplete="off" spellcheck="false">
+          <select id="bt-win" title="Games"></select>
           <select id="bt-sort" title="Sort">
             <option value="kickoff">Kickoff</option>
             <option value="td">TD odds</option>
@@ -78,7 +79,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <button class="chip" data-pos="ALL">All</button><button class="chip" data-pos="QB">QB</button><button class="chip" data-pos="RB">RB</button><button class="chip" data-pos="WR">WR</button><button class="chip" data-pos="TE">TE</button><button class="chip" data-pos="K">K</button>
           <button class="chip ghost" id="bt-toggle-all">Expand all</button>
         </div>
-        <div class="bt-tool-row chips" id="bt-wins"></div>
       </div>
       <p id="bt-error" class="error" hidden></p>
       <div id="bt-body"><p class="muted small empty">Loading lines for your starters…</p></div>
@@ -139,7 +139,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const shared = await storage.get('settings', {});
     const own = await storage.get('bets.settings', {});
     const username = (shared.username || '').trim();
-    if (!username) throw new Error('Add your Sleeper username in the extension popup (click the toolbar icon) to get started.');
+    if (!username) throw new Error('Add your Sleeper username to get started.');
     if (username !== state.username) { state.username = username; state.userId = null; }
     state.showOpp = !!own.showOpp;
     if (own.pos) state.ui.pos = own.pos;
@@ -348,18 +348,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const theirs = spots.length - mine;
     const open = state.open.has(pid);
     const keyHtml = key
-      ? `<span class="bt-key"><span class="bt-key-lbl">${esc(key.label)}</span> <b>${num(key.line)}</b>${keyLive
-        ? ` <span class="bt-key-live${keyLive.hit ? ' hit' : ''}">${keyLive.hit ? '✓ ' : ''}${num(keyLive.value)}</span>`
-        : `${keyHr ? ` <span class="bt-key-hr${keyHr.over * 2 > keyHr.games ? ' good' : ''}">${keyHr.over}/${keyHr.games}</span>` : ''}${keyLean != null && Math.abs(keyLean) >= 0.5 ? ` <span class="bt-key-lean ${keyLean > 0 ? 'up' : 'down'}">${keyLean > 0 ? '▲' : '▼'}</span>` : ''}`}</span>`
-      : `<span class="muted small">${inPlay ? 'lines closed at kickoff' : 'no lines yet'}</span>`;
+      ? `<span class="bt-key">${keyLive
+        // In play: progress against the line, "38 of 54.5 rec yds".
+        ? `<span class="bt-key-live${keyLive.hit ? ' hit' : ''}">${keyLive.hit ? '✓ ' : ''}${num(keyLive.value)}</span> <span class="bt-key-lbl">of ${num(key.line)} ${esc(key.label)}</span>`
+        : `<span class="bt-key-lbl">${esc(key.label)}</span> <b>${num(key.line)}</b>${keyHr ? ` <span class="bt-key-hr${keyHr.over * 2 > keyHr.games ? ' good' : ''}">${keyHr.over}/${keyHr.games}</span>` : ''}${keyLean != null && Math.abs(keyLean) >= 0.5 ? ` <span class="bt-key-lean ${keyLean > 0 ? 'up' : 'down'}">${keyLean > 0 ? '▲' : '▼'}</span>` : ''}`}</span>`
+      : `<span class="muted small">${inPlay ? esc(core.liveLine(p.pos, state.live[pid]) || 'No line for this game') : 'No lines yet'}</span>`;
     const justCashed = markets.some((m) => state.fresh.has(`${pid}:${m.type}`));
-    return `<details class="bt-item${mine ? ' mine' : ' theirs'}${justCashed ? ' cashing' : ''}${state.justOpened.has(pid) ? ' opening' : ''}" data-key="p:${esc(pid)}" data-pid="${esc(pid)}" style="--tc:${teams.colors(p.team).primary}"${open ? ' open' : ''}>
+    return `<details class="bt-item${mine ? ' mine' : ' theirs'}${state.showOpp ? ' mixed' : ''}${justCashed ? ' cashing' : ''}${state.justOpened.has(pid) ? ' opening' : ''}" data-key="p:${esc(pid)}" data-pid="${esc(pid)}" style="--tc:${teams.colors(p.team).primary}"${open ? ' open' : ''}>
       <summary>
         ${face(pid, p.team)}
         <span class="bt-sum">
           <span class="bt-sum-top"><span class="ev-name">${esc(p.name)}</span><span class="muted small">${esc(p.pos)} · ${esc(p.team)}${showWindow && game ? ` · ${esc(timeOf(game.kickoff))}` : ''}</span></span>
           <span class="bt-sum-bot">${keyHtml}
-            ${mine > 1 ? `<span class="bt-exp you" title="Starting in ${mine} of your leagues">×${mine}</span>` : ''}${theirs && (state.showOpp || !mine) ? `<span class="bt-exp opp" title="Starting for ${theirs} opponent${theirs > 1 ? 's' : ''}">opp ×${theirs}</span>` : ''}
+            ${mine > 1 ? `<span class="bt-exp you" title="Starting in ${mine} of your leagues">${mine} leagues</span>` : ''}${theirs && (state.showOpp || !mine) ? `<span class="bt-exp opp" title="Starting for ${theirs} opponent${theirs > 1 ? 's' : ''}">opp ×${theirs}</span>` : ''}
             ${hits ? `<span class="bt-exp hit">✓ ${hits} hit</span>` : ''}</span>
         </span>
         ${td && td.over ? `<span class="bt-atd${liveTd && liveTd.hit ? ' hit' : ''}" title="Anytime TD ${core.american(td.over)} · ${pct(td.pOver)}"><b>${liveTd && liveTd.hit ? '✓ TD' : core.american(td.over)}</b><small>${liveTd && liveTd.hit ? 'scored' : `ATD ${pct(td.pOver)}`}</small></span>` : '<span></span>'}
@@ -377,12 +378,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function renderToolbar(wins) {
     const ui = state.ui;
-    const winChip = (id, label) => `<button class="chip${ui.win === id ? ' on' : ''}" data-win="${id}">${label}</button>`;
-    const winChips = [winChip('all', 'All')]
-      .concat(wins.some((w) => w.games.some((g) => g.state === 'in')) ? [winChip('live', '● Live')] : [])
+    const option = (id, label) => `<option value="${id}"${ui.win === id ? ' selected' : ''}>${label}</option>`;
+    $('bt-win').innerHTML = [option('all', 'All games')]
+      .concat(wins.some((w) => w.games.some((g) => g.state === 'in')) ? [option('live', 'Live now')] : [])
       .concat(wins.filter((w) => !w.games.every((g) => g.state === 'post')).map((w) =>
-        winChip(String(w.kickoff), `${new Date(w.kickoff).toLocaleDateString([], { weekday: 'short' })} ${shortTime(w.kickoff)}`)));
-    $('bt-wins').innerHTML = winChips.join('');
+        option(String(w.kickoff), `${new Date(w.kickoff).toLocaleDateString([], { weekday: 'short' })} ${shortTime(w.kickoff)}`)))
+      .join('');
     for (const b of $('bt-pos').children) b.classList.toggle('on', b.dataset.pos === ui.pos);
     $('bt-sort').value = ui.sort;
     $('bt-toggle-all').textContent = state.open.size ? 'Collapse all' : 'Expand all';
@@ -540,10 +541,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       await saveUi();
       render();
     });
-    $('bt-wins').addEventListener('click', (e) => {
-      const win = e.target.dataset && e.target.dataset.win;
-      if (!win) return;
-      state.ui.win = win;
+    $('bt-win').addEventListener('change', (e) => {
+      state.ui.win = e.target.value;
       render();
     });
     // Expanding a row renders its detail on demand (keeps the list light).

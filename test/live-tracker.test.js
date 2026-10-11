@@ -133,3 +133,10 @@ test('bonus and long-play keys read as plain English', () => {
     '+1 pass TD · 40+ yd pass TD · 100+ rec yds bonus'
   );
 });
+
+test('summed catch-ups fold bonus keys instead of showing raw names', () => {
+  const settings = { rec: 1, rec_40p: 1, rush_40p: 1, bonus_rec_te: 0.5, rush_td_50p: 2, rush_td_40p: 2, rec_td_40p: 1 };
+  assert.equal(scoring.describe({ rec: 11, rec_40p: 2, bonus_rec_te: 11 }, [settings]), '+11 rec · big-play bonus');
+  assert.equal(scoring.describe({ rush_td_50p: 1, rush_td_40p: 1, rec_td_40p: 1 }, [settings]), 'big-play bonus');
+  assert.equal(scoring.describe({ rec: 1, rec_40p: 1 }, [settings]), '+1 rec · 40+ yd rec');
+});

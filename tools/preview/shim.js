@@ -62,12 +62,12 @@
 
     const week = url.match(/\/v1\/league\/(\d+)\/matchups\/\d+$/);
     if (params.get('stage') && week && me && !staged) {
+      staged = true; // claim it before awaiting: matchups load in parallel
       const data = await res.clone().json();
       const rosters = await realFetch(`https://api.sleeper.app/v1/league/${week[1]}/rosters`).then((r) => r.json());
       const own = rosters.find((r) => r.owner_id === me);
       const mine = own && data.find((m) => m.roster_id === own.roster_id);
       if (mine && mine.starters && mine.starters.length > 3) {
-        staged = true;
         mine.starters = mine.starters.slice();
         mine.starters[3] = '0';
       }

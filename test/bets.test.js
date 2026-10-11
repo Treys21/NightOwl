@@ -128,3 +128,10 @@ test('long milestone ladders keep the rungs nearest the line', () => {
   assert.deepEqual(bets.trimRungs([15, 25, 40], 30), [15, 25, 40]);
   assert.equal(bets.trimRungs(ladder, null).length, 6);
 });
+
+test('live line by position, for players without a betting line', () => {
+  assert.equal(bets.liveLine('WR', { rec: 4, rec_yd: 38 }), '4 rec · 38 yds so far');
+  assert.equal(bets.liveLine('QB', { pass_yd: 212, pass_td: 2 }), '212 pass yds · 2 TD so far');
+  assert.equal(bets.liveLine('RB', {}), '0 rush yds · 0 rec so far');
+  assert.equal(bets.liveLine('DEF', {}), '');
+});

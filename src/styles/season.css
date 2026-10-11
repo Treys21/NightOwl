@@ -16,9 +16,9 @@
 }
 .se-league > summary { list-style: none; cursor: pointer; padding: 10px 12px; }
 .se-league > summary::-webkit-details-marker { display: none; }
-.se-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.se-head { display: flex; align-items: baseline; gap: 8px; }
 .se-name { font: 700 13.5px Poppins, sans-serif; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
-.se-rank { flex: none; font: 700 12px Poppins, sans-serif; color: var(--sub); }
+.se-rank { flex: none; margin-left: auto; font: 700 12px Poppins, sans-serif; color: var(--sub); }
 .se-rank.in { color: var(--teal); }
 .se-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 5px; font-size: 12px; color: var(--muted); }
 .se-stats b { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; margin-right: 3px; }
@@ -36,9 +36,13 @@
 
 @container view (max-width: 380px) {
   .se-summary { grid-template-columns: repeat(2, 1fr); }
-  .se-table th:nth-child(5), .se-table td:nth-child(5) { display: none; }
+  .se-table th:nth-child(4), .se-table td:nth-child(4), .se-table th:nth-child(5), .se-table td:nth-child(5) { display: none; }
 }
 @container view (min-width: 760px) {
   #se-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 10px; align-items: start; }
   .se-league { margin-bottom: 0; }
 }
+.se-aside { font-style: normal; color: var(--muted); opacity: .8; }
+/* A chevron shows the league opens into full standings. */
+.se-head::after { content: '▾'; flex: none; margin-left: 2px; color: var(--muted); font-size: 14px; line-height: 1; transition: transform .2s; }
+.se-league[open] .se-head::after { transform: rotate(180deg); }
