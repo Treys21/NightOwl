@@ -29,12 +29,12 @@ test('content scripts load in order and register every tool', () => {
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   }
   const { NightOwl } = context;
-  assert.deepEqual(Object.keys(NightOwl.views).sort(), ['bets', 'draft', 'lineups', 'live']);
+  assert.deepEqual(Object.keys(NightOwl.views).sort(), ['bets', 'draft', 'lineups', 'live', 'season']);
   for (const view of Object.values(NightOwl.views)) {
     assert.equal(typeof view.mount, 'function');
     assert.equal(typeof view.unmount, 'function');
   }
-  for (const mod of ['storage', 'dom', 'format', 'api', 'teams', 'players', 'scoring', 'tracker', 'lineups', 'bets', 'match', 'draftOrder', 'panel', 'draftBoard', 'badges']) {
+  for (const mod of ['storage', 'dom', 'format', 'api', 'teams', 'players', 'scoring', 'tracker', 'lineups', 'bets', 'season', 'match', 'draftOrder', 'panel', 'draftBoard', 'badges']) {
     assert.ok(NightOwl[mod], `NightOwl.${mod} missing`);
   }
 });

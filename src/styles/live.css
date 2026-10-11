@@ -394,3 +394,6 @@ details.game[open] > summary.game-h::before { transform: rotate(90deg); }
   .game-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; }
   .game-list .ev { margin-bottom: 0; }
 }
+.m-league .winpct { margin-left: auto; margin-right: 6px; font: 700 11.5px Poppins, sans-serif; font-variant-numeric: tabular-nums; }
+.m-league .winpct.good { color: var(--teal); }
+.m-league .winpct.bad { color: var(--pink); }

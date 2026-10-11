@@ -25,8 +25,8 @@ enforces it).
 | Layer | Modules | Notes |
 | --- | --- | --- |
 | Shared | `storage`, `dom`, `format`, `api`, `teams`, `players` | `api` is the only module that touches the network. `players` is the single cached copy of Sleeper's ~5 MB player directory. |
-| Pure logic | `scoring`, `tracker`, `lineups`, `bets`, `match`, `draftOrder`, `ringer` | No DOM, no network. They also export via `module.exports` and are unit-tested in Node. |
-| Views | `NightOwl.views.{draft, live, lineups, bets}` | Each one is `{ mount(el), unmount(), navigated?() }`. Only the visible view is mounted, and an unmounted view must stop all timers. |
+| Pure logic | `scoring`, `tracker`, `lineups`, `bets`, `season`, `match`, `draftOrder`, `ringer` | No DOM, no network. They also export via `module.exports` and are unit-tested in Node. |
+| Views | `NightOwl.views.{draft, live, lineups, bets, season}` | Each one is `{ mount(el), unmount(), navigated?() }`. Only the visible view is mounted, and an unmounted view must stop all timers. |
 | Shell | `panel/shell.js`, `panel/main.js` | The shell owns the shadow root, the tool switch, drag and resize. `main.js` is the entry point and follows Sleeper's SPA navigation. |
 
 Styles live in `src/styles/*.css`, loaded with `NightOwl.dom.adoptStyles` as
@@ -54,7 +54,8 @@ src/
   live/                view.js, scoring.js, tracker.js
   lineups/             view.js, core.js (windows, optimal lineup)
   bets/                view.js, core.js (lines, odds, hit rates)
-  styles/              panel, draft, common, live, bets, lineups (.css)
+  season/              view.js, core.js (all-play, luck, max points, win odds)
+  styles/              panel, draft, common, live, bets, lineups, season (.css)
   popup/               username, rankings editor, Ringer sync
 test/                  node --test, with real captured fixtures
 ```

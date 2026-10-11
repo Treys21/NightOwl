@@ -1,6 +1,6 @@
-// The floating panel: one draggable, resizable shell with a Draft | Live |
-// Lineups | Bets switch. It lives in a shadow root so Sleeper's CSS can't bleed
-// in and ours can't leak out.
+// The floating panel: one draggable, resizable shell with a switch for each
+// tool (Draft, Live, Lineups, Bets, Season). It lives in a shadow root so
+// Sleeper's CSS can't bleed in and ours can't leak out.
 //
 // Each tool is a view — { mount(el), unmount(), navigated?() } registered on
 // NightOwl.views — and exactly one is mounted at a time: a hidden or collapsed
@@ -19,13 +19,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     'src/styles/common.css',
     'src/styles/live.css',
     'src/styles/bets.css',
-    'src/styles/lineups.css'
+    'src/styles/lineups.css',
+    'src/styles/season.css'
   ];
   const TOOLS = [
     { id: 'draft', label: 'Draft' },
     { id: 'live', label: 'Live' },
     { id: 'lineups', label: 'Lineups' },
-    { id: 'bets', label: 'Bets' }
+    { id: 'bets', label: 'Bets' },
+    { id: 'season', label: 'Season' }
   ];
   // One size for every tool. Drag any edge or corner to change it; it's
   // remembered. Double-click the header to go back to the default.

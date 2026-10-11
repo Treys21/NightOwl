@@ -137,7 +137,7 @@
         userStatusEl.textContent = 'no such Sleeper user';
       }
     } catch {
-      userStatusEl.textContent = "couldn't reach Sleeper — try again";
+      userStatusEl.textContent = "couldn't reach Sleeper, try again";
     }
   });
 

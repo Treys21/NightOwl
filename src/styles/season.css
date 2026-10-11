@@ -1,0 +1,44 @@
+/* Season view. */
+
+.se-summary {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 4px 0 12px;
+  border-radius: 12px; overflow: hidden; background: rgba(163, 187, 211, .1);
+}
+.se-summary > div { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; background: var(--bg); }
+.se-summary b { font: 700 15px Poppins, sans-serif; font-variant-numeric: tabular-nums; color: var(--text); }
+.se-summary span { font-size: 11px; color: var(--muted); }
+.se-summary .up b, .se-stats .up b, .se-table .up { color: var(--teal); }
+.se-summary .down b, .se-stats .down b, .se-table .down { color: var(--pink); }
+
+.se-league {
+  margin-bottom: 8px; border-radius: 12px;
+  background: rgba(163, 187, 211, .045); border: 1px solid rgba(163, 187, 211, .1);
+}
+.se-league > summary { list-style: none; cursor: pointer; padding: 10px 12px; }
+.se-league > summary::-webkit-details-marker { display: none; }
+.se-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.se-name { font: 700 13.5px Poppins, sans-serif; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.se-rank { flex: none; font: 700 12px Poppins, sans-serif; color: var(--sub); }
+.se-rank.in { color: var(--teal); }
+.se-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 5px; font-size: 12px; color: var(--muted); }
+.se-stats b { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; margin-right: 3px; }
+.se-review { margin-top: 7px; font-size: 12px; color: var(--sub); line-height: 1.45; }
+.se-review.flip b { color: #feae58; }
+
+.se-table { width: calc(100% - 16px); margin: 0 8px 4px; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.se-table th { text-align: left; font: 600 11px Poppins, sans-serif; color: var(--muted); padding: 6px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.se-table td { padding: 6px; border-bottom: 1px solid rgba(58, 70, 91, .45); white-space: nowrap; }
+.se-table td:first-child, .se-table th:first-child { width: 22px; color: var(--muted); }
+.se-table .se-team { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.se-table tr.me td { background: var(--teal-soft); color: var(--text); font-weight: 600; }
+.se-table tr.cut td { border-bottom: 2px solid rgba(0, 206, 184, .45); }
+.se-note { margin: 2px 14px 10px; }
+
+@container view (max-width: 380px) {
+  .se-summary { grid-template-columns: repeat(2, 1fr); }
+  .se-table th:nth-child(5), .se-table td:nth-child(5) { display: none; }
+}
+@container view (min-width: 760px) {
+  #se-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 10px; align-items: start; }
+  .se-league { margin-bottom: 0; }
+}

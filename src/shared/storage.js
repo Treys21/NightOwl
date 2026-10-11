@@ -18,7 +18,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       w: null,
       h: null,
       collapsed: false,
-      tool: 'live', // 'draft' | 'live' | 'lineups' | 'bets'
+      tool: 'live', // 'draft' | 'live' | 'lineups' | 'bets' | 'season'
       sortBy: 'rank',
       sortDir: 'asc',
       position: 'ALL',

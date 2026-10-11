@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.3.0
+Ideas from r/fantasyfootballcoding and other Sleeper tools.
+- New **Season** tab: every league in one place, with your rank, record,
+  all-play record (as if you played every team every week), luck (wins above
+  what your scores earned, counting median games correctly), and the share of
+  max points your lineups scored. Each league shows last week's biggest bench
+  mistake and says when the best lineup would have won. Expand a league for
+  its full standings with the playoff line.
+- **Win probability** on every Live matchup, from live points plus each
+  starter's projection for the time left in his game (ESPN game clock). The
+  bar under the score now shows your chance to win.
+- Plainer on-screen wording: no more em-dashes in labels and notes.
+
 ## 3.2.0
 - Resize the panel from any edge or corner, not just the bottom-right. One
   size for every tab, remembered between visits; double-click the header to

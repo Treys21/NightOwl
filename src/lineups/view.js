@@ -177,7 +177,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const title = r.status === 'start'
         ? `Benching ${r.name} for ${o.name} (${fmt(o.proj)} proj) ${effect}`
         : `Starting ${r.name} over ${o.name} (${fmt(o.proj)} proj) ${effect}`;
-      return `<span class="lu-opt ${cls}" title="${esc(title)}${o.via ? ` — ${esc(o.via.name)} slides to ${esc(slotLabel(o.via.slot))}` : ''}">
+      return `<span class="lu-opt ${cls}" title="${esc(title)}${o.via ? ` (${esc(o.via.name)} slides to ${esc(slotLabel(o.via.slot))})` : ''}">
         <b>${esc(o.name)}</b><span class="lu-opt-slot">${where}</span><span class="lu-gain ${cls}">${o.gain > 0 ? '+' : o.gain < 0 ? '−' : '±'}${fmt(Math.abs(o.gain))}</span></span>`;
     };
     const top = r.options.slice(0, 3).map(chip).join('');

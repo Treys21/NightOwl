@@ -82,7 +82,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </div>
       <p id="bt-error" class="error" hidden></p>
       <div id="bt-body"><p class="muted small empty">Loading lines for your starters…</p></div>
-      <p class="bt-legal">Lines: Sleeper Picks payouts and DraftKings (via ESPN). For information only — not betting advice. 21+, gamble responsibly · 1-800-GAMBLER.</p>
+      <p class="bt-legal">Lines: Sleeper Picks payouts and DraftKings (via ESPN). For information only, not betting advice. 21+, gamble responsibly · 1-800-GAMBLER.</p>
     </div>
   `;
 

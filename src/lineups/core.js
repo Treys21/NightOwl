@@ -36,9 +36,22 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         home: team(home ? home.team.abbreviation : ''),
         started: e.status && e.status.type && e.status.type.state !== 'pre',
         state: e.status && e.status.type ? e.status.type.state : 'pre', // pre | in | post
+        remaining: remainingShare(e.status),
         odds: odds ? { details: odds.details || '', overUnder: odds.overUnder } : null
       };
     }).sort((a, b) => a.kickoff - b.kickoff);
+  }
+
+  // Share of a game still to play, from ESPN's period and clock (seconds left
+  // in the period). Overtime counts as nearly over.
+  function remainingShare(status) {
+    const state = status && status.type ? status.type.state : 'pre';
+    if (state === 'pre') return 1;
+    if (state === 'post') return 0;
+    const period = status.period || 1;
+    if (period > 4) return 0.02;
+    const clock = Math.max(0, Math.min(900, Number(status.clock) || 0));
+    return ((4 - period) * 900 + clock) / 3600;
   }
 
   // Fallback when ESPN is unreachable: Sleeper's schedule has dates only, so
@@ -51,6 +64,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         away: g.away,
         home: g.home,
         started: g.status !== 'pre_game',
+        // No clock from Sleeper: a game in progress counts as half played.
+        remaining: g.status === 'pre_game' ? 1 : g.status === 'complete' ? 0 : 0.5,
         approx: true
       };
     }).sort((a, b) => a.kickoff - b.kickoff);
@@ -163,9 +178,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     // Starters who won't score.
     for (const r of rows) {
       if (r.status !== 'start' || r.locked) continue;
-      if (r.bye) r.notes.push({ kind: 'warn', text: 'On bye — starting a zero' });
-      else if (OUT.has(r.injury)) r.notes.push({ kind: 'warn', text: `${r.injury} — starting a likely zero` });
-      else if (r.injury === 'Questionable') r.notes.push({ kind: 'info', text: 'Questionable — check before lock' });
+      if (r.bye) r.notes.push({ kind: 'warn', text: 'On bye, so this slot scores zero' });
+      else if (OUT.has(r.injury)) r.notes.push({ kind: 'warn', text: `${r.injury}, likely scores zero` });
+      else if (r.injury === 'Questionable') r.notes.push({ kind: 'info', text: 'Questionable: check before lock' });
     }
 
     const available = (r) => !r.locked && !r.bye && !OUT.has(r.injury);
@@ -201,8 +216,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       moves.sort((x, y) => order[x.type] - order[y.type]);
       for (const m of moves) {
         const r = byPid.get(m.pid);
-        if (m.type === 'start') r.notes.push({ kind: 'swap', text: `Start him at ${m.slot} — best lineup +${gain}` });
-        if (m.type === 'bench') r.notes.push({ kind: 'swap', text: `Bench him — best lineup +${gain}` });
+        if (m.type === 'start') r.notes.push({ kind: 'swap', text: `Start him at ${m.slot}: +${gain} for your lineup` });
+        if (m.type === 'bench') r.notes.push({ kind: 'swap', text: `Bench him: +${gain} for your lineup` });
         if (m.type === 'move') r.notes.push({ kind: 'info', text: `Slide to ${m.slot} in the best lineup` });
       }
     }
@@ -256,7 +271,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   NightOwl.lineups = {
-    parseGames, gamesFromSchedule, windows, lineup, assign, canPlay, NOT_STARTING_SLOTS, OUT, MIN_GAIN
+    parseGames, gamesFromSchedule, windows, lineup, assign, canPlay, remainingShare, NOT_STARTING_SLOTS, OUT, MIN_GAIN
   };
 })(globalThis.NightOwl);
 

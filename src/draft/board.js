@@ -19,7 +19,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const EMPTY = {
     loading: 'Loading the draft…',
     'no-rankings': 'No rankings yet.<br/>Open the extension popup and hit <b>Sync from Ringer</b>, or add players there.',
-    'no-draft': 'No draft on this page.<br/>Open a mock or league draft to see the board — or switch to <b>Live</b>.',
+    'no-draft': 'No draft on this page.<br/>Open a mock or league draft to see the board, or switch to <b>Live</b>.',
     error: 'Couldn\'t load this draft. Check your connection, then reopen the Draft tab.'
   };
 
@@ -93,7 +93,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <span class="status ${state.kind || ''}">${esc(state.message || '')}</span>
       </div>
       ${unmatched > 0 && state.status === 'ok'
-        ? `<div class="warnbar">${unmatched} ranked player${unmatched === 1 ? '' : 's'} didn't match a Sleeper player — check spelling in the popup.</div>`
+        ? `<div class="warnbar">${unmatched} ranked player${unmatched === 1 ? '' : 's'} didn't match a Sleeper player. Check the spelling in the popup.</div>`
         : ''}
       <div class="body">${body}</div>
     `;

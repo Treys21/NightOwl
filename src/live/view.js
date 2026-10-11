@@ -72,6 +72,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     settings: { username: '', excluded: [] },
     ctx: null, // { userId, season, week, seasonType, leagues, loadedAt }
     stats: {}, // pid -> current stat line
+    proj: {}, // pid -> projected stat line for the week
+    projAt: 0,
+    clocks: [], // ESPN games with the share of each still to play
+    clocksAt: 0,
     snapshot: null, // { key, stats } last diffed snapshot, persisted
     events: [], // newest first, persisted per week
     schedule: { games: [], loadedAt: 0 },
@@ -177,6 +181,50 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
+  // ---- win probability inputs -------------------------------------------
+  const PROJ_TTL_MS = 30 * 60000;
+  const CLOCK_TTL_MS = 60000;
+
+  // Projections (twice an hour) and game clocks (every minute while games
+  // are on). Either failing just hides the win %.
+  async function loadOutlook(ctx) {
+    const now = Date.now();
+    if (now - state.projAt > PROJ_TTL_MS) {
+      try {
+        const rows = await api.weekProjections(ctx.season, ctx.week, ctx.seasonType, positionsNeeded());
+        state.proj = Object.fromEntries(rows.map((r) => [r.player_id, r.stats || {}]));
+        state.projAt = now;
+      } catch (err) {
+        console.warn('[Night Owl] projections unavailable', err);
+      }
+    }
+    if (now - state.clocksAt > CLOCK_TTL_MS) {
+      try {
+        state.clocks = NightOwl.lineups.parseGames(await api.kickoffs(ctx.season, ctx.week, ctx.seasonType));
+      } catch {
+        state.clocks = NightOwl.lineups.gamesFromSchedule(state.schedule.games, ctx.week);
+      }
+      state.clocksAt = now;
+    }
+  }
+
+  // Share of a team's game left to play; 0 on a bye.
+  function remainingFor(team) {
+    const g = state.clocks.find((x) => x.home === team || x.away === team);
+    return g ? g.remaining : 0;
+  }
+
+  // Chance of winning this league's matchup, or null when it can't be told.
+  function winChance(lg) {
+    if (!lg.matchup || !lg.matchup.opp || !Object.keys(state.proj).length) return null;
+    const side = (s) => NightOwl.season.outlook(s.starters.map((pid) => ({
+      points: scoring.points(state.stats[pid], lg.scoring),
+      proj: scoring.points(state.proj[pid], lg.scoring),
+      remaining: remainingFor(info(pid).team)
+    })));
+    return NightOwl.season.winProbability(side(lg.matchup.mine), side(lg.matchup.opp));
+  }
+
   // ---- the poll ---------------------------------------------------------
   async function poll(force) {
     if (state.busy || !root || !state.settings.username) return;
@@ -198,6 +246,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (r.player) players.remember(r.player_id, `${r.player.first_name} ${r.player.last_name}`, r.player.position, r.team);
       }
       state.stats = cur;
+      await loadOutlook(ctx);
 
       const leagues = activeLeagues();
       const key = weekKey(ctx);
@@ -395,7 +444,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
          <span class="idle-who"><img alt="" src="${/^[A-Z]{2,3}$/.test(last.pid) ? teams.logo(last.team) : teams.headshot(last.pid)}"><b>${esc(last.name)}</b></span>
          <span>${esc(last.text)}</span>
          <span class="impacts idle-impacts">${impactChips(last)}</span>`
-      : `<span class="muted">${live ? `${esc(live.away)} @ ${esc(live.home)} is live — waiting for the next play` : 'Plays pop here the moment they happen'}</span>
+      : `<span class="muted">${live ? `${esc(live.away)} @ ${esc(live.home)} is live. Waiting for the next play.` : 'Plays pop here the moment they happen'}</span>
          ${recap ? `<span class="muted small">Caught up on everything since ${clockOf(recap.since || recap.ts)}</span>` : ''}`;
   }
 
@@ -436,6 +485,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
+  // 0.995 shows as ">99%", never a misleading 100%.
+  const pctLabel = (p) => (p > 0.99 && p < 1 ? '>99%' : p < 0.01 && p > 0 ? '<1%' : `${Math.round(p * 100)}%`);
+
   // Your share of the combined score, as the teal/pink bar Sleeper draws.
   const share = (a, b) => (a + b > 0 ? Math.round((a / (a + b)) * 100) : 50);
 
@@ -463,10 +515,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const before = prev[lg.leagueId];
       const moved = before && (before.mine !== s.mine || before.opp !== s.opp);
       const mood = s.margin > 0 ? 'win' : s.margin < 0 ? 'lose' : 'tie';
-      const pct = s.opp == null ? 100 : share(s.mine, s.opp);
+      const chance = winChance(lg);
+      // The bar shows your chance to win once projections are in, else your
+      // share of the combined score.
+      const pct = s.opp == null ? 100 : chance == null ? share(s.mine, s.opp) : Math.round(chance * 100);
+      const odds = chance == null ? '' : `<span class="winpct ${chance >= 0.5 ? 'good' : 'bad'}" title="Chance to win, from live points plus projections for the time left">Win ${pctLabel(chance)}</span>`;
       return `<details class="match ${mood}${moved ? ' flash' : ''}" data-id="${lg.leagueId}"${open.has(lg.leagueId) ? ' open' : ''}>
         <summary>
-          <div class="m-league"><span class="lname">${esc(lg.name)}</span>${s.margin == null ? '' : `<span class="margin ${mood}">${signed(s.margin)}</span>`}</div>
+          <div class="m-league"><span class="lname">${esc(lg.name)}</span>${odds}${s.margin == null ? '' : `<span class="margin ${mood}">${signed(s.margin)}</span>`}</div>
           <div class="m-row">
             ${avatarImg(lg.myAvatar, lg.myName, 'me')}
             <div class="m-side me">

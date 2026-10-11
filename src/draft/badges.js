@@ -57,7 +57,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         badge.className = BADGE_CLASS;
         badge.textContent = String(row.rank);
         badge.dataset.drafted = row.pickNo ? '1' : '0';
-        badge.title = row.pickNo ? `Your rank ${row.rank} — taken at #${row.pickNo}` : `Your rank ${row.rank}`;
+        badge.title = row.pickNo ? `Your rank ${row.rank}, taken at #${row.pickNo}` : `Your rank ${row.rank}`;
         element.setAttribute(MARKED_ATTR, '1');
         element.prepend(badge);
       }

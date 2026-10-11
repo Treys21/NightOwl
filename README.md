@@ -24,10 +24,11 @@ It sits in the corner of [sleeper.com](https://sleeper.com) and stays out of the
 
 <table>
 <tr>
-<td width="25%" valign="top"><img src="docs/images/live.png" alt="Live"><br><b>Live</b><br><sub>Every play, with its + or − in each league.</sub></td>
-<td width="25%" valign="top"><img src="docs/images/lineups.png" alt="Lineups"><br><b>Lineups</b><br><sub>Your best lineup before each kickoff.</sub></td>
-<td width="25%" valign="top"><img src="docs/images/bets.png" alt="Bets"><br><b>Bets</b><br><sub>Lines and hit rates for your starters.</sub></td>
-<td width="25%" valign="top"><img src="docs/images/draft.png" alt="Draft"><br><b>Draft</b><br><sub>Your rankings, live in the draft room.</sub></td>
+<td width="20%" valign="top"><img src="docs/images/live.png" alt="Live"><br><b>Live</b><br><sub>Every play, with its + or − in each league, and your odds to win.</sub></td>
+<td width="20%" valign="top"><img src="docs/images/lineups.png" alt="Lineups"><br><b>Lineups</b><br><sub>Your best lineup before each kickoff.</sub></td>
+<td width="20%" valign="top"><img src="docs/images/season.png" alt="Season"><br><b>Season</b><br><sub>Every league's standings, luck, and points you left on the bench.</sub></td>
+<td width="20%" valign="top"><img src="docs/images/bets.png" alt="Bets"><br><b>Bets</b><br><sub>Lines and hit rates for your starters.</sub></td>
+<td width="20%" valign="top"><img src="docs/images/draft.png" alt="Draft"><br><b>Draft</b><br><sub>Your rankings, live in the draft room.</sub></td>
 </tr>
 </table>
 

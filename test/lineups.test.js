@@ -73,7 +73,7 @@ test('the best lineup is found and turned into moves', () => {
     ['bench', 'Slowpoke', undefined]
   ]);
   const rows = byPid(out);
-  assert.match(rows.get('stud').notes[0].text, /Start him at FLEX — best lineup \+11/);
+  assert.match(rows.get('stud').notes[0].text, /Start him at FLEX: \+11 for your lineup/);
   assert.match(rows.get('flex').notes[0].text, /Bench him/);
   assert.ok(rows.get('stud').inBest);
   assert.ok(!rows.get('flex').inBest);
@@ -98,7 +98,7 @@ test('an Out starter counts as zero, so a healthy bench option is offered', () =
     players: roster.players.concat(['rb'])
   });
   const rows = byPid(run(1000, r));
-  assert.match(rows.get('hurt').notes[0].text, /Out — starting a likely zero/);
+  assert.match(rows.get('hurt').notes[0].text, /Out, likely scores zero/);
   assert.match(rows.get('rb').notes[0].text, /Start him at RB/);
 });
 
