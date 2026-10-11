@@ -37,6 +37,38 @@ ESPN rejects requests that carry a sleeper.com Origin, so `api.kickoffs` and
 `api.propBets` go through `src/background.js`. That relay only forwards
 allow-listed ESPN hosts, and only for messages from this extension.
 
+## Layout
+
+```
+manifest.json
+icons/                 extension icons (16/32/48/128); SVG sources in icons/src/
+docs/                  README images, brand assets (logo, avatar, social preview)
+scripts/               check.mjs (static checks), package.mjs (release zip)
+src/
+  background.js        fetch relay for ESPN (allow-listed hosts only)
+  shared/              storage, styles loader, formatting, API client,
+                       team colors, shared player directory
+  panel/               shell.js (tool switch, drag, resize), main.js (entry)
+  draft/               draft.js (controller), board.js, badges.js,
+                       match-names.js, draft-order.js, ringer.js
+  live/                view.js, scoring.js, tracker.js
+  lineups/             view.js, core.js (windows, optimal lineup)
+  bets/                view.js, core.js (lines, odds, hit rates)
+  styles/              panel, draft, common, live, bets, lineups (.css)
+  popup/               username, rankings editor, Ringer sync
+test/                  node --test, with real captured fixtures
+```
+
+## Tests
+
+Pure logic is tested against real captured data: live scoring against Sleeper's
+own matchup totals across leagues with different scoring, the lineup solver,
+Sleeper Picks and ESPN parsing, odds conversion, the rankings parser (on a
+synthetic page), name matching, snake-draft order, board sorting, feed outage
+tracking, and the manifest. A load test runs every content script in manifest
+order in one shared global, as Chrome does. The panels are checked by hand in
+the browser.
+
 ## Ground rules
 
 - Read-only, public endpoints only. No auth, no analytics, no servers of our own.

@@ -21,23 +21,57 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // that start IDP players (they are most of the payload).
   const OFFENSE = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
 
-  async function getJson(url) {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`${res.status} ${url}`);
-    return res.json();
+  // Which feed a URL belongs to, so an outage can be named in the panel.
+  const SOURCES = [
+    ['picks', 'Sleeper Picks lines', (u) => u.startsWith(`${SLEEPER_APP}/lines`)],
+    ['sleeper', 'Sleeper', (u) => u.startsWith(V1)],
+    ['stats', 'Sleeper live stats', (u) => u.startsWith(SLEEPER_WEB)],
+    ['espn', 'ESPN odds and kickoffs', (u) => u.includes('espn.com')]
+  ];
+  const down = new Map(); // source id -> label, while its last request failed
+  const listeners = [];
+
+  function track(url, ok) {
+    const source = SOURCES.find(([, , match]) => match(url));
+    if (!source) return;
+    const [id, label] = source;
+    const was = down.has(id);
+    if (ok) down.delete(id); else down.set(id, label);
+    if (was !== down.has(id)) listeners.forEach((fn) => fn([...down.values()]));
+  }
+
+  async function request(url, load) {
+    try {
+      const data = await load();
+      track(url, true);
+      return data;
+    } catch (err) {
+      // Offline is not an outage of any one feed.
+      if (globalThis.navigator && navigator.onLine === false) throw err;
+      track(url, false);
+      throw err;
+    }
+  }
+
+  function getJson(url) {
+    return request(url, async () => {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`${res.status} ${url}`);
+      return res.json();
+    });
   }
 
   // ESPN refuses requests carrying a sleeper.com Origin; the background worker
   // fetches them with the extension's own. Outside the extension (tests), fetch.
   function viaBackground(url) {
     if (!(globalThis.chrome && chrome.runtime && chrome.runtime.sendMessage)) return getJson(url);
-    return new Promise((resolve, reject) => {
+    return request(url, () => new Promise((resolve, reject) => {
       chrome.runtime.sendMessage({ type: 'nightowl-fetch', url }, (res) => {
         if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
         else if (!res || !res.ok) reject(new Error((res && res.error) || 'background fetch failed'));
         else resolve(res.data);
       });
-    });
+    }));
   }
 
   const positionsQuery = (positions) => (positions && positions.length ? positions : OFFENSE)
@@ -45,6 +79,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   NightOwl.api = {
     OFFENSE,
+
+    /** Feeds whose latest request failed, as labels. Cleared on their next success. */
+    unavailable: () => [...down.values()],
+    /** fn(labels) whenever that list changes. */
+    onAvailability: (fn) => listeners.push(fn),
 
     // Sleeper v1
     state: () => getJson(`${V1}/state/nfl`),

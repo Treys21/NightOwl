@@ -29,12 +29,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   ];
   const DEFAULT_WIDTH = 430;
 
-  // The Night Owl mark (double neon frame); panel.css powers its tubes on.
+  // The Night Owl mark ("Hybrid": cyan outer tube, pink inner tube); panel.css powers its tubes on.
   const BRAND = `
     <svg class="brand" viewBox="0 0 128 128" role="img" aria-label="Night Owl">
       <rect width="128" height="128" rx="30" fill="#140f2e"/>
-      <rect class="outer" x="6" y="6" width="116" height="116" rx="28" fill="none" stroke="#ff4fd8" stroke-width="7"/>
-      <rect class="inner" x="17" y="17" width="94" height="94" rx="20" fill="none" stroke="#3df5ff" stroke-width="5"/>
+      <rect class="outer" x="6" y="6" width="116" height="116" rx="28" fill="none" stroke="#3df5ff" stroke-width="7"/>
+      <rect class="inner" x="17" y="17" width="94" height="94" rx="20" fill="none" stroke="#ff4fd8" stroke-width="5"/>
       <g class="eyes">
         <circle cx="44" cy="65" r="16" fill="none" stroke="#ff4fd8" stroke-width="10"/>
         <circle cx="84" cy="65" r="16" fill="none" stroke="#ff4fd8" stroke-width="10"/>
@@ -82,11 +82,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <button class="iconbtn" data-act="collapse"></button>
       </header>
       ${TOOLS.map((t) => `<div class="view view-${t.id}" hidden></div>`).join('')}
+      <div class="source-note" role="status" hidden></div>
     `;
     shadow.append(panel);
     document.documentElement.appendChild(host);
 
     wire();
+    showOutages(NightOwl.api.unavailable());
     place();
     apply();
     watchSize();
@@ -208,6 +210,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       document.addEventListener('mouseup', onUp);
     });
   }
+
+  // A feed that stops answering is named, rather than its section just emptying.
+  function showOutages(labels) {
+    const note = panel && panel.querySelector('.source-note');
+    if (!note) return;
+    note.hidden = labels.length === 0;
+    note.textContent = labels.length
+      ? `${labels.join(' and ')} ${labels.length === 1 ? 'isn\'t' : 'aren\'t'} responding right now. Everything else keeps working, and it retries on its own.`
+      : '';
+  }
+  NightOwl.api.onAvailability(showOutages);
 
   /** The page URL changed (Sleeper is a single-page app). */
   function navigated() {

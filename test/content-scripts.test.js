@@ -42,3 +42,22 @@ test('content scripts load in order and register every tool', () => {
 test('the entry point loads last', () => {
   assert.equal(scripts[scripts.length - 1], 'src/panel/main.js');
 });
+
+test('api names a failing feed and clears it on recovery', async () => {
+  const context = sandbox();
+  let espnUp = false;
+  context.fetch = async (url) => (url.includes('espn.com') && !espnUp
+    ? { ok: false, status: 503 }
+    : { ok: true, json: async () => ({ events: [] }) });
+  delete context.chrome.runtime.sendMessage; // use fetch directly
+  vm.runInContext(fs.readFileSync(path.join(root, 'src/shared/api.js'), 'utf8'), context);
+  const { api } = context.NightOwl;
+  const seen = [];
+  api.onAvailability((labels) => seen.push(labels.join()));
+  await assert.rejects(api.kickoffs(2026, 5, 'regular'));
+  assert.deepEqual(api.unavailable(), ['ESPN odds and kickoffs']);
+  espnUp = true;
+  await api.kickoffs(2026, 5, 'regular');
+  assert.deepEqual(api.unavailable(), []);
+  assert.deepEqual(seen, ['ESPN odds and kickoffs', '']);
+});

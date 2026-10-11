@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.1.0
+- Live, rebuilt for busy slates: **Feed | Matchups | Games** tabs under the
+  stage, pinned filters (helps me, hurts me, big plays, one league), compact
+  play rows grouped by update, and collapsible games with live ones first.
+- Each play shows its `+`/`−` in each league from your side, never a summed
+  total across leagues.
+- One pop-up at a time: at most the three biggest plays per update, and only
+  plays worth a point or more. Fixed big-play pop-ups that rendered ghosted.
+- When a data feed stops responding, the panel names it ("ESPN odds and
+  kickoffs aren't responding right now") instead of a section going quiet.
+- Bets: players whose game has started show "lines closed at kickoff".
+- New logo, the "Hybrid" mark: cyan outer tube, pink inner tube. Redrawn 16 and
+  32 px icons so the eyes stay distinct in the toolbar.
+- New README with screenshots and an animated preview; brand assets in `docs/brand/`.
+
 ## 3.0.1
 - Live: opening the panel after time away no longer shows everything that
   happened meanwhile as one giant "play" (e.g. a whole game's stat line). Those

@@ -48,15 +48,16 @@ header {
   border-bottom: 1px solid rgba(58,70,91,.7); border-radius: 16.5px 16.5px 0 0;
   cursor: move; user-select: none;
 }
-/* The Night Owl mark (double neon frame): its tubes power on one after
-   another when the panel opens — outer frame, inner frame, eyes — and the
-   pupils blink now and then. */
-.brand { width: 26px; height: 26px; flex: none; display: block; filter: drop-shadow(0 0 5px rgba(255,79,216,.45)); }
+/* The Night Owl mark ("Hybrid": cyan outer tube, pink inner tube). The tubes
+   power on one after another when the panel opens (outer, inner, eyes); then
+   the inner tube flickers and the pupils blink now and then. */
+.brand { width: 26px; height: 26px; flex: none; display: block; filter: drop-shadow(0 0 5px rgba(61,245,255,.4)) drop-shadow(0 0 3px rgba(255,79,216,.35)); }
 .brand .outer { animation: owl-on 1s .1s both; }
-.brand .inner { animation: owl-on 1s .45s both; }
+.brand .inner { animation: owl-on 1s .45s both, owl-flicker 6s 3s infinite; }
 .brand .eyes { animation: owl-on 1s .8s both; }
 .brand .pupil { transform-box: fill-box; transform-origin: center; animation: owl-blink 5s 2.5s infinite; }
 @keyframes owl-on { 0% { opacity: .12; } 20% { opacity: 1; } 30% { opacity: .25; } 45% { opacity: 1; } 55% { opacity: .45; } 70%, 100% { opacity: 1; } }
+@keyframes owl-flicker { 0%, 40%, 43%, 46%, 100% { opacity: 1; } 41.5%, 44.5% { opacity: .2; } }
 @keyframes owl-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
 .switch {
   position: relative; display: flex; flex: 1; padding: 3px; border-radius: 11px;
@@ -84,3 +85,11 @@ header {
 .view { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .view[hidden] { display: none; }
 .view-live, .view-lineups, .view-bets { overflow: hidden; position: relative; }
+/* Shown only while one of the data feeds is failing. */
+.source-note {
+  flex: none; margin: 0 1.5px 1.5px; padding: 7px 12px; border-radius: 0 0 16.5px 16.5px;
+  font-size: 11.5px; line-height: 1.35; color: #feae58;
+  background: rgba(254, 174, 88, .08); border-top: 1px solid rgba(254, 174, 88, .25);
+}
+.source-note[hidden] { display: none; }
+.panel.collapsed .source-note { display: none; }

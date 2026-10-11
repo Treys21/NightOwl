@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <!-- Night Owl — "Double Frame" master mark (design #39), with glow. -->
+  <!-- Night Owl — "Hybrid" master mark (design #40, Final C), with glow. -->
   <defs>
     <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur stdDeviation="2.6" result="b"/>
@@ -10,8 +10,8 @@
   <rect x="4" y="4" width="120" height="120" rx="31" fill="#140f2e"/>
   <g filter="url(#soft)" fill="none"><circle cx="44" cy="65" r="10" stroke="#ff4fd8" stroke-width="7" opacity=".55"/><circle cx="84" cy="65" r="10" stroke="#ff4fd8" stroke-width="7" opacity=".55"/></g>
   <g filter="url(#glow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="7" y="7" width="114" height="114" rx="30" stroke="#ff4fd8" stroke-width="3.8"/>
-    <rect x="14" y="14" width="100" height="100" rx="24" stroke="#3df5ff" stroke-width="2.2"/>
+    <rect x="7" y="7" width="114" height="114" rx="30" stroke="#3df5ff" stroke-width="3.8"/>
+    <rect x="14" y="14" width="100" height="100" rx="24" stroke="#ff4fd8" stroke-width="2.2"/>
     <circle cx="44" cy="65" r="16.5" stroke="#ff4fd8" stroke-width="7"/><circle cx="84" cy="65" r="16.5" stroke="#ff4fd8" stroke-width="7"/>
     <circle cx="44" cy="65" r="16.5" stroke="#ffd6f5" stroke-width="1.7"/><circle cx="84" cy="65" r="16.5" stroke="#ffd6f5" stroke-width="1.7"/>
     <circle cx="45.5" cy="63.5" r="6.2" fill="#3df5ff" stroke="none"/><circle cx="85.5" cy="63.5" r="6.2" fill="#3df5ff" stroke="none"/>
