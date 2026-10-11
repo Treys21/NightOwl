@@ -355,7 +355,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const team = ev.team || p.team;
     const c = teams.colors(team);
     const pop = document.createElement('div');
-    pop.className = `pop ${mood}${big ? ' big' : ''}`;
+    pop.className = `pop ${mood}${big ? ' major' : ''}`;
     pop.style.setProperty('--tp', c.primary);
     pop.style.setProperty('--ts', c.secondary);
     pop.style.setProperty('--ink', c.ink);
@@ -552,7 +552,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function playRow(ev, isNew) {
     const mood = moodOf(ev);
-    return `<li class="ev ${mood === 'even' ? '' : mood}${isNew ? ' new' : ''}${isBig(ev) ? ' big' : ''}" style="--tc:${teams.colors(ev.team).primary}">
+    return `<li class="ev ${mood === 'even' ? '' : mood}${isNew ? ' new' : ''}${isBig(ev) ? ' major' : ''}" style="--tc:${teams.colors(ev.team).primary}">
         <div class="ev-top">
           <span class="ev-who">${face(ev.pid, ev.team)}<span><span class="ev-name">${esc(ev.name)}</span> <span class="muted small">${esc(ev.pos)} · ${esc(ev.team)}</span></span></span>
           <span class="ev-val">${playValue(ev)}</span>
