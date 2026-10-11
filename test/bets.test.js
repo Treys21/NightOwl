@@ -5,8 +5,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 
-globalThis.SLT = globalThis.SLT || {};
-const bets = require('../src/live/bets-core.js');
+const bets = require('../src/bets/core.js');
 
 const fx = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/bets.json'), 'utf8'));
 

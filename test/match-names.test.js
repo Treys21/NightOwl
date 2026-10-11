@@ -4,8 +4,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-globalThis.SDR = {};
-const { normalizeName, normalizePosition, buildIndex, matchPlayer } = require('../src/lib/match-names.js');
+const { normalizeName, normalizePosition, buildIndex, matchPlayer } = require('../src/draft/match-names.js');
 
 test('normalizeName strips punctuation, case, and accents', () => {
   assert.equal(normalizeName('A.J. Brown'), 'aj brown');

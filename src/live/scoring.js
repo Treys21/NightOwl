@@ -2,9 +2,9 @@
 // the derived keys (bonus_*, pts_allow_14_20, yds_allow_300_349, fgm_40_49 ...),
 // so a league's score for a player is just sum(stat[key] * scoring[key]) —
 // this matches the players_points Sleeper reports in matchups exactly.
-globalThis.SLT = globalThis.SLT || {};
+globalThis.NightOwl = globalThis.NightOwl || {};
 
-(function (SLT) {
+(function (NightOwl) {
   'use strict';
 
   const round2 = (n) => Math.round(n * 100) / 100;
@@ -78,7 +78,7 @@ globalThis.SLT = globalThis.SLT || {};
     return parts.map((p) => p.text).join(' · ');
   }
 
-  SLT.scoring = { points, statDelta, deltaPoints, describe, round2 };
-})(globalThis.SLT);
+  NightOwl.scoring = { points, statDelta, deltaPoints, describe, round2 };
+})(globalThis.NightOwl);
 
-if (typeof module !== 'undefined') module.exports = globalThis.SLT.scoring;
+if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.scoring;

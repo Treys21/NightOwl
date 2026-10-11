@@ -1,6 +1,6 @@
 // Rankings editor + settings. This is the authoritative fallback whenever the
 // Ringer scrape breaks, or you simply disagree with a ranking.
-(function (SDR) {
+(function (NightOwl) {
   'use strict';
 
   const listEl = document.getElementById('list');
@@ -8,6 +8,7 @@
   const syncedEl = document.getElementById('synced');
   const usernameEl = document.getElementById('username');
   const userStatusEl = document.getElementById('user-status');
+  const esc = NightOwl.format.escape;
 
   let rankings = [];
   let dragIndex = null;
@@ -22,19 +23,19 @@
       document.getElementById('open-tab').hidden = inTab;
     });
 
-    rankings = await SDR.storage.getRankings();
-    const settings = await SDR.storage.getSettings();
+    rankings = await NightOwl.storage.getRankings();
+    const settings = await NightOwl.storage.getSettings();
 
-    formatEl.innerHTML = SDR.ringer.FORMATS.map(
+    formatEl.innerHTML = NightOwl.ringer.FORMATS.map(
       (f) => `<option value="${f.id}">${f.label}</option>`
     ).join('');
     formatEl.value = settings.format || 'half-ppr';
-    formatEl.addEventListener('change', () => SDR.storage.saveSettings({ format: formatEl.value }));
+    formatEl.addEventListener('change', () => NightOwl.storage.saveSettings({ format: formatEl.value }));
 
     usernameEl.value = settings.username || '';
-    userStatusEl.textContent = settings.userId ? `user id ${settings.userId}` : 'not resolved yet';
+    userStatusEl.textContent = settings.userId ? `✓ connected as ` : (settings.username ? 'not found yet: check the spelling' : 'add your username to turn on Live, Lineups and Bets');
 
-    const lastSynced = await SDR.storage.getLastSynced();
+    const lastSynced = await NightOwl.storage.getLastSynced();
     syncedEl.textContent = lastSynced
       ? `synced ${new Date(lastSynced).toLocaleString()}`
       : 'never synced';
@@ -53,8 +54,8 @@
         (player, index) => `
         <li draggable="true" data-index="${index}">
           <span class="rank">${player.rank}</span>
-          <span class="name">${escapeHtml(player.name)}</span>
-          <span class="meta">${escapeHtml(player.position || '')} ${escapeHtml(player.team || '')}</span>
+          <span class="name">${esc(player.name)}</span>
+          <span class="meta">${esc(player.position || '')} ${esc(player.team || '')}</span>
           <button class="del" data-del="${index}" title="Remove">×</button>
         </li>`
       )
@@ -94,13 +95,13 @@
   }
 
   // Deleting down to an empty board has to be allowed, but saveRankings refuses
-  // empty lists (so a failed scrape can't wipe the board) — clear the key directly.
+  // empty lists (so a failed scrape can't wipe the board), so clear explicitly.
   async function persist() {
     if (rankings.length === 0) {
-      await new Promise((resolve) => chrome.storage.local.set({ rankings: [] }, resolve));
+      await NightOwl.storage.clearRankings();
     } else {
-      await SDR.storage.saveRankings(rankings);
-      rankings = SDR.storage.renumber(rankings);
+      await NightOwl.storage.saveRankings(rankings);
+      rankings = NightOwl.storage.renumber(rankings);
     }
     render();
   }
@@ -127,12 +128,12 @@
     if (!username) return;
     userStatusEl.textContent = 'resolving…';
     try {
-      const user = await SDR.api.getUser(username);
+      const user = await NightOwl.api.user(username);
       if (user && user.user_id) {
-        await SDR.storage.saveSettings({ username, userId: user.user_id });
-        userStatusEl.textContent = `user id ${user.user_id}`;
+        await NightOwl.storage.saveSettings({ username, userId: user.user_id });
+        userStatusEl.textContent = `✓ connected as `;
       } else {
-        await SDR.storage.saveSettings({ username, userId: null });
+        await NightOwl.storage.saveSettings({ username, userId: null });
         userStatusEl.textContent = 'no such Sleeper user';
       }
     } catch {
@@ -147,12 +148,12 @@
     syncButton.textContent = 'Syncing…';
 
     // Fetched straight from the extension page — no need to open The Ringer.
-    const result = await SDR.ringer.fetchRankings(format);
+    const result = await NightOwl.ringer.fetchRankings(format);
 
     if (result.ok) {
       rankings = result.rankings;
-      await SDR.storage.saveRankings(rankings, { markSynced: true });
-      rankings = await SDR.storage.getRankings();
+      await NightOwl.storage.saveRankings(rankings, { markSynced: true });
+      rankings = await NightOwl.storage.getRankings();
       syncedEl.textContent = `synced ${new Date().toLocaleString()}`;
       userStatusEl.textContent = `${rankings.length} players from The Ringer (${format})`;
       render();
@@ -169,7 +170,7 @@
     const blob = new Blob([JSON.stringify(rankings, null, 2)], { type: 'application/json' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'sleeper-big-board.json';
+    link.download = 'night-owl-rankings.json';
     link.click();
     URL.revokeObjectURL(link.href);
   });
@@ -214,11 +215,5 @@
     }
   });
 
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text == null ? '' : text;
-    return div.innerHTML;
-  }
-
   init();
-})(globalThis.SDR);
+})(globalThis.NightOwl);

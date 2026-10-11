@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Night Owl",
-  "version": "2.9.0",
+  "version": "3.0.0",
   "description": "Night Owl for Sleeper fantasy football: draft big board, live cross-league scoring feed, start/sit lineup checks, and betting lines for your starters.",
   "minimum_chrome_version": "116",
   "icons": {
@@ -40,26 +40,39 @@
         "https://sleeper.com/*"
       ],
       "js": [
-        "src/lib/storage.js",
-        "src/lib/dom.js",
-        "src/lib/match-names.js",
-        "src/lib/sleeper-api.js",
+        "src/shared/storage.js",
+        "src/shared/dom.js",
+        "src/shared/format.js",
+        "src/shared/api.js",
+        "src/shared/teams.js",
+        "src/shared/players.js",
         "src/live/scoring.js",
         "src/live/tracker.js",
-        "src/live/live-api.js",
-        "src/live/live-styles.js",
-        "src/live/teams.js",
-        "src/live/players.js",
-        "src/live/lineups-core.js",
-        "src/live/bets-core.js",
-        "src/live/live.js",
-        "src/live/lineups.js",
-        "src/live/bets.js",
-        "src/sleeper/panel.js",
-        "src/sleeper/inline-badges.js",
-        "src/sleeper/content.js"
+        "src/lineups/core.js",
+        "src/bets/core.js",
+        "src/draft/match-names.js",
+        "src/draft/draft-order.js",
+        "src/live/view.js",
+        "src/lineups/view.js",
+        "src/bets/view.js",
+        "src/panel/shell.js",
+        "src/draft/board.js",
+        "src/draft/badges.js",
+        "src/draft/draft.js",
+        "src/panel/main.js"
       ],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/styles/*.css"
+      ],
+      "matches": [
+        "https://sleeper.com/*"
+      ],
+      "use_dynamic_url": true
     }
   ]
 }

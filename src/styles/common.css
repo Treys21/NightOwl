@@ -1,0 +1,91 @@
+/* Shared by the Live, Lineups and Bets views: palette tokens, the view's
+   bar and scroller, cards, tabs, chips, empty/error states. */
+/* Sleeper's own palette, read off sleeper.com: navy panels, teal accent with
+   navy text on it, pink for the bad news, blue-grey secondary text. */
+.tool {
+  --bg: #181c28;
+  --panel: #1f2431;
+  --card: rgba(163, 187, 211, 0.07);
+  --card-hover: rgba(163, 187, 211, 0.09);
+  --line: #3a465b;
+  --chip: #262e3e;
+  --text: #ffffff;
+  --sub: #bfcfe0;
+  --muted: #8d9fbc; /* was #677897: too dim on navy for small text */
+  --teal: #00ceb8;
+  --teal-ink: #022047;
+  --teal-soft: rgba(0, 206, 184, 0.12);
+  --pink: #f75c8d;
+  --pink-soft: rgba(247, 92, 141, 0.12);
+  --flash: rgba(0, 206, 184, 0.22);
+}
+
+* { box-sizing: border-box; }
+.tool {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  color: var(--text);
+  font: 13.5px/1.4 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button {
+  font: inherit;
+  color: var(--sub);
+  background: var(--chip);
+  border: 0;
+  border-radius: 8px;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+button { transition: transform .15s, background .2s, color .2s; }
+button:hover { color: var(--text); }
+button:active { transform: scale(.92); }
+button.spin { animation: spinbtn .8s linear infinite; }
+@keyframes spinbtn { to { transform: rotate(1turn); } }
+button.icon { background: none; font-size: 16px; padding: 2px 6px; }
+button.icon:hover { background: var(--chip); }
+h2 {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font: 700 12px Poppins, sans-serif; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--sub);
+  margin: 16px 0 9px;
+}
+h2::after { content: ''; flex: 1; min-width: 20px; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
+.game-h img { width: 18px; height: 18px; object-fit: contain; vertical-align: middle; }
+.live-tag {
+  font: 800 10.5px Poppins, sans-serif; letter-spacing: .1em; color: #fff; background: #e5203a;
+  padding: 1px 6px; border-radius: 4px; animation: livepulse 1.6s infinite;
+}
+@keyframes livepulse { 50% { box-shadow: 0 0 0 4px rgba(229, 32, 58, .25); } }
+#net-total { color: var(--muted); font-weight: 500; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.empty { text-align: center; padding: 14px 8px; }
+.card { background: var(--panel); border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+.error { color: var(--pink); background: var(--pink-soft); padding: 8px 10px; border-radius: 8px; margin: 10px 0 0; }
+
+.tool-scroll { flex: 1; min-height: 0; overflow: auto; padding: 0 12px 20px; }
+.bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+}
+.title { display: flex; align-items: center; gap: 7px; font-family: Poppins, sans-serif; }
+.title strong { font-weight: 600; font-size: 15px; }
+.actions { display: flex; align-items: center; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.dot.live { background: var(--teal); box-shadow: 0 0 0 0 var(--teal); animation: pulse 1.6s infinite; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 6px rgba(0, 206, 184, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 206, 184, 0); } }
+
+#league-toggles label { display: flex; gap: 8px; align-items: center; padding: 3px 0; color: var(--sub); }
+#league-toggles input { accent-color: var(--teal); }
+
+/* Scroll performance: keep scroll chaining inside the panel. */
+.tool-scroll { overscroll-behavior: contain; }

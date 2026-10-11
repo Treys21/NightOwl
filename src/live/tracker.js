@@ -1,12 +1,12 @@
 // Cross-league bookkeeping: who is starting where, live matchup scores, and
 // turning two stat snapshots into scoring events with per-league impact.
 // Pure functions — no chrome.* or fetch — so they run under node --test.
-globalThis.SLT = globalThis.SLT || {};
+globalThis.NightOwl = globalThis.NightOwl || {};
 
-(function (SLT) {
+(function (NightOwl) {
   'use strict';
 
-  const { points, statDelta, deltaPoints, describe, round2 } = SLT.scoring;
+  const { points, statDelta, deltaPoints, describe, round2 } = NightOwl.scoring;
 
   // matchups: GET /league/<id>/matchups/<week>. Returns { mine, opp } entries
   // of { rosterId, starters }, opp null on a bye / median-only week.
@@ -98,7 +98,7 @@ globalThis.SLT = globalThis.SLT || {};
     return out;
   }
 
-  SLT.tracker = { pickMatchup, watchList, scoreboard, diffEvents, trimSnapshot };
-})(globalThis.SLT);
+  NightOwl.tracker = { pickMatchup, watchList, scoreboard, diffEvents, trimSnapshot };
+})(globalThis.NightOwl);
 
-if (typeof module !== 'undefined') module.exports = globalThis.SLT.tracker;
+if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.tracker;

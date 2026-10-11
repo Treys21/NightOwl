@@ -1,6 +1,6 @@
 {
   "name": "night-owl",
-  "version": "2.9.0",
+  "version": "3.0.0",
   "private": true,
   "description": "Night Owl for Sleeper fantasy football: draft big board, live cross-league scoring feed, start/sit lineup checks, and betting lines for your starters.",
   "repository": {
@@ -12,9 +12,15 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
+    "lint": "eslint .",
     "check": "node scripts/check.mjs",
     "package": "node scripts/package.mjs",
-    "verify": "npm run check && npm test"
+    "verify": "npm run lint && npm run check && npm test"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0"
+  }
 }

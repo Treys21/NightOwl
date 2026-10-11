@@ -2,13 +2,14 @@
 // order and, for the next one to lock, shows every player you roster from
 // those teams — starting or benched, in every league — with swaps worth a
 // look. Lineups are edited in Sleeper itself; each league links straight there.
-globalThis.SLT = globalThis.SLT || {};
+globalThis.NightOwl = globalThis.NightOwl || {};
 
-(function (SLT) {
+(function (NightOwl) {
   'use strict';
 
-  const { api, scoring, teams } = SLT;
-  const core = SLT.lineups;
+  const { api, scoring, teams, players, storage } = NightOwl;
+  const { escape: esc, tenths: fmt, dayTime: timeOf, countdown } = NightOwl.format;
+  const core = NightOwl.lineups;
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
 
@@ -35,17 +36,13 @@ globalThis.SLT = globalThis.SLT || {};
     error: null
   };
 
-  const store = {
-    get: (key, fallback) => new Promise((resolve) => chrome.storage.local.get(key, (r) =>
-      resolve(r[key] === undefined ? fallback : r[key])))
-  };
 
   const MARKUP = `
     <header class="bar">
       <div class="title"><strong>Lineups</strong><span id="lu-week" class="muted small"></span></div>
       <div class="actions"><button id="lu-refresh" class="icon" title="Refresh now">↻</button></div>
     </header>
-    <div class="slt-scroll">
+    <div class="tool-scroll">
       <p id="lu-error" class="error" hidden></p>
       <div id="lu-body"><p class="muted small empty">Loading your rosters…</p></div>
     </div>
@@ -53,14 +50,14 @@ globalThis.SLT = globalThis.SLT || {};
 
   // ---- data -------------------------------------------------------------
   async function load(force) {
-    const shared = await store.get('settings', {});
-    const own = await store.get('live.settings', {});
+    const shared = await storage.get('settings', {});
+    const own = await storage.get('live.settings', {});
     const username = (shared.username || '').trim();
     if (!username) throw new Error('Add your Sleeper username in the extension popup (click the toolbar icon) to get started.');
     if (username !== state.username) { state.userId = null; state.username = username; }
     state.excluded = own.excluded || [];
 
-    await SLT.players.load();
+    await players.load();
     state.nfl = await api.state();
     const season = state.nfl.season;
     const week = state.nfl.display_week || state.nfl.week;
@@ -98,7 +95,7 @@ globalThis.SLT = globalThis.SLT || {};
       try {
         state.games = core.parseGames(await api.kickoffs(season, week, seasonType));
       } catch (err) {
-        console.warn('[SLT lineups] ESPN kickoffs unavailable, using Sleeper dates', err);
+        console.warn('[Night Owl lineups] ESPN kickoffs unavailable, using Sleeper dates', err);
         state.games = core.gamesFromSchedule(await api.schedule(season, seasonType), week);
       }
       state.gamesAt = Date.now();
@@ -121,7 +118,7 @@ globalThis.SLT = globalThis.SLT || {};
       await load(force);
       state.error = null;
     } catch (err) {
-      console.error('[SLT lineups]', err);
+      console.error('[Night Owl lineups]', err);
       state.error = err.message || String(err);
     } finally {
       state.busy = false;
@@ -131,16 +128,6 @@ globalThis.SLT = globalThis.SLT || {};
   }
 
   // ---- view -------------------------------------------------------------
-  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const fmt = (n) => (Math.round(n * 10) / 10).toFixed(1);
-  const timeOf = (ms) => new Date(ms).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
-
-  function countdown(ms) {
-    const mins = Math.max(0, Math.round((ms - Date.now()) / 60000));
-    if (mins < 60) return `${mins}m`;
-    const h = Math.floor(mins / 60);
-    return h < 24 ? `${h}h ${mins % 60}m` : `${Math.floor(h / 24)}d ${h % 24}h`;
-  }
 
   // A ring that empties over the last 12 hours before lock.
   function ring(kickoff, soon) {
@@ -169,7 +156,7 @@ globalThis.SLT = globalThis.SLT || {};
     const projected = (pid, sc) => scoring.points(state.proj[pid], sc);
     const leagues = state.leagues
       .filter((lg) => !state.excluded.includes(lg.leagueId))
-      .map((lg) => Object.assign({}, lg, core.lineup(lg, lg.roster, SLT.players.info, projected, kickoffOf, now)));
+      .map((lg) => Object.assign({}, lg, core.lineup(lg, lg.roster, players.info, projected, kickoffOf, now)));
     return { leagues, wins: core.windows(state.games).filter((w) => !w.started && w.kickoff > now) };
   }
 
@@ -310,7 +297,7 @@ globalThis.SLT = globalThis.SLT || {};
   function mount(el) {
     if (root === el) return;
     root = el;
-    root.classList.add('slt-live', 'intro');
+    root.classList.add('tool', 'intro');
     setTimeout(() => el.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
     $('lu-refresh').addEventListener('click', () => refresh(true));
@@ -325,8 +312,8 @@ globalThis.SLT = globalThis.SLT || {};
     refresh(false);
   }
 
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.settings && root) refresh(true);
+  storage.onChanged((changes) => {
+    if (changes.settings && root) refresh(true);
   });
 
   function unmount() {
@@ -340,5 +327,6 @@ globalThis.SLT = globalThis.SLT || {};
     if (root && !document.hidden && Date.now() - state.loadedAt > 10000) refresh(false);
   });
 
-  SLT.lineupsView = { mount, unmount };
-})(globalThis.SLT);
+  NightOwl.views = NightOwl.views || {};
+  NightOwl.views.lineups = { mount, unmount };
+})(globalThis.NightOwl);

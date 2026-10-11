@@ -1,0 +1,23 @@
+name: Feedback
+description: Tell us what you liked, what confused you, or what you wish it did.
+labels: [feedback]
+body:
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Which part?
+      options: [Draft, Live, Lineups, Bets, Popup / setup, The whole thing]
+    validations:
+      required: true
+  - type: textarea
+    id: thoughts
+    attributes:
+      label: Your thoughts
+      description: What worked, what didn't, what you'd change. Screenshots welcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: again
+    attributes:
+      label: Would you use it again next Sunday?
+      options: [Definitely, Probably, Not yet]

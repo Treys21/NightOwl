@@ -4,8 +4,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-globalThis.SDR = {};
-const api = require('../src/lib/sleeper-api.js');
+const api = require('../src/draft/draft-order.js');
 
 const snake12 = { type: 'snake', settings: { teams: 12 } };
 const linear12 = { type: 'linear', settings: { teams: 12 } };

@@ -18,28 +18,36 @@ a floating panel to sleeper.com with four tools. Not affiliated with Sleeper. Sw
 Only the visible tool runs; the others stop polling. Drag the header to move
 the panel and the bottom-right corner to resize it — both are remembered.
 
-## Install
+## Try it (2 minutes)
 
-**From a release zip:** download `night-owl-v<version>.zip`, unzip it,
-then in `chrome://extensions` turn on **Developer mode** → **Load unpacked** →
-pick the unzipped folder.
+Night Owl isn't on the Chrome Web Store yet, so it installs as an unpacked
+extension:
 
-**From source:** `git clone https://github.com/Treys21/NightOwl.git`, then **Load unpacked** the cloned folder.
+1. Download **`night-owl-v<version>.zip`** from the
+   [latest release](https://github.com/Treys21/NightOwl/releases/latest) and unzip it.
+2. Open `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and pick the unzipped folder (the one with `manifest.json` in it).
+4. Pin the owl from the puzzle-piece menu, click it, enter your **Sleeper
+   username**, and hit **Save**.
+5. Open [sleeper.com](https://sleeper.com). The panel shows up in the corner.
 
-After updating the files, click the ↻ reload icon on the extension's card in
-`chrome://extensions` and refresh sleeper.com. The card shows the version, so
-you can confirm the update took.
+Works in Chrome 116+ and other Chromium browsers (Edge, Brave, Arc).
 
-Requires Chrome 116 or newer.
+**Updating:** unzip the new release over the old folder, click ↻ on Night Owl's
+card in `chrome://extensions`, and refresh sleeper.com. The card shows the
+version number, so you can check the update took.
+
+**Feedback:** [open an issue](https://github.com/Treys21/NightOwl/issues/new/choose).
+There are short forms for feedback and bugs, and screenshots help a lot.
 
 ## Getting started
 
-1. Click the toolbar icon and enter your **Sleeper username**, then **Save**.
-   Live, Lineups and Bets read your leagues from it; Draft uses it for the
+1. Click the toolbar icon, enter your **Sleeper username**, and hit **Save**.
+   Live, Lineups and Bets find your leagues from it. Draft uses it for the
    "you're on the clock" banner.
-2. Open any page on sleeper.com — the panel appears in the corner.
+2. Open any page on sleeper.com and the panel appears in the corner.
 3. *(Draft only)* In the popup, pick a scoring format and hit
-   **Sync from Ringer** to load rankings, or add/reorder players by hand.
+   **Sync from Ringer** to load rankings, or add and reorder players by hand.
 
 ## The tools
 
@@ -147,44 +155,39 @@ Each source fails on its own: if one breaks, only its section empties.
 
 ## Development
 
-No build step and no runtime dependencies — plain MV3 JavaScript loaded as
-classic scripts. Node 20+ is only needed for tests and packaging.
+No build step and no runtime dependencies. It's plain MV3 JavaScript loaded as
+classic scripts. Node 20+ is only needed for linting, tests and packaging.
 
 ```bash
-npm test          # unit tests (node --test)
-npm run check     # manifest files exist, scripts parse, versions agree
-npm run package   # dist/night-owl-v<version>.zip for release / the Web Store
+npm ci            # dev tools (ESLint)
+npm run verify    # lint + static checks + unit tests
+npm run package   # dist/night-owl-v<version>.zip
 ```
 
-CI (`.github/workflows/ci.yml`) runs all three on every push and pull request
-and uploads the zip as a build artifact.
-
-Releasing: bump `version` in **both** `manifest.json` and `package.json` (the
-check fails if they differ), add a `CHANGELOG.md` entry, then `npm run package`.
-
-Debug logging on sleeper.com: run `localStorage.setItem('sdr-debug', '1')` in the
-page console and reload.
+Load the repo folder itself with **Load unpacked** while developing. CI
+(`.github/workflows/ci.yml`) runs `verify` and `package` on every push and
+uploads the zip. See [CONTRIBUTING.md](CONTRIBUTING.md) for the architecture
+and the release steps.
 
 ### Layout
 
 ```
 manifest.json
-icons/                      extension icons (16/32/48/128 PNG)
-icons/src/                  their SVG sources (logo.svg = master with glow)
-scripts/                    check.mjs, package.mjs
-src/background.js           fetch relay for ESPN (allow-listed hosts only)
-src/popup/                  username, rankings editor, Ringer sync
-src/sleeper/                panel shell + tool switch, draft board, inline badges, routing
-src/lib/                    storage, CSP-safe styles, Sleeper API, name matching, Ringer parser
-src/live/
-  scoring.js tracker.js     live scoring + play diffing        (pure)
-  lineups-core.js           kickoff windows, optimal lineup     (pure)
-  bets-core.js              lines, odds, hit rates, ranks       (pure)
-  teams.js players.js       team colors/CDN, shared player cache
-  live-api.js               Sleeper/ESPN endpoints
-  live.js lineups.js bets.js   the three views
-  live-styles.js            styles for Live / Lineups / Bets
-test/                       node --test, with real captured fixtures
+icons/                 extension icons (16/32/48/128); SVG sources in icons/src/
+scripts/               check.mjs (static checks), package.mjs (release zip)
+src/
+  background.js        fetch relay for ESPN (allow-listed hosts only)
+  shared/              storage, styles loader, formatting, API client,
+                       team colors, shared player directory
+  panel/               shell.js (tool switch, drag, resize), main.js (entry)
+  draft/               draft.js (controller), board.js, badges.js,
+                       match-names.js, draft-order.js, ringer.js
+  live/                view.js, scoring.js, tracker.js
+  lineups/             view.js, core.js (windows, optimal lineup)
+  bets/                view.js, core.js (lines, odds, hit rates)
+  styles/              panel, draft, common, live, bets, lineups (.css)
+  popup/               username, rankings editor, Ringer sync
+test/                  node --test, with real captured fixtures
 ```
 
 ### Tests
@@ -193,16 +196,20 @@ Pure logic is tested against real captured data: live scoring vs Sleeper's own
 matchup totals (two leagues with different scoring), the lineup solver and flex
 chains, Sleeper Picks lines / ESPN props / odds conversion, the rankings parser
 (on a synthetic page with the same embedded-data structure),
-name matching against the Sleeper player list, snake-draft order, and the
-manifest itself. The panels are verified by hand in the browser.
+name matching against the Sleeper player list, snake-draft order, board
+filtering and sorting, and the manifest itself. A load test runs every content
+script in manifest order in one shared global, the way Chrome does. The panels
+are checked by hand in the browser.
 
 ### Design notes
 
 - **Polling lives in content scripts**, not the service worker — MV3 workers are
   killed after ~30s idle and `chrome.alarms` fires at most once a minute.
 - **Shadow DOM** isolates the panel from Sleeper's CSS (and vice versa).
-- **`src/sleeper/inline-badges.js` is deliberately fragile** — it holds every
-  guess at Sleeper's markup; if nothing matches it does nothing.
+- **Styles are real CSS files** adopted as constructed stylesheets, which
+  sleeper.com's CSP allows (an injected `<style>` might not be).
+- **`src/draft/badges.js` is deliberately fragile.** It holds every guess at
+  Sleeper's markup, and if nothing matches it does nothing.
 - **Ringer rankings are read from the page's embedded data**, not its table, so
   syncing is a fetch and exact.
 

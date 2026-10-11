@@ -8,8 +8,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 
-globalThis.SDR = {};
-const ringer = require('../src/lib/ringer-source.js');
+const ringer = require('../src/draft/ringer.js');
 
 const html = fs.readFileSync(path.join(__dirname, 'fixtures', 'rankings-synthetic.html'), 'utf8');
 

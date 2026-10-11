@@ -3,8 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-globalThis.SLT = globalThis.SLT || {};
-const core = require('../src/live/lineups-core.js');
+const core = require('../src/lineups/core.js');
 
 const event = (date, away, home, state = 'pre') => ({
   date,

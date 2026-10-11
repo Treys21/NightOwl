@@ -3,14 +3,15 @@
 // Picks lines, implied odds, recent hit rates, projection vs line, DraftKings
 // milestone ladders, game lines and defense-vs-position context — and, once
 // their game starts, live progress bars against each line. Information only.
-globalThis.SLT = globalThis.SLT || {};
+globalThis.NightOwl = globalThis.NightOwl || {};
 
-(function (SLT) {
+(function (NightOwl) {
   'use strict';
 
-  const { api, teams } = SLT;
-  const core = SLT.bets;
-  const windowsOf = (games) => SLT.lineups.windows(games);
+  const { api, teams, players, storage } = NightOwl;
+  const { escape: esc, short: num, percent: pct, dayTime: timeOf } = NightOwl.format;
+  const core = NightOwl.bets;
+  const windowsOf = (games) => NightOwl.lineups.windows(games);
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
 
@@ -49,11 +50,6 @@ globalThis.SLT = globalThis.SLT || {};
     error: null
   };
 
-  const store = {
-    get: (key, fallback) => new Promise((resolve) => chrome.storage.local.get(key, (r) =>
-      resolve(r[key] === undefined ? fallback : r[key]))),
-    set: (items) => new Promise((resolve) => chrome.storage.local.set(items, resolve))
-  };
 
   const MARKUP = `
     <header class="bar">
@@ -66,7 +62,7 @@ globalThis.SLT = globalThis.SLT || {};
         <button id="bt-refresh" class="icon" title="Refresh now">↻</button>
       </div>
     </header>
-    <div class="slt-scroll">
+    <div class="tool-scroll">
       <div class="bt-toolbar">
         <div class="bt-tool-row">
           <input id="bt-q" type="search" placeholder="Search player or team…" autocomplete="off" spellcheck="false">
@@ -109,7 +105,7 @@ globalThis.SLT = globalThis.SLT || {};
       const [rosters, matchups] = await Promise.all([api.rosters(lg.league_id), api.matchups(lg.league_id, week)]);
       const mine = rosters.find((r) => r.owner_id === state.userId || (r.co_owners || []).includes(state.userId));
       if (!mine) return;
-      const pair = SLT.tracker.pickMatchup(matchups || [], mine.roster_id);
+      const pair = NightOwl.tracker.pickMatchup(matchups || [], mine.roster_id);
       if (!pair) return;
       const name = lg.name.trim();
       pair.mine.starters.forEach((pid) => add(pid, name, 'me'));
@@ -120,28 +116,28 @@ globalThis.SLT = globalThis.SLT || {};
 
   async function loadProps(force) {
     // Only games with someone we show, and only before or during them.
-    const shownTeams = new Set([...state.people.keys()].map((pid) => SLT.players.info(pid).team));
+    const shownTeams = new Set([...state.people.keys()].map((pid) => players.info(pid).team));
     const games = state.games.filter((g) => g.state !== 'post' && g.id && (shownTeams.has(g.home) || shownTeams.has(g.away)));
     for (const g of games) {
       if (!force && Date.now() - (state.propsAt.get(g.id) || 0) < PROPS_TTL_MS) continue;
       try {
         const ladders = core.parseMilestones(await api.propBets(g.id));
         for (const [espnId, list] of Object.entries(ladders)) {
-          const pid = SLT.players.byEspn(espnId);
+          const pid = players.byEspn(espnId);
           if (pid) state.ladders[pid] = list;
         }
         state.propsAt.set(g.id, Date.now());
       } catch (err) {
         // No DraftKings props for this game (or ESPN is down): ladders just don't show.
-        console.warn('[SLT bets] props unavailable for', g.id, err.message || err);
+        console.warn('[Night Owl bets] props unavailable for', g.id, err.message || err);
         state.propsAt.set(g.id, Date.now());
       }
     }
   }
 
   async function load(force) {
-    const shared = await store.get('settings', {});
-    const own = await store.get('bets.settings', {});
+    const shared = await storage.get('settings', {});
+    const own = await storage.get('bets.settings', {});
     const username = (shared.username || '').trim();
     if (!username) throw new Error('Add your Sleeper username in the extension popup (click the toolbar icon) to get started.');
     if (username !== state.username) { state.username = username; state.userId = null; }
@@ -149,7 +145,7 @@ globalThis.SLT = globalThis.SLT || {};
     if (own.pos) state.ui.pos = own.pos;
     if (own.sort) state.ui.sort = own.sort;
 
-    await SLT.players.load();
+    await players.load();
     state.nfl = await api.state();
     const season = state.nfl.season;
     const week = state.nfl.display_week || state.nfl.week;
@@ -158,34 +154,34 @@ globalThis.SLT = globalThis.SLT || {};
     await loadPeople(season, week);
 
     try {
-      state.games = SLT.lineups.parseGames(await api.kickoffs(season, week, seasonType));
+      state.games = NightOwl.lineups.parseGames(await api.kickoffs(season, week, seasonType));
     } catch (err) {
-      console.warn('[SLT bets] ESPN games unavailable, using Sleeper dates', err);
-      state.games = SLT.lineups.gamesFromSchedule(await api.schedule(season, seasonType), week);
+      console.warn('[Night Owl bets] ESPN games unavailable, using Sleeper dates', err);
+      state.games = NightOwl.lineups.gamesFromSchedule(await api.schedule(season, seasonType), week);
     }
 
     // Lines: merge fresh ones over the stored closing lines for this week.
     const key = `${season}-${seasonType}-${week}`;
-    const saved = await store.get('bets.lines', null);
+    const saved = await storage.get('bets.lines', null);
     const previous = saved && saved.key === key ? saved.lines : {};
     let fresh = {};
-    try { fresh = core.parseLines(await api.lines()); } catch (err) { console.warn('[SLT bets] Sleeper lines unavailable', err); }
+    try { fresh = core.parseLines(await api.lines()); } catch (err) { console.warn('[Night Owl bets] Sleeper lines unavailable', err); }
     state.lines = core.mergeLines(previous, fresh);
     state.linesKey = key;
-    await store.set({ 'bets.lines': { key, lines: state.lines } });
+    await storage.set({ 'bets.lines': { key, lines: state.lines } });
 
     if (force || Date.now() - state.ranksAt > DEF_TTL_MS) {
       try {
         state.ranks = core.defenseRanks(await api.defenseSeason(season, seasonType));
         state.ranksAt = Date.now();
-      } catch (err) { console.warn('[SLT bets] defense stats unavailable', err); }
+      } catch (err) { console.warn('[Night Owl bets] defense stats unavailable', err); }
     }
 
     try {
       const rows = await api.weekProjections(season, week, seasonType);
       state.proj = {};
       for (const r of rows) state.proj[r.player_id] = r.stats || {};
-    } catch (err) { console.warn('[SLT bets] projections unavailable', err); }
+    } catch (err) { console.warn('[Night Owl bets] projections unavailable', err); }
 
     await loadProps(force);
     await loadLive();
@@ -224,7 +220,7 @@ globalThis.SLT = globalThis.SLT || {};
       await load(force);
       state.error = null;
     } catch (err) {
-      console.error('[SLT bets]', err);
+      console.error('[Night Owl bets]', err);
       state.error = err.message || String(err);
     } finally {
       state.busy = false;
@@ -238,16 +234,12 @@ globalThis.SLT = globalThis.SLT || {};
     clearTimeout(state.liveTimer);
     if (!root || !state.games.some((g) => g.state === 'in')) return;
     state.liveTimer = setTimeout(async () => {
-      try { await loadLive(); render(); } catch (err) { console.warn('[SLT bets] live stats', err); }
+      try { await loadLive(); render(); } catch (err) { console.warn('[Night Owl bets] live stats', err); }
       scheduleLive();
     }, LIVE_MS);
   }
 
   // ---- view -------------------------------------------------------------
-  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const num = (n) => (n == null ? '–' : (Math.round(n * 10) / 10).toString());
-  const pct = (p) => `${Math.round(p * 100)}%`;
-  const timeOf = (ms) => new Date(ms).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
 
   function face(pid, team) {
     const src = /^[A-Z]{2,3}$/.test(pid) ? teams.logo(team) : teams.headshot(pid);
@@ -318,7 +310,7 @@ globalThis.SLT = globalThis.SLT || {};
 
   // Full detail for one player (shown when his row is expanded).
   function detail(pid, spots, game, inPlay) {
-    const p = SLT.players.info(pid);
+    const p = players.info(pid);
     const markets = state.lines[pid] || [];
     const ladders = state.ladders[pid] || [];
     const others = markets.filter((m) => !m.td);
@@ -340,7 +332,7 @@ globalThis.SLT = globalThis.SLT || {};
   // One collapsible row per player: the essentials in the summary, everything
   // else one tap away.
   function item(pid, spots, game, showWindow) {
-    const p = SLT.players.info(pid);
+    const p = players.info(pid);
     const markets = state.lines[pid] || [];
     const td = markets.find((m) => m.type === 'anytime_touchdowns');
     const key = core.keyMarket(markets, p.pos);
@@ -377,7 +369,6 @@ globalThis.SLT = globalThis.SLT || {};
     </details>`;
   }
 
-  const POSITIONS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K'];
   const SORT_LABELS = { kickoff: 'Kickoff', td: 'TD odds', hit: 'Hit rate', lean: 'Proj vs line', exposure: 'My leagues' };
 
   function shortTime(ms) {
@@ -418,7 +409,7 @@ globalThis.SLT = globalThis.SLT || {};
     const q = ui.q.trim().toLowerCase();
     const rows = [...state.people]
       .filter(([, spots]) => state.showOpp || spots.some((s) => s.side === 'me'))
-      .map(([pid, spots]) => ({ pid, spots, p: SLT.players.info(pid) }))
+      .map(([pid, spots]) => ({ pid, spots, p: players.info(pid) }))
       .map((r) => Object.assign(r, { game: gameOf.get(r.p.team), win: winOf(r.p.team) }))
       .filter((r) => r.win)
       .filter((r) => ui.pos === 'ALL' || r.p.pos === ui.pos)
@@ -484,7 +475,7 @@ globalThis.SLT = globalThis.SLT || {};
   }
 
   async function saveUi() {
-    await store.set({ 'bets.settings': { showOpp: state.showOpp, pos: state.ui.pos, sort: state.ui.sort } });
+    await storage.set({ 'bets.settings': { showOpp: state.showOpp, pos: state.ui.pos, sort: state.ui.sort } });
   }
 
   function preview() {
@@ -519,7 +510,7 @@ globalThis.SLT = globalThis.SLT || {};
   function mount(el) {
     if (root === el) return;
     root = el;
-    root.classList.add('slt-live', 'intro');
+    root.classList.add('tool', 'intro');
     setTimeout(() => el.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
     $('bt-refresh').addEventListener('click', () => refresh(true));
@@ -569,8 +560,8 @@ globalThis.SLT = globalThis.SLT || {};
     refresh(false);
   }
 
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.settings && root) refresh(true);
+  storage.onChanged((changes) => {
+    if (changes.settings && root) refresh(true);
   });
 
   function unmount() {
@@ -580,5 +571,6 @@ globalThis.SLT = globalThis.SLT || {};
     root = null;
   }
 
-  SLT.betsView = { mount, unmount };
-})(globalThis.SLT);
+  NightOwl.views = NightOwl.views || {};
+  NightOwl.views.bets = { mount, unmount };
+})(globalThis.NightOwl);

@@ -1,0 +1,86 @@
+/* The floating panel shell: frame, header, brand mark, tool switch.
+   Sleeper's own palette (read off sleeper.com): navy panels, teal accent
+   with navy ink on it, pink for bad news, blue-grey secondary text. */
+:host { all: initial; }
+* { box-sizing: border-box; }
+.panel {
+  position: fixed; width: 430px; max-height: 70vh; display: flex; flex-direction: column;
+  /* Drag the bottom-right corner to resize; the size is remembered. */
+  resize: both; min-width: 360px; max-width: min(760px, 96vw); min-height: 240px;
+  font: 13.5px/1.4 Inter, Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #fff; border-radius: 18px; isolation: isolate;
+  box-shadow: 0 24px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04);
+  z-index: 2147483647; overflow: hidden;
+  animation: panel-in .5s cubic-bezier(.2,1.2,.4,1);
+}
+@keyframes panel-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
+/* Frame: a slowly turning gradient ring (the 1.5px gap between ::before and ::after). */
+.panel::before {
+  content: ''; position: absolute; inset: -60%; z-index: -2;
+  background: conic-gradient(from 0deg, #00ceb8, #56c9f8, #bd66ff, #f75c8d, #feae58, #00ceb8);
+  animation: spin 9s linear infinite; opacity: .45; will-change: transform;
+}
+.panel.hot::before { animation-duration: 2.8s; opacity: 1; }
+/* Aurora: three soft colour fields drifting behind everything. */
+.panel::after {
+  content: ''; position: absolute; inset: 1.5px; z-index: -1; border-radius: 16.5px;
+  background:
+    radial-gradient(60% 40% at 15% 10%, rgba(0,206,184,.12), transparent 70%),
+    radial-gradient(55% 40% at 85% 45%, rgba(189,102,255,.09), transparent 70%),
+    radial-gradient(60% 45% at 30% 95%, rgba(247,92,141,.07), transparent 70%),
+    linear-gradient(180deg, #151a27, #11141e);
+  background-size: 180% 180%, 180% 180%, 180% 180%, 100% 100%;
+  background-position: 0% 0%, 100% 50%, 0% 100%, 0 0;
+  /* Static on purpose: an animated background repaints everything above
+     it every frame, which made scrolling the lists stutter. */
+}
+@keyframes spin { to { transform: rotate(1turn); } }
+@keyframes pillflow { to { background-position: 300% 0; } }
+@media (prefers-reduced-motion: reduce) { .panel, .panel::before, .panel::after, .brand .outer, .brand .inner, .brand .eyes, .brand .pupil, .switch .ind { animation: none; transition: none; } }
+.panel.tall { height: min(780px, 86vh); max-height: 96vh; }
+.panel.collapsed { height: auto; }
+.panel.collapsed .view { display: none; }
+.panel.collapsed header { border-radius: 16.5px; margin-bottom: 1.5px; border-bottom: 0; }
+.view { margin: 0 1.5px 1.5px; }
+header {
+  display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 11px; margin: 1.5px 1.5px 0;
+  background: linear-gradient(180deg, rgba(31,36,49,.95), rgba(24,28,40,.8));
+  border-bottom: 1px solid rgba(58,70,91,.7); border-radius: 16.5px 16.5px 0 0;
+  cursor: move; user-select: none;
+}
+/* The Night Owl mark (double neon frame): its tubes power on one after
+   another when the panel opens — outer frame, inner frame, eyes — and the
+   pupils blink now and then. */
+.brand { width: 26px; height: 26px; flex: none; display: block; filter: drop-shadow(0 0 5px rgba(255,79,216,.45)); }
+.brand .outer { animation: owl-on 1s .1s both; }
+.brand .inner { animation: owl-on 1s .45s both; }
+.brand .eyes { animation: owl-on 1s .8s both; }
+.brand .pupil { transform-box: fill-box; transform-origin: center; animation: owl-blink 5s 2.5s infinite; }
+@keyframes owl-on { 0% { opacity: .12; } 20% { opacity: 1; } 30% { opacity: .25; } 45% { opacity: 1; } 55% { opacity: .45; } 70%, 100% { opacity: 1; } }
+@keyframes owl-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+.switch {
+  position: relative; display: flex; flex: 1; padding: 3px; border-radius: 11px;
+  background: rgba(0,0,0,.28); box-shadow: inset 0 1px 2px rgba(0,0,0,.4);
+}
+.switch .ind {
+  position: absolute; top: 3px; bottom: 3px; left: 3px; width: 0; border-radius: 8px;
+  background: linear-gradient(120deg, #00ceb8, #2fe6d2, #56c9f8, #00ceb8);
+  background-size: 300% 100%; animation: pillflow 6s linear infinite;
+  box-shadow: 0 4px 16px rgba(0,206,184,.45), inset 0 1px 0 rgba(255,255,255,.35);
+  transition: left .4s cubic-bezier(.3,1.4,.5,1), width .4s cubic-bezier(.3,1.4,.5,1);
+}
+.switch button {
+  position: relative; z-index: 1; flex: 1;
+  font: 600 12.5px Poppins, sans-serif; border: 0; border-radius: 8px; padding: 5px 4px;
+  background: none; color: #a3bbd3; cursor: pointer; transition: color .25s; white-space: nowrap;
+}
+.switch button:hover { color: #fff; }
+.switch button.on { color: #022047; }
+.iconbtn {
+  background: none; border: none; color: #8d9fbc; cursor: pointer;
+  font-size: 16px; padding: 2px 6px; border-radius: 6px;
+}
+.iconbtn:hover { background: #262e3e; color: #fff; }
+.view { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.view[hidden] { display: none; }
+.view-live, .view-lineups, .view-bets { overflow: hidden; position: relative; }

@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.0.0
+- First release for testers: a two-minute "Try it" install guide, feedback and
+  bug report forms, and a downloadable release zip.
+- Reorganized the code by tool (`shared/ panel/ draft/ live/ lineups/ bets/
+  styles/`) under one `NightOwl` namespace, with one API client and one shared
+  player cache (the draft board no longer keeps its own 5 MB copy).
+- The draft board is a regular view, like Live, Lineups and Bets. Only the
+  visible tool runs, and rank badges clear when you leave the Draft tab.
+- Styles moved into real CSS files. The panel waits for them before it shows,
+  so it never flashes unstyled.
+- Draft status moved out of the header into the board's toolbar, so the tool
+  switch never gets squeezed. "Status" sorting now lists available players first.
+- The popup confirms your username ("✓ connected as …").
+- ESLint in CI, plus tests for formatting, board sorting and content-script load order.
+
 ## 2.9.0
 - MIT license; repository at github.com/Treys21/NightOwl.
 - Test fixtures safe to publish: the rankings parser now tests against a

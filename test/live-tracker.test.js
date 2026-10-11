@@ -6,7 +6,6 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 
-globalThis.SLT = {};
 const scoring = require('../src/live/scoring.js');
 const tracker = require('../src/live/tracker.js');
 
@@ -117,7 +116,7 @@ test('describe hides unscored noise but keeps yards', () => {
   assert.equal(text, '+1 rec · +15 rec yds');
 });
 
-const teams = require('../src/live/teams.js');
+const teams = require('../src/shared/teams.js');
 
 test('every NFL team has colors, and jersey numbers stay readable', () => {
   assert.equal(teams.inkOn('#FFB612'), '#101820'); // PIT gold -> dark numbers

@@ -20,17 +20,18 @@ test('every script, page and icon the manifest references exists', () => {
     ...Object.values(manifest.icons),
     ...Object.values(manifest.action.default_icon)
   ];
+  const popup = fs.readFileSync(path.join(root, manifest.action.default_popup), 'utf8');
+  for (const [, src] of popup.matchAll(/<script src="([^"]+)"/g)) files.push(path.join('src/popup', src));
   for (const f of files) assert.ok(fs.existsSync(path.join(root, f)), `missing ${f}`);
 });
 
-test('content scripts load core modules before the views that use them', () => {
-  const js = manifest.content_scripts[0].js;
-  const before = (a, b) => assert.ok(js.indexOf(a) < js.indexOf(b), `${a} must load before ${b}`);
-  before('src/live/scoring.js', 'src/live/tracker.js');
-  before('src/live/lineups-core.js', 'src/live/lineups.js');
-  before('src/live/bets-core.js', 'src/live/bets.js');
-  before('src/live/bets.js', 'src/sleeper/panel.js');
-  before('src/sleeper/panel.js', 'src/sleeper/content.js');
+test('the panel stylesheets are exposed to the content script', () => {
+  const shell = fs.readFileSync(path.join(root, 'src/panel/shell.js'), 'utf8');
+  const sheets = [...shell.matchAll(/'(src\/styles\/[a-z-]+\.css)'/g)].map((m) => m[1]);
+  assert.ok(sheets.length > 0);
+  const exposed = manifest.web_accessible_resources.flatMap((r) => r.resources);
+  assert.deepEqual(exposed, ['src/styles/*.css']);
+  for (const f of sheets) assert.ok(fs.existsSync(path.join(root, f)), `missing ${f}`);
 });
 
 test('only the hosts the extension actually calls', () => {

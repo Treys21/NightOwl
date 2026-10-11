@@ -2,12 +2,13 @@
 // matchups, polls Sleeper's live stat lines, and turns every change into a
 // feed event showing what it did to each matchup it touches. Runs only while
 // mounted — switching the panel to Draft unmounts it and stops polling.
-globalThis.SLT = globalThis.SLT || {};
+globalThis.NightOwl = globalThis.NightOwl || {};
 
-(function (SLT) {
+(function (NightOwl) {
   'use strict';
 
-  const { api, tracker, scoring, teams } = SLT;
+  const { api, tracker, scoring, teams, players, storage } = NightOwl;
+  const { escape: esc, points: fmt, signed } = NightOwl.format;
   let root = null; // the element we render into, inside the panel's shadow root
   const $ = (id) => root.querySelector(`#${id}`);
 
@@ -24,7 +25,7 @@ globalThis.SLT = globalThis.SLT || {};
       </div>
     </header>
     <div class="stage" id="stage"><div class="idle" id="stage-idle">Plays pop here the moment they happen</div></div>
-    <div class="slt-scroll">
+    <div class="tool-scroll">
     <section id="settings" class="card" hidden>
       <div id="league-toggles"></div>
       <p class="muted small">Username comes from the extension popup. Points use each league's own scoring settings.</p>
@@ -54,12 +55,6 @@ globalThis.SLT = globalThis.SLT || {};
   const MAX_EVENTS = 500;
   const IDP = ['DL', 'LB', 'DB', 'IDP_FLEX'];
 
-  // ---- storage ----------------------------------------------------------
-  const store = {
-    get: (key, fallback) => new Promise((resolve) => chrome.storage.local.get(key, (r) =>
-      resolve(r[key] === undefined ? fallback : r[key]))),
-    set: (items) => new Promise((resolve) => chrome.storage.local.set(items, resolve))
-  };
 
   const state = {
     settings: { username: '', excluded: [] },
@@ -79,8 +74,8 @@ globalThis.SLT = globalThis.SLT || {};
   const activeLeagues = () => (state.ctx ? state.ctx.leagues.filter((lg) => !state.settings.excluded.includes(lg.leagueId)) : []);
 
   // ---- data loading -----------------------------------------------------
-  const loadPlayers = () => SLT.players.load();
-  const info = (pid) => SLT.players.info(pid);
+  const loadPlayers = () => players.load();
+  const info = (pid) => players.info(pid);
 
   async function loadContext() {
     const nfl = await api.state();
@@ -123,7 +118,7 @@ globalThis.SLT = globalThis.SLT || {};
     }))).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
 
     state.ctx = { username: state.settings.username, userId, season, seasonType, week, leagues, loadedAt: Date.now() };
-    await store.set({ 'live.ctx': state.ctx });
+    await storage.set({ 'live.ctx': state.ctx });
   }
 
   // Returns true when a game just kicked off: its lineups are now locked, so
@@ -143,12 +138,12 @@ globalThis.SLT = globalThis.SLT || {};
 
   // Is any game involving a tracked player on (or about to be on) right now?
   function trackedTeams() {
-    const teams = new Set();
+    const codes = new Set();
     for (const pid of tracker.watchList(activeLeagues()).keys()) {
       const t = info(pid).team;
-      if (t) teams.add(t);
+      if (t) codes.add(t);
     }
-    return teams;
+    return codes;
   }
 
   function gameStatus(team) {
@@ -158,9 +153,9 @@ globalThis.SLT = globalThis.SLT || {};
 
   function isLive() {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    const teams = trackedTeams();
+    const tracked = trackedTeams();
     return state.schedule.games.some((g) => {
-      if (!teams.has(g.home) && !teams.has(g.away)) return false;
+      if (!tracked.has(g.home) && !tracked.has(g.away)) return false;
       if (g.status === 'complete' || g.status === 'canceled') return false;
       return g.status !== 'pre_game' || g.date === today;
     });
@@ -184,7 +179,7 @@ globalThis.SLT = globalThis.SLT || {};
       const cur = {};
       for (const r of rows) {
         cur[r.player_id] = r.stats || {};
-        if (r.player) SLT.players.remember(r.player_id, `${r.player.first_name} ${r.player.last_name}`, r.player.position, r.team);
+        if (r.player) players.remember(r.player_id, `${r.player.first_name} ${r.player.last_name}`, r.player.position, r.team);
       }
       state.stats = cur;
 
@@ -202,10 +197,10 @@ globalThis.SLT = globalThis.SLT || {};
       }
       state.snapshot = { key, at: Date.now(), stats: tracker.trimSnapshot(cur, leagues) };
       state.lastPoll = Date.now();
-      await store.set({ 'live.snapshot': state.snapshot, 'live.events': { key, list: state.events } });
+      await storage.set({ 'live.snapshot': state.snapshot, 'live.events': { key, list: state.events } });
       render();
     } catch (err) {
-      console.error('[SLT]', err);
+      console.error('[Night Owl]', err);
       showError(err.message || String(err));
     } finally {
       state.busy = false;
@@ -225,9 +220,6 @@ globalThis.SLT = globalThis.SLT || {};
   }
 
   // ---- rendering --------------------------------------------------------
-  const fmt = (n) => (n == null ? '–' : n.toFixed(2).replace(/\.?0+$/, '') || '0');
-  const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   function render() {
     if (!root) return;
@@ -528,25 +520,25 @@ globalThis.SLT = globalThis.SLT || {};
   // Username is shared with the draft board (set in the popup); league
   // exclusions are the tracker's own.
   async function saveSettings() {
-    await store.set({ 'live.settings': { excluded: state.settings.excluded } });
+    await storage.set({ 'live.settings': { excluded: state.settings.excluded } });
   }
 
   async function loadSettings() {
-    const shared = await store.get('settings', {});
-    const own = await store.get('live.settings', {});
+    const shared = await storage.get('settings', {});
+    const own = await storage.get('live.settings', {});
     state.settings = { username: (shared.username || '').trim(), excluded: own.excluded || [] };
   }
 
   // Username changed in the popup: start over for the new account.
-  chrome.storage.onChanged.addListener(async (changes, area) => {
-    if (area !== 'local' || !changes.settings) return;
+  storage.onChanged(async (changes) => {
+    if (!changes.settings) return;
     const before = state.settings.username;
     await loadSettings();
     if (state.settings.username === before) return;
     state.ctx = null;
     state.snapshot = null;
     state.events = [];
-    await store.set({ 'live.ctx': null, 'live.snapshot': null, 'live.events': null });
+    await storage.set({ 'live.ctx': null, 'live.snapshot': null, 'live.events': null });
     poll(true);
   });
 
@@ -558,7 +550,7 @@ globalThis.SLT = globalThis.SLT || {};
   async function mount(el) {
     if (root === el) return;
     root = el;
-    root.classList.add('slt-live', 'intro');
+    root.classList.add('tool', 'intro');
     setTimeout(() => el.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
 
@@ -599,10 +591,10 @@ globalThis.SLT = globalThis.SLT || {};
 
     await loadSettings();
     if (root !== el) return; // switched away while loading
-    state.ctx = await store.get('live.ctx', null);
+    state.ctx = await storage.get('live.ctx', null);
     if (state.ctx && state.ctx.username !== state.settings.username) state.ctx = null;
-    state.snapshot = await store.get('live.snapshot', null);
-    const saved = await store.get('live.events', null);
+    state.snapshot = await storage.get('live.snapshot', null);
+    const saved = await storage.get('live.events', null);
     if (saved && state.snapshot && saved.key === state.snapshot.key) state.events = saved.list;
     render();
     if (!state.settings.username) showError(NEED_USERNAME);
@@ -614,5 +606,6 @@ globalThis.SLT = globalThis.SLT || {};
     root = null;
   }
 
-  SLT.live = { mount, unmount };
-})(globalThis.SLT);
+  NightOwl.views = NightOwl.views || {};
+  NightOwl.views.live = { mount, unmount };
+})(globalThis.NightOwl);

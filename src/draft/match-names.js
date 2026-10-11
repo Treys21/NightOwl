@@ -1,8 +1,8 @@
 // Ringer player names never match Sleeper's strings exactly, so both sides get
 // normalized before comparison. Pure logic — also loaded by test/match-names.test.js.
-globalThis.SDR = globalThis.SDR || {};
+globalThis.NightOwl = globalThis.NightOwl || {};
 
-(function (SDR) {
+(function (NightOwl) {
   'use strict';
 
   const SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v']);
@@ -117,7 +117,7 @@ globalThis.SDR = globalThis.SDR || {};
   }
 
   const api = { normalizeName, normalizePosition, keyFor, buildIndex, matchPlayer };
-  SDR.match = api;
+  NightOwl.match = api;
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(globalThis.SDR);
+})(globalThis.NightOwl);

@@ -2,9 +2,9 @@
 // recent results), ESPN/DraftKings milestones and game lines, defense-vs-
 // position ranks, and how each player is tracking against each line live.
 // Pure functions — no chrome.* or fetch — so they run under node --test.
-globalThis.SLT = globalThis.SLT || {};
+globalThis.NightOwl = globalThis.NightOwl || {};
 
-(function (SLT) {
+(function (NightOwl) {
   'use strict';
 
   const round1 = (n) => Math.round(n * 10) / 10;
@@ -278,10 +278,10 @@ globalThis.SLT = globalThis.SLT || {};
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
-  SLT.bets = {
+  NightOwl.bets = {
     MARKETS, MILESTONES, statValue, impliedOver, american, parseLines, mergeLines, hitRate,
     parseMilestones, impliedTotals, defenseRanks, progress, ordinal, keyMarket, SORTS, trimRungs
   };
-})(globalThis.SLT);
+})(globalThis.NightOwl);
 
-if (typeof module !== 'undefined') module.exports = globalThis.SLT.bets;
+if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.bets;

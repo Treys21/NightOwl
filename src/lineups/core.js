@@ -1,9 +1,9 @@
 // Start/sit logic for the Lineups tool: kickoff windows, who on your rosters
 // plays in each, whether they're starting, and swaps worth a look.
 // Pure functions — no chrome.* or fetch — so they run under node --test.
-globalThis.SLT = globalThis.SLT || {};
+globalThis.NightOwl = globalThis.NightOwl || {};
 
-(function (SLT) {
+(function (NightOwl) {
   'use strict';
 
   const ELIGIBLE = {
@@ -255,9 +255,9 @@ globalThis.SLT = globalThis.SLT || {};
     return { rows, empty, best: { gain, moves } };
   }
 
-  SLT.lineups = Object.assign(SLT.lineups || {}, {
+  NightOwl.lineups = {
     parseGames, gamesFromSchedule, windows, lineup, assign, canPlay, NOT_STARTING_SLOTS, OUT, MIN_GAIN
-  });
-})(globalThis.SLT);
+  };
+})(globalThis.NightOwl);
 
-if (typeof module !== 'undefined') module.exports = globalThis.SLT.lineups;
+if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.lineups;

@@ -1,8 +1,8 @@
 // NFL team colors plus Sleeper's CDN for headshots and logos — what the play
 // stage uses to dress each pop-up in the scoring player's uniform.
-globalThis.SLT = globalThis.SLT || {};
+globalThis.NightOwl = globalThis.NightOwl || {};
 
-(function (SLT) {
+(function (NightOwl) {
   'use strict';
 
   // [primary, secondary]
@@ -38,12 +38,12 @@ globalThis.SLT = globalThis.SLT || {};
     return { primary, secondary, ink: inkOn(primary) };
   }
 
-  SLT.teams = {
+  NightOwl.teams = {
     colors,
     inkOn,
     logo: (team) => `https://sleepercdn.com/images/team_logos/nfl/${String(team).toLowerCase()}.png`,
     headshot: (pid) => `https://sleepercdn.com/content/nfl/players/thumb/${pid}.jpg`
   };
-})(globalThis.SLT);
+})(globalThis.NightOwl);
 
-if (typeof module !== 'undefined') module.exports = globalThis.SLT.teams;
+if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.teams;

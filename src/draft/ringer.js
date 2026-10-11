@@ -10,9 +10,9 @@
 // Note: the Google Sheet the article links for its printable PDF is a DIFFERENT
 // snapshot and disagrees with the page (it had McCaffrey 4th where the page has
 // Nacua). The page payload is the source of truth.
-globalThis.SDR = globalThis.SDR || {};
+globalThis.NightOwl = globalThis.NightOwl || {};
 
-(function (SDR) {
+(function (NightOwl) {
   'use strict';
 
   const RINGER_URL = 'https://theringer.com/fantasy-football/2026-preseason';
@@ -149,7 +149,7 @@ globalThis.SDR = globalThis.SDR || {};
   }
 
   const api = { RINGER_URL, FORMATS, TEAM_ABBR, readPayload, extractPlayers, toRankings, parseHtml, fetchRankings };
-  SDR.ringer = api;
+  NightOwl.ringer = api;
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(globalThis.SDR);
+})(globalThis.NightOwl);

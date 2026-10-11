@@ -1,0 +1,30 @@
+name: Bug report
+description: Something looks wrong, shows the wrong numbers, or doesn't load.
+labels: [bug]
+body:
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Which tool?
+      options: [Draft, Live, Lineups, Bets, Popup / setup]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: A screenshot of the panel helps a lot.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Night Owl version
+      description: Shown on the extension's card in chrome://extensions.
+      placeholder: "3.0.0"
+  - type: textarea
+    id: console
+    attributes:
+      label: Errors (optional)
+      description: On sleeper.com, open DevTools (⌥⌘J / Ctrl+Shift+J) and paste any red lines that mention "Night Owl".
+      render: text
