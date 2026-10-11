@@ -125,3 +125,11 @@ test('every NFL team has colors, and jersey numbers stay readable', () => {
   assert.equal(teams.colors('XXX').primary, '#262e3e'); // unknown team falls back
   assert.equal(teams.logo('TB'), 'https://sleepercdn.com/images/team_logos/nfl/tb.png');
 });
+
+test('bonus and long-play keys read as plain English', () => {
+  const settings = { pass_td: 4, pass_td_40p: 2, bonus_rec_yd_100: 3, rec_td_50p: 1 };
+  assert.equal(
+    scoring.describe({ pass_td: 1, pass_td_40p: 1, bonus_rec_yd_100: 1 }, [settings]),
+    '+1 pass TD · 40+ yd pass TD · 100+ rec yds bonus'
+  );
+});

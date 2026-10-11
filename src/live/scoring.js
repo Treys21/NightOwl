@@ -59,7 +59,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // Tier keys flip on/off as a total crosses a band; the raw total says it better.
   const HIDDEN = /^(pts_allow_|yds_allow_|fgm_yds|fgm_lng|pos_rank|pts_(std|ppr|half_ppr|idp))/;
 
+  const UNIT = { pass_yd: 'pass yds', rush_yd: 'rush yds', rec_yd: 'rec yds', pass_cmp: 'cmp', rec: 'rec', rush_att: 'rush att' };
+
+  // Bonus and long-play keys Sleeper adds per league: pass_td_40p -> "40+ yd pass TD",
+  // bonus_rec_yd_100 -> "100+ rec yds bonus".
   function humanize(key) {
+    let m = key.match(/^(pass|rush|rec)_td_(\d+)p$/);
+    if (m) return `${m[2]}+ yd ${m[1]} TD`;
+    m = key.match(/^bonus_(.+?)_(\d+)p?$/);
+    if (m) return `${m[2]}+ ${UNIT[m[1]] || m[1].replace(/_/g, ' ')} bonus`;
+    m = key.match(/^(pass|rush|rec)_(\d+)_(\d+)$/);
+    if (m) return `${m[2]}-${m[3]} yd ${m[1]}`;
     return key.replace(/^bonus_/, 'bonus ').replace(/_/g, ' ');
   }
 
@@ -71,8 +81,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const scored = scorings.some((s) => s && s[key]);
       if (!scored && !ALWAYS.has(key)) continue;
       const v = delta[key];
-      const label = LABEL.get(key) || humanize(key);
-      parts.push({ key, text: `${v > 0 ? '+' : ''}${v} ${label}` });
+      // A one-off bonus reads as a tag ("40+ yd pass TD"), not a count.
+      const text = LABEL.has(key) || v !== 1 ? `${v > 0 ? '+' : ''}${v} ${LABEL.get(key) || humanize(key)}` : humanize(key);
+      parts.push({ key, text });
     }
     parts.sort((a, b) => (ORDER.has(a.key) ? ORDER.get(a.key) : 999) - (ORDER.has(b.key) ? ORDER.get(b.key) : 999));
     return parts.map((p) => p.text).join(' · ');

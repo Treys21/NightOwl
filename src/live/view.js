@@ -8,7 +8,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, tracker, scoring, teams, players, storage } = NightOwl;
-  const { escape: esc, points: fmt, signed } = NightOwl.format;
+  const { escape: esc, points: fmt, signed, clock: clockOf } = NightOwl.format;
   let root = null; // the element we render into, inside the panel's shadow root
   const $ = (id) => root.querySelector(`#${id}`);
 
@@ -57,6 +57,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
 
   const state = {
+    openRecaps: new Set(), // recap cards the user expanded
     settings: { username: '', excluded: [] },
     ctx: null, // { userId, season, week, seasonType, leagues, loadedAt }
     stats: {}, // pid -> current stat line
@@ -187,11 +188,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const key = weekKey(ctx);
       if (state.snapshot && state.snapshot.key === key) {
         const fresh = tracker.diffEvents(state.snapshot.stats, cur, leagues, info, Date.now());
-        // A long gap (panel closed) folds everything since then into one event per player.
-        const catchUp = state.lastPoll === 0 || Date.now() - state.lastPoll > 3 * LIVE_POLL_MS;
-        for (const ev of fresh) ev.catchUp = catchUp && state.snapshot.at < Date.now() - 3 * LIVE_POLL_MS;
+        // After a gap (panel closed, tab asleep) a diff is everything since the
+        // last look, not a play: it becomes a recap, never a pop-up or "last play".
+        const gap = Date.now() - state.snapshot.at > 3 * LIVE_POLL_MS;
+        for (const ev of fresh) if (gap) { ev.catchUp = true; ev.since = state.snapshot.at; }
         if (fresh.length) state.events = fresh.concat(state.events).slice(0, MAX_EVENTS);
-        if (!catchUp) celebrate(fresh);
+        if (!gap) celebrate(fresh);
       } else {
         state.events = [];
       }
@@ -352,7 +354,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // Between plays the stage shows the last one, or what it's waiting on.
   function renderIdle() {
     if (!root || popping) return;
-    const last = state.events[0];
+    const last = state.events.find((ev) => !ev.catchUp);
+    const recap = !last && state.events[0];
     const live = state.schedule.games.find((g) => g.status === 'in_game');
     const lc = last ? teams.colors(last.team) : null;
     $('stage').style.setProperty('--idle-tint', lc ? lc.primary : 'transparent');
@@ -361,7 +364,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
          <span class="idle-who"><img alt="" src="${/^[A-Z]{2,3}$/.test(last.pid) ? teams.logo(last.team) : teams.headshot(last.pid)}"><b>${esc(last.name)}</b></span>
          <span>${esc(last.text)}</span>
          <span class="${last.net > 0 ? 'good' : last.net < 0 ? 'bad' : 'muted'} last-net">${last.net === 0 ? '±0' : signed(last.net)}</span>`
-      : `<span class="muted">${live ? `${esc(live.away)} @ ${esc(live.home)} is live — waiting for a play` : 'Plays pop here the moment they happen'}</span>`;
+      : `<span class="muted">${live ? `${esc(live.away)} @ ${esc(live.home)} is live — waiting for the next play` : 'Plays pop here the moment they happen'}</span>
+         ${recap ? `<span class="muted small">Caught up on everything since ${clockOf(recap.since || recap.ts)}</span>` : ''}`;
   }
 
   // The player in uniform: a jersey in team colors with their number, their
@@ -474,31 +478,68 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     requestAnimationFrame(step);
   }
 
+  function impactChips(ev) {
+    return ev.impacts.map((im) => {
+      const forMe = im.side === 'me' ? im.pts : -im.pts;
+      const cls = forMe > 0 ? 'helps' : forMe < 0 ? 'hurts' : 'zero';
+      const who = im.side === 'me' ? 'you' : 'opp';
+      return `<span class="impact ${cls}" title="${who === 'you' ? 'Your starter' : "Opponent's starter"}">${esc(im.leagueName)} · ${who} ${signed(im.pts)}</span>`;
+    }).join('');
+  }
+
+  const netClass = (net) => (net > 0 ? 'good' : net < 0 ? 'bad' : '');
+
+  function playCard(ev, isNew) {
+    const cls = netClass(ev.net);
+    return `<li class="ev ${cls}${isNew ? ' new' : ''}" style="--tc:${teams.colors(ev.team).primary}">
+        <div class="ev-top">
+          <span class="ev-who">${face(ev.pid, ev.team)}<span><span class="ev-name">${esc(ev.name)}</span> <span class="muted small">${esc(ev.pos)} · ${esc(ev.team)}</span></span></span>
+          <span class="ev-net ${cls}" title="Net for you across all leagues">${signed(ev.net)}</span>
+        </div>
+        <div class="ev-text">${esc(ev.text || 'stat correction')}</div>
+        <div class="impacts">${impactChips(ev)}</div>
+        <div class="ev-time">${clockOf(ev.ts)}</div>
+      </li>`;
+  }
+
+  // Everything that changed while the panel was closed, folded into one card.
+  function recapCard(group) {
+    const net = Math.round(group.reduce((sum, ev) => sum + ev.net, 0) * 100) / 100;
+    const cls = netClass(net);
+    const since = group[0].since || group[0].ts; // events saved before 3.0.1 lack it
+    const key = `${since}-${group[0].ts}`;
+    const rows = group.map((ev) => `
+      <div class="recap-row">
+        <span class="ev-who">${face(ev.pid, ev.team)}<span><span class="ev-name">${esc(ev.name)}</span> <span class="muted small">${esc(ev.text || 'stat correction')}</span></span></span>
+        <span class="recap-net ${netClass(ev.net)}">${signed(ev.net)}</span>
+        <div class="impacts">${impactChips(ev)}</div>
+      </div>`).join('');
+    return `<li class="recap"><details data-recap="${key}"${state.openRecaps.has(key) ? ' open' : ''}>
+        <summary>
+          <span class="recap-title"><b>While you were away</b><span class="muted small">${clockOf(since)} – ${clockOf(group[0].ts)} · ${group.length} player${group.length === 1 ? '' : 's'}</span></span>
+          <span class="ev-net ${cls}" title="Net for you across all leagues">${signed(net)}</span>
+        </summary>
+        ${rows}
+      </details></li>`;
+  }
+
   function renderFeed() {
     const list = state.events.filter((ev) =>
       state.filter === 'all' || (state.filter === 'good' ? ev.net > 0 : ev.net < 0));
     $('feed-empty').hidden = list.length > 0;
     const first = state.seenEventIds.size === 0;
-    $('feed').innerHTML = list.map((ev) => {
-      const isNew = !first && !state.seenEventIds.has(ev.id);
-      const chips = ev.impacts.map((im) => {
-        const forMe = im.side === 'me' ? im.pts : -im.pts;
-        const cls = forMe > 0 ? 'helps' : forMe < 0 ? 'hurts' : 'zero';
-        const who = im.side === 'me' ? 'you' : 'opp';
-        return `<span class="impact ${cls}" title="${who === 'you' ? 'Your starter' : "Opponent's starter"}">${esc(im.leagueName)} · ${who} ${signed(im.pts)}</span>`;
-      }).join('');
-      const netCls = ev.net > 0 ? 'good' : ev.net < 0 ? 'bad' : '';
-      const time = new Date(ev.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-      return `<li class="ev ${netCls}${isNew ? ' new' : ''}" style="--tc:${teams.colors(ev.team).primary}">
-        <div class="ev-top">
-          <span class="ev-who">${face(ev.pid, ev.team)}<span><span class="ev-name">${esc(ev.name)}</span> <span class="muted small">${esc(ev.pos)} · ${esc(ev.team)}</span></span></span>
-          <span class="ev-net ${netCls}" title="Net for you across all leagues">${signed(ev.net)}</span>
-        </div>
-        <div class="ev-text">${esc(ev.text || 'stat correction')}</div>
-        <div class="impacts">${chips}</div>
-        <div class="ev-time">${time}${ev.catchUp ? ' · since last check' : ''}</div>
-      </li>`;
-    }).join('');
+    const html = [];
+    for (let i = 0; i < list.length; i++) {
+      const ev = list[i];
+      if (!ev.catchUp) {
+        html.push(playCard(ev, !first && !state.seenEventIds.has(ev.id)));
+        continue;
+      }
+      const group = [ev];
+      while (list[i + 1] && list[i + 1].catchUp && list[i + 1].ts === ev.ts) group.push(list[++i]);
+      html.push(recapCard(group));
+    }
+    $('feed').innerHTML = html.join('');
     for (const ev of state.events) state.seenEventIds.add(ev.id);
   }
 
@@ -580,6 +621,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (state.snapshot) state.snapshot.stats = Object.assign(tracker.trimSnapshot(state.stats, activeLeagues()), state.snapshot.stats);
       render();
     });
+
+    $('feed').addEventListener('toggle', (e) => {
+      const key = e.target.dataset && e.target.dataset.recap;
+      if (!key) return;
+      if (e.target.open) state.openRecaps.add(key); else state.openRecaps.delete(key);
+    }, true);
 
     $('filters').addEventListener('click', (e) => {
       const f = e.target.dataset.filter;

@@ -303,3 +303,27 @@
   .match.win::before, .stage .idle::before { animation: none !important; }
   .match::after, .ev::after { display: none; }
 }
+
+/* "While you were away": changes from a gap, folded into one quiet card so
+   they never read as a single play. */
+.recap > details {
+  position: relative; margin-bottom: 8px; border-radius: 14px; overflow: hidden;
+  background: rgba(163, 187, 211, .04); border: 1px dashed rgba(163, 187, 211, .22);
+}
+.recap summary {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 10px 12px; cursor: pointer; list-style: none;
+}
+.recap summary::-webkit-details-marker { display: none; }
+.recap summary::before { content: '▸'; color: var(--muted); margin-right: 2px; transition: transform .2s; }
+.recap details[open] summary::before { transform: rotate(90deg); }
+.recap-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.recap-title b { color: var(--text); }
+.recap-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: start;
+  padding: 8px 12px; border-top: 1px solid rgba(163, 187, 211, .08);
+}
+.recap-row .impacts { grid-column: 1 / -1; margin-left: 38px; }
+.recap-net { font: 700 13px Poppins, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.recap-net.good { color: var(--teal); }
+.recap-net.bad { color: var(--pink); }

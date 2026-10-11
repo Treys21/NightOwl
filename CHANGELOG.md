@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.1
+- Live: opening the panel after time away no longer shows everything that
+  happened meanwhile as one giant "play" (e.g. a whole game's stat line). Those
+  changes fold into a collapsed **While you were away** recap, and the stage
+  and "Last play" only ever show real, just-happened plays.
+- Bonus stats read as plain English: "40+ yd pass TD", "100+ rec yds bonus".
+
 ## 3.0.0
 - First release for testers: a two-minute "Try it" install guide, feedback and
   bug report forms, and a downloadable release zip.
