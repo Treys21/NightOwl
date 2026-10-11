@@ -1,96 +1,109 @@
-<p align="center">
-  <img src="docs/images/banner.jpg" alt="Night Owl: every play, every league, one glance" width="100%">
-</p>
+<img src="docs/images/header.jpg" alt="Night Owl" width="100%">
 
-<p align="center">
-  <a href="https://github.com/Treys21/NightOwl/releases/latest"><img alt="Download the latest release" src="docs/images/badges/download.svg"></a>
-  <img alt="Chrome 116+" src="docs/images/badges/chrome.svg">
-  <img alt="Manifest V3" src="docs/images/badges/mv3.svg">
-  <a href="LICENSE"><img alt="MIT license" src="docs/images/badges/license.svg"></a>
-</p>
+Night Owl is a Chrome extension that adds a small panel to [sleeper.com](https://sleeper.com).
+It's built for people in more than one league.
 
-<p align="center">
-  <b>A Chrome extension for <a href="https://sleeper.com">Sleeper</a> fantasy football.</b><br>
-  Live scoring across every league you play in, optimal lineups before each kickoff,<br>
-  betting lines for your starters, and your own big board on draft day.
-</p>
+I play in several Sleeper leagues, and every one of them scores differently. On
+Sundays I kept flipping between matchups to work out whether a CeeDee Lamb catch
+was good news or bad. He'd be my starter in one league and my opponent's in two
+others, and half PPR in one but full PPR in another. Night Owl does that math for
+every play, in every league, as it happens.
 
-<p align="center">
-  <a href="#install"><b>Install</b></a> ·
-  <a href="#features"><b>Features</b></a> ·
-  <a href="#privacy"><b>Privacy</b></a> ·
-  <a href="https://github.com/Treys21/NightOwl/issues/new/choose"><b>Feedback</b></a>
-</p>
+<img src="docs/images/plays.gif" alt="A play landing in the Live tab" width="440">
 
-<p align="center"><img src="docs/images/divider.svg" width="100%" alt=""></p>
+## What it does
 
-<table align="center">
-  <tr>
-    <td align="center" valign="top" width="25%"><img src="docs/images/live.png" alt="Live feed" width="100%"><br><b>Live</b><br><sub>Every play, scored per league</sub></td>
-    <td align="center" valign="top" width="25%"><img src="docs/images/lineups.png" alt="Lineups" width="100%"><br><b>Lineups</b><br><sub>Optimal lineup before kickoff</sub></td>
-    <td align="center" valign="top" width="25%"><img src="docs/images/bets.png" alt="Bets" width="100%"><br><b>Bets</b><br><sub>Lines and odds for your starters</sub></td>
-    <td align="center" valign="top" width="25%"><img src="docs/images/draft.png" alt="Draft board" width="100%"><br><b>Draft</b><br><sub>Your rankings, live in the draft room</sub></td>
-  </tr>
-</table>
+There are four tabs. Only the one you're looking at runs.
 
-<p align="center"><img src="docs/images/divider.svg" width="100%" alt=""></p>
+<img src="docs/images/live.png" alt="Live tab" width="300" align="right">
 
-## Install
+**Live** lists every scoring play by your starters and your opponents' starters,
+newest first. Each play shows what it was worth in each league, from your side:
+**+** if it's your player, **−** if it's theirs. It never adds the leagues together,
+because they're separate games. When eight games kick off at 1 PM it gets busy, so
+you can filter to one league, to plays that help or hurt you, or to big plays only.
+Matchups and per-game views are one tap away.
 
-Night Owl is distributed as a release package while it is in testing.
-
-1. Download **`night-owl-v<version>.zip`** from the [latest release](https://github.com/Treys21/NightOwl/releases/latest) and unzip it.
-2. Open `chrome://extensions` and enable **Developer mode**.
-3. Select **Load unpacked** and choose the unzipped folder.
-4. Click the Night Owl icon in the toolbar, enter your **Sleeper username**, and select **Save**.
-5. Open [sleeper.com](https://sleeper.com). The panel appears in the corner of the page.
-
-Night Owl runs in Chrome 116 or later and other Chromium browsers, including Edge, Brave and Arc. To update, unzip the new release over the old folder, then select **↻** on the extension card and reload sleeper.com.
-
-## Features
-
-<img src="docs/images/plays.gif" alt="Plays landing on the Live stage" width="420" align="right">
-
-**Live.** A single game-day feed for every league. Each scoring play by your starters or your opponents' starters appears once, with its effect in each league under that league's scoring settings: `+` when it helps you, `−` when it hurts. Big plays land on the stage in team colors. Filter by league, by plays that help or hurt, or by big plays only.
-
-**Lineups.** Your roster grouped by kickoff window, starting with the next one to lock. An exact solver finds the optimal lineup, including flex and superflex chains, and lists every valid swap with its projected gain. Starters who are on bye, out, or in an empty slot are flagged before kickoff.
-
-**Bets.** Sleeper Picks lines and DraftKings milestones for each player you start, shown in American odds, with hit rates over the last ten games, projection against the line, and matchup context. Once a game starts, each line shows live progress. For information only; no wagers are placed.
-
-**Draft.** Your rankings as a big board inside Sleeper mock and league drafts: who is gone, who took them, how far each pick landed from your rank, and an alert when you are on the clock. Rankings sync from The Ringer or can be edited by hand.
+Points come from each league's own scoring settings and match Sleeper's totals.
+There's a test for that against real matchups.
 
 <br clear="right">
 
-<p align="center"><img src="docs/images/divider.svg" width="100%" alt=""></p>
+<img src="docs/images/lineups.png" alt="Lineups tab" width="300" align="right">
+
+**Lineups** goes through the week by kickoff window, next lock first. For each
+league it works out the best possible lineup, flex spots included, and tells you
+the exact moves. It also flags anyone on bye, ruled out, or sitting in an empty
+slot. It can't change your lineup for you, since Sleeper's API is read-only, so
+each league gets an **Edit lineup** link.
+
+<br clear="right">
+
+<img src="docs/images/bets.png" alt="Bets tab" width="300" align="right">
+
+**Bets** puts Sleeper Picks lines and DraftKings milestones next to each player you
+start, with how often he's cleared each line in his last ten games and how his
+projection compares. Once his game starts, the lines fill in live. It's there to
+look at; nothing is ever placed.
+
+<br clear="right">
+
+<img src="docs/images/draft.png" alt="Draft tab" width="300" align="right">
+
+**Draft** is a big board for draft day. Load rankings from The Ringer or type your
+own, and in a Sleeper draft room it shows who's gone, who took them, how far each
+pick landed from your rank, and when you're on the clock.
+
+<br clear="right">
+
+## Installing
+
+It isn't on the Chrome Web Store yet, so for now it installs by hand. It takes
+about two minutes.
+
+1. Download `night-owl-v<version>.zip` from the [latest release](https://github.com/Treys21/NightOwl/releases/latest) and unzip it.
+2. Go to `chrome://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and pick the unzipped folder.
+4. Click the owl in your toolbar, type your Sleeper username, and hit **Save**.
+5. Open sleeper.com.
+
+It works in Chrome 116 or newer, and in Edge, Brave and Arc. To update, unzip the
+new version over the old folder, click ↻ on Night Owl's card, and refresh Sleeper.
+
+If something looks off, or you have an idea, [open an issue](https://github.com/Treys21/NightOwl/issues/new/choose).
+A screenshot helps a lot.
 
 ## Privacy
 
-Night Owl runs entirely in your browser. It has no account, server, analytics or tracking. It stores your Sleeper username, rankings, panel layout and data caches in Chrome's local extension storage, and it only reads public data.
+Everything runs in your browser. There's no account, no server, and no analytics.
+Night Owl saves your username, rankings and a few caches in Chrome's local
+storage, and it only reads public data:
 
-| Permission | Purpose |
-| --- | --- |
-| `storage`, `unlimitedStorage` | Settings, rankings and caches. Sleeper's player directory is about 5 MB. |
-| `sleeper.com` | Displays the panel on Sleeper pages. |
-| `api.sleeper.app`, `api.sleeper.com` | Leagues, rosters, matchups, players, live stats, projections and Sleeper Picks lines. |
-| `site.api.espn.com`, `sports.core.api.espn.com` | Kickoff times, game odds and DraftKings player props. |
-| `theringer.com` | Draft rankings sync. |
+- **Sleeper** for leagues, rosters, matchups, live stats, projections and Picks lines
+- **ESPN** for kickoff times, game odds and DraftKings props
+- **The Ringer** for draft rankings, only when you click Sync
 
-## Data sources
+## When something breaks
 
-Night Owl reads the same public data feeds that power Sleeper's and ESPN's own sites. These feeds are not published APIs, so a change on the provider's side can interrupt a feature. Each feature depends only on its own feeds and falls back where it can, for example to Sleeper's schedule when ESPN is unavailable. If a feed stops responding, the panel names it and keeps retrying, while everything else continues to work.
+None of those feeds are official APIs. They're what Sleeper's and ESPN's own sites
+use, so they can change without warning. Each tab only depends on the feeds it
+needs, and when a feed stops answering, the panel tells you which one instead of
+going quiet. If that happens on a Sunday, an issue gets it fixed fastest.
 
-## Development
+## Working on it
 
-Night Owl is plain Manifest V3 JavaScript with no build step and no runtime dependencies.
+It's plain JavaScript with no build step. You'll need Node 20+ to run the checks.
 
 ```bash
-npm ci            # development tools
-npm run verify    # lint, static checks and unit tests
-npm run package   # dist/night-owl-v<version>.zip
+npm ci
+npm run verify    # lint, static checks, tests
+npm run package   # builds the release zip
 ```
 
-Load the repository folder with **Load unpacked** while developing. See [CONTRIBUTING.md](CONTRIBUTING.md) for the architecture, conventions and release process, and [CHANGELOG.md](CHANGELOG.md) for release history.
+Load the repo folder with **Load unpacked** while you work. [CONTRIBUTING.md](CONTRIBUTING.md)
+covers how it's put together, and [CHANGELOG.md](CHANGELOG.md) has the history.
 
-## License
+---
 
-[MIT](LICENSE) © 2026 Anik Patel. Night Owl is an independent project and is not affiliated with or endorsed by Sleeper, ESPN, DraftKings or The Ringer. Their names and data belong to their respective owners.
+Made by [Anik Patel](https://github.com/Treys21). MIT licensed. Not affiliated
+with Sleeper, ESPN, DraftKings or The Ringer.
