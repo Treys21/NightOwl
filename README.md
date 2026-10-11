@@ -3,10 +3,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Treys21/NightOwl/releases/latest"><img alt="Download the latest release" src="https://img.shields.io/badge/download-latest%20release-3df5ff?style=for-the-badge&labelColor=140f2e&logo=googlechrome&logoColor=white"></a>
-  <a href="https://github.com/Treys21/NightOwl/actions/workflows/ci.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/Treys21/NightOwl/ci.yml?branch=main&style=for-the-badge&labelColor=140f2e&color=b98bff&label=tests"></a>
-  <img alt="Chrome 116+" src="https://img.shields.io/badge/chrome-116%2B-ff4fd8?style=for-the-badge&labelColor=140f2e">
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-ffc94d?style=for-the-badge&labelColor=140f2e"></a>
+  <a href="https://github.com/Treys21/NightOwl/releases/latest"><img alt="Download the latest release" src="docs/images/badges/download.svg"></a>
+  <img alt="Chrome 116+" src="docs/images/badges/chrome.svg">
+  <img alt="Manifest V3" src="docs/images/badges/mv3.svg">
+  <a href="LICENSE"><img alt="MIT license" src="docs/images/badges/license.svg"></a>
 </p>
 
 <p align="center">
