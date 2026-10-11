@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "Night Owl",
+  "version": "2.9.0",
+  "description": "Night Owl for Sleeper fantasy football: draft big board, live cross-league scoring feed, start/sit lineup checks, and betting lines for your starters.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "https://api.sleeper.app/*",
+    "https://api.sleeper.com/*",
+    "https://site.api.espn.com/*",
+    "https://sports.core.api.espn.com/*",
+    "https://sleeper.com/*",
+    "https://theringer.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "action": {
+    "default_title": "Night Owl",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://sleeper.com/*"
+      ],
+      "js": [
+        "src/lib/storage.js",
+        "src/lib/dom.js",
+        "src/lib/match-names.js",
+        "src/lib/sleeper-api.js",
+        "src/live/scoring.js",
+        "src/live/tracker.js",
+        "src/live/live-api.js",
+        "src/live/live-styles.js",
+        "src/live/teams.js",
+        "src/live/players.js",
+        "src/live/lineups-core.js",
+        "src/live/bets-core.js",
+        "src/live/live.js",
+        "src/live/lineups.js",
+        "src/live/bets.js",
+        "src/sleeper/panel.js",
+        "src/sleeper/inline-badges.js",
+        "src/sleeper/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

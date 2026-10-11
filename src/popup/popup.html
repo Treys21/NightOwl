@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600&display=swap" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <img class="logo" src="../../icons/icon48.png" alt="" width="28" height="28" />
+      <h1>Night Owl</h1>
+      <span id="synced" class="muted"></span>
+    </header>
+
+    <section class="row">
+      <label for="username">Sleeper username</label>
+      <input id="username" type="text" placeholder="your Sleeper username" spellcheck="false" />
+      <button id="save-user">Save</button>
+    </section>
+    <p id="user-status" class="muted small"></p>
+
+    <section class="row">
+      <label for="format">Scoring</label>
+      <select id="format"></select>
+      <button id="sync">Sync from Ringer</button>
+    </section>
+
+    <section class="toolbar">
+      <button id="export">Export</button>
+      <button id="import">Import</button>
+      <button id="open-tab" hidden>Open in tab</button>
+      <input id="import-file" type="file" accept="application/json" hidden />
+    </section>
+
+    <section class="add">
+      <input id="add-name" type="text" placeholder="Player name" />
+      <input id="add-pos" type="text" placeholder="Pos" maxlength="4" />
+      <input id="add-team" type="text" placeholder="Tm" maxlength="4" />
+      <button id="add">Add</button>
+    </section>
+
+    <p class="muted small">Drag rows to reorder. Ranks renumber automatically.</p>
+    <ol id="list"></ol>
+
+    <script src="../lib/storage.js"></script>
+    <script src="../lib/dom.js"></script>
+    <script src="../lib/ringer-source.js"></script>
+    <script src="../lib/match-names.js"></script>
+    <script src="../lib/sleeper-api.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
