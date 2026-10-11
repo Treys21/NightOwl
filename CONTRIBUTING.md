@@ -70,6 +70,16 @@ tracking, and the manifest. A load test runs every content script in manifest
 order in one shared global, as Chrome does. The panels are checked by hand in
 the browser.
 
+## Previewing and design review
+
+`npm run preview -- --user <sleeper username>` screenshots every tab at three
+panel sizes into `.preview/`, using real data with league and owner names
+anonymized. `node tools/preview/server.mjs` serves the same page for a live
+look at `http://127.0.0.1:8765/?user=<name>&tool=live`.
+
+`.claude/agents/ux-reviewer.md` defines a design-review agent for Claude Code
+that takes these screenshots and returns prioritized look-and-feel findings.
+
 ## Ground rules
 
 - Read-only, public endpoints only. No auth, no analytics, no servers of our own.

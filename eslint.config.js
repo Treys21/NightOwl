@@ -19,7 +19,11 @@ module.exports = [
     languageOptions: { ecmaVersion: 2022, sourceType: 'commonjs', globals: globals.node }
   },
   {
-    files: ['scripts/**/*.mjs'],
+    files: ['tools/preview/shim.js'],
+    languageOptions: { ecmaVersion: 2022, sourceType: 'script', globals: globals.browser }
+  },
+  {
+    files: ['scripts/**/*.mjs', 'tools/**/*.mjs'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'module', globals: globals.node }
   },
   {
