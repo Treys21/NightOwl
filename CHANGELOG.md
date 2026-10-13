@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+A design pass across the whole panel: calmer, simpler, more consistent.
+- **One control style.** Sub-tabs, filters, positions, Mine / Opponents and
+  Linear / Inverse share one quiet look; teal fill now only means the active
+  tool or good news.
+- **Week first.** Each tool's bar shows the week instead of repeating its name.
+  Lineups jumps to next week as soon as the last game ends (marked "upcoming").
+- **Live:** Feed / Matchups / Games as underlined tabs, filters on one row,
+  the play stage steps aside when nothing is on, finished matchups say
+  "Won by" or "Lost by" with the week's record on the tab, scores always show
+  two decimals, and the empty Games tab says why.
+- **Season:** four numbers per league (record, playoffs, luck, your 1st or
+  max points), value over label.
+- **Lineups:** a two-line "Next lock" header; list labels sit over their numbers.
+- **Popup:** Account and Draft rankings sections, one main button each,
+  "synced 1h ago".
+- Loading shows placeholder cards; narrow panels keep filter rows on one line.
+
+Fixed:
+- Draft board styles leaked into other tables.
+- The popup said "connected as" without the name.
+
 ## 3.5.0
 New, in Season:
 - **Draft order** for dynasty and keeper leagues: next year's round-1 order if

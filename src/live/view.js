@@ -21,7 +21,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </div>
       <div class="actions">
         <button id="refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button>
-        <button id="settings-btn" class="icon" title="Leagues to track" aria-label="Leagues to track">⚙</button>
+        <button id="settings-btn" class="icon" title="Leagues to track" aria-label="Leagues to track" aria-expanded="false">⚙</button>
       </div>
     </header>
     <div class="stage" id="stage"><div class="idle" id="stage-idle">Plays pop here the moment they happen</div></div>
@@ -33,7 +33,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     <div class="tool-scroll">
       <section id="settings" class="card" hidden>
         <div id="league-toggles"></div>
-        <p class="muted small">Username comes from the extension popup. Points use each league's own scoring settings.</p>
+        <p class="muted small">Points use each league's own scoring. Change your username from the Night Owl toolbar button.</p>
       </section>
       <p id="error" class="error" hidden></p>
       <section data-pane="feed">
@@ -765,7 +765,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function renderLeagueToggles() {
     const box = $('league-toggles');
     if (!state.ctx) { box.innerHTML = ''; return; }
-    box.innerHTML = '<p class="small muted">Leagues to track</p>' + state.ctx.leagues.map((lg) =>
+    box.innerHTML = '<p class="lv-set-h">Leagues to track</p>' + state.ctx.leagues.map((lg) =>
       `<label><input type="checkbox" data-id="${lg.leagueId}"${state.settings.excluded.includes(lg.leagueId) ? '' : ' checked'}> ${esc(lg.name)}</label>`
     ).join('');
   }
@@ -822,7 +822,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.seenEventIds = new Set();
     state.prevScores = {};
 
-    $('settings-btn').addEventListener('click', () => { $('settings').hidden = !$('settings').hidden; });
+    $('settings-btn').addEventListener('click', () => {
+      $('settings').hidden = !$('settings').hidden;
+      $('settings-btn').setAttribute('aria-expanded', String(!$('settings').hidden));
+    });
     $('refresh').addEventListener('click', () => poll(true));
     // Double-click the week label to preview the pop-ups.
     $('week-label').addEventListener('dblclick', () => celebrate([

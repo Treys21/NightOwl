@@ -137,3 +137,7 @@ select option { background: var(--panel); color: var(--text); }
 .skel i:nth-child(3) { opacity: .4; }
 @keyframes skel { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .skel i { animation: none; } }
+
+/* An icon button whose panel is open reads as pressed. */
+button.icon[aria-expanded="true"] { color: var(--text); background: var(--raised); }
+.lv-set-h { margin: 0 0 6px; font: 600 11px Inter, sans-serif; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
