@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.6.0
 A design pass across the whole panel: calmer, simpler, more consistent.
 - **One control style.** Sub-tabs, filters, positions, Mine / Opponents and
   Linear / Inverse share one quiet look; teal fill now only means the active
