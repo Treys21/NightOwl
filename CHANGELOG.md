@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.5.0
 New, in Season:
 - **Draft order** for dynasty and keeper leagues: next year's round-1 order if
   the season ended now, worst first, scored 30% on wins and 70% on max points.
