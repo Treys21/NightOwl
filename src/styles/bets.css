@@ -125,10 +125,10 @@
 .bt-tr.hit { background: rgba(0, 206, 184, .08); }
 .bt-tr.hit .bt-td-lbl { color: #fff; }
 .bt-tr.just-hit { animation: cashed 1.6s ease-out; }
-.bt-tr-live { grid-column: 1 / -1; position: relative; height: 14px; margin-top: 6px; border-radius: 7px; background: rgba(0, 0, 0, .4); overflow: hidden; }
-.bt-tr-live i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 7px; background: linear-gradient(90deg, rgba(86, 201, 248, .5), #56c9f8); transition: width 1s cubic-bezier(.2, .9, .3, 1); }
+.bt-tr-live { grid-column: 1 / -1; position: relative; height: 16px; margin-top: 6px; border-radius: 8px; background: rgba(0, 0, 0, .4); overflow: hidden; }
+.bt-tr-live i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px; background: linear-gradient(90deg, rgba(86, 201, 248, .5), #56c9f8); transition: width 1s cubic-bezier(.2, .9, .3, 1); }
 .bt-tr-live.hit i { background: #00ceb8; }
-.bt-tr-live em { position: relative; display: block; text-align: center; font: 700 10px/14px Poppins, sans-serif; font-style: normal; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.bt-tr-live em { position: relative; display: block; text-align: center; font: 700 11px/16px Poppins, sans-serif; font-style: normal; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
 @keyframes cashed { 0% { background: rgba(0, 206, 184, .35); } 100% { background: rgba(0, 206, 184, .08); } }
 @media (prefers-reduced-motion: reduce) { .bt-tr.just-hit { animation: none !important; } }
 

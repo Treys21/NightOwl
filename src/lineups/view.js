@@ -246,7 +246,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!root) return;
     $('lu-error').hidden = !state.error;
     $('lu-error').textContent = state.error || '';
-    if (state.nfl) $('lu-week').textContent = `Week ${lineupWeek(state.nfl)}`;
+    if (state.nfl) {
+      $('lu-week').textContent = `Week ${lineupWeek(state.nfl)}`;
+      // Early in the week the other tools still recap the week just played.
+      $('lu-sub').textContent = lineupWeek(state.nfl) > (state.nfl.display_week || 0) ? 'upcoming' : '';
+    }
     if (!state.loadedAt) {
       if (state.error) $('lu-body').innerHTML = ''; // no endless placeholders under an error
       return;
