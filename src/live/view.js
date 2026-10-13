@@ -701,7 +701,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <summary>
           <span class="recap-title"><b>${group[0].firstLook ? 'So far today' : 'While you were away'}</b><span class="muted small">${group[0].firstLook ? `up to ${clockOf(group[0].ts)}` : `${clockOf(since)} – ${clockOf(group[0].ts)}`} · ${group.length} player${group.length === 1 ? '' : 's'}</span></span>
         </summary>
-        ${rows}
+        <div class="recap-rows">${rows}</div>
       </details></li>`;
   }
 

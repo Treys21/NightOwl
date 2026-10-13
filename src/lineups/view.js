@@ -172,8 +172,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     // With nothing to gain, the list is a backup plan: show projections, not
     // a row of negative "gains".
     const anyGain = r.options.some((o) => o.gain > 0);
-    const label = !anyGain && r.status === 'start' ? 'Backup if he sits · proj'
-      : `${r.status === 'start' ? 'Swap out for' : 'Start over'} · ${anyGain ? 'pts gained' : 'pts lost'}`;
+    // What the list is (left) and what its numbers are (right, over them).
+    const [label, unit] = !anyGain && r.status === 'start' ? ['Backup if he sits', 'proj']
+      : [r.status === 'start' ? 'Swap out for' : 'Start over', anyGain ? 'pts gained' : 'pts lost'];
     const chip = (o) => {
       const cls = o.gain > 0 ? 'up' : o.gain < 0 ? 'down' : '';
       const effect = o.gain > 0 ? `gains ${fmt(o.gain)}` : o.gain < 0 ? `loses ${fmt(-o.gain)}` : 'is a wash';
@@ -190,7 +191,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     };
     const top = r.options.slice(0, 3).map(chip).join('');
     const rest = r.options.slice(3);
-    return `<div class="lu-opts${anyGain ? '' : ' quiet'}"><span class="lu-opts-label">${label}</span>${top}${rest.length
+    return `<div class="lu-opts${anyGain ? '' : ' quiet'}"><span class="lu-opts-label"><span>${label}</span><span>${unit}</span></span>${top}${rest.length
       ? `<details class="lu-more"><summary>+${rest.length} more</summary>${rest.map(chip).join('')}</details>` : ''}</div>`;
   }
 

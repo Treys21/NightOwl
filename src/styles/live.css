@@ -322,6 +322,8 @@ details.game[open] > summary.game-h::before { transform: rotate(90deg); }
   #feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px; align-items: start; }
   #feed .ev { margin-bottom: 0; }
   #feed .ev-when, #feed .recap { grid-column: 1 / -1; }
+  .recap-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  .recap-rows .recap-row:nth-child(odd) { border-right: 1px solid rgba(163, 187, 211, .08); }
   #feed .ev-when { margin: 6px 2px 0; }
   #scoreboard { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; align-items: start; }
   #scoreboard .match { margin-bottom: 0; }
