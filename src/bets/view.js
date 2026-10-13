@@ -81,7 +81,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         </div>
       </div>
       <p id="bt-error" class="error" hidden></p>
-      <div id="bt-body"><p class="muted small empty">Loading lines for your starters…</p></div>
+      <div id="bt-body"><div class="skel" role="status" aria-label="Loading lines for your starters"><i></i><i></i><i></i></div></div>
       <p class="bt-legal">Lines: Sleeper Picks payouts and DraftKings (via ESPN). For information only, not betting advice. 21+, gamble responsibly · 1-800-GAMBLER.</p>
     </div>
   `;
@@ -397,7 +397,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('bt-error').textContent = state.error || '';
     if (state.nfl) $('bt-week').textContent = `Week ${state.nfl.display_week || state.nfl.week}`;
     for (const b of $('bt-who').children) b.classList.toggle('on', (b.dataset.who === 'all') === state.showOpp);
-    if (!state.loadedAt) return;
+    if (!state.loadedAt) {
+      if (state.error) $('bt-body').innerHTML = ''; // no endless placeholders under an error
+      return;
+    }
 
     const ui = state.ui;
     const gameOf = new Map();

@@ -125,3 +125,15 @@ select option { background: var(--panel); color: var(--text); }
 .bar { min-height: 44px; padding: 6px 10px 6px 14px; border-bottom: 1px solid var(--hair); }
 .title strong { font: 600 14.5px Poppins, sans-serif; }
 .title .muted.small { font-size: 12px; }
+
+/* Loading: placeholder cards in the shape of what's coming. */
+.skel { display: grid; gap: 10px; padding-top: 10px; }
+.skel i {
+  display: block; height: 92px; border-radius: 14px;
+  background: linear-gradient(90deg, rgba(163, 187, 211, .05) 30%, rgba(163, 187, 211, .1) 50%, rgba(163, 187, 211, .05) 70%) 0 0 / 300% 100%;
+  animation: skel 1.4s ease-in-out infinite;
+}
+.skel i:nth-child(2) { opacity: .7; }
+.skel i:nth-child(3) { opacity: .4; }
+@keyframes skel { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .skel i { animation: none; } }

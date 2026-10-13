@@ -50,7 +50,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <p id="feed-empty" class="muted small empty">New scoring plays by your starters and your opponents' show up here as they happen, with what each did in every league.</p>
       </section>
       <section data-pane="matchups" hidden>
-        <div id="scoreboard"><p class="muted small empty">Loading your leagues…</p></div>
+        <div id="scoreboard"><div class="skel" role="status" aria-label="Loading your leagues"><i></i><i></i><i></i></div></div>
       </section>
       <section data-pane="games" hidden>
         <div id="games"></div>
@@ -764,6 +764,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!root) return;
     $('error').hidden = !msg;
     $('error').textContent = msg || '';
+    // No endless placeholders under an error.
+    const skel = msg && $('scoreboard').querySelector('.skel');
+    if (skel) skel.remove();
   }
 
   // ---- wiring -----------------------------------------------------------

@@ -143,6 +143,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const setup = needsSetup && tool !== 'draft' && !ui.collapsed;
     for (const t of TOOLS) panel.querySelector(`.view-${t.id}`).hidden = setup || t.id !== tool;
     panel.querySelector('.setup').hidden = !setup;
+    panel.classList.toggle('setting-up', setup);
     slideIndicator();
 
     const next = ui.collapsed || setup ? null : tool;

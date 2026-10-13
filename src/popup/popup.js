@@ -8,6 +8,16 @@
   const syncedEl = document.getElementById('synced');
   const usernameEl = document.getElementById('username');
   const userStatusEl = document.getElementById('user-status');
+  const rankStatusEl = document.getElementById('rank-status');
+  // How long ago, in plain words: "just now", "5m ago", "3h ago", "Oct 2".
+  const ago = (ms) => {
+    const mins = Math.round((Date.now() - ms) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    if (mins < 24 * 60) return `${Math.round(mins / 60)}h ago`;
+    return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+  const status = (el, text, tone = '') => { el.textContent = text; el.className = `status ${tone}`; };
   const esc = NightOwl.format.escape;
 
   let rankings = [];
@@ -37,19 +47,18 @@
     alertsEl.addEventListener('change', () => NightOwl.storage.saveSettings({ alerts: alertsEl.checked }));
 
     usernameEl.value = settings.username || '';
-    userStatusEl.textContent = settings.userId ? `✓ connected as ` : (settings.username ? 'not found yet: check the spelling' : 'add your username to turn on Live, Lineups and Bets');
+    if (settings.userId) status(userStatusEl, `✓ Connected as ${settings.username}`, 'ok');
+    else status(userStatusEl, settings.username ? 'Not found yet. Check the spelling, then Save.' : 'Add your username to turn on Live, Lineups, Bets and Season.');
 
     const lastSynced = await NightOwl.storage.getLastSynced();
-    syncedEl.textContent = lastSynced
-      ? `synced ${new Date(lastSynced).toLocaleString()}`
-      : 'never synced';
+    syncedEl.textContent = lastSynced ? `synced ${ago(lastSynced)}` : 'not synced yet';
 
     render();
   }
 
   function render() {
     if (rankings.length === 0) {
-      listEl.innerHTML = '<div class="empty">No players yet. Sync from The Ringer or add one above.</div>';
+      listEl.innerHTML = '<li class="empty">No players yet. Sync from The Ringer or add one above.</li>';
       return;
     }
 
@@ -130,18 +139,18 @@
   document.getElementById('save-user').addEventListener('click', async () => {
     const username = usernameEl.value.trim();
     if (!username) return;
-    userStatusEl.textContent = 'resolving…';
+    status(userStatusEl, 'Looking you up…');
     try {
       const user = await NightOwl.api.user(username);
       if (user && user.user_id) {
         await NightOwl.storage.saveSettings({ username, userId: user.user_id });
-        userStatusEl.textContent = `✓ connected as `;
+        status(userStatusEl, `✓ Connected as ${username}`, 'ok');
       } else {
         await NightOwl.storage.saveSettings({ username, userId: null });
-        userStatusEl.textContent = 'no such Sleeper user';
+        status(userStatusEl, `No Sleeper user named "${username}"`, 'bad');
       }
     } catch {
-      userStatusEl.textContent = "couldn't reach Sleeper, try again";
+      status(userStatusEl, "Couldn't reach Sleeper. Try again.", 'bad');
     }
   });
 
@@ -158,12 +167,12 @@
       rankings = result.rankings;
       await NightOwl.storage.saveRankings(rankings, { markSynced: true });
       rankings = await NightOwl.storage.getRankings();
-      syncedEl.textContent = `synced ${new Date().toLocaleString()}`;
-      userStatusEl.textContent = `${rankings.length} players from The Ringer (${format})`;
+      syncedEl.textContent = 'synced just now';
+      status(rankStatusEl, `✓ ${rankings.length} players from The Ringer`, 'ok');
       render();
     } else {
       // A failed sync leaves the existing board untouched.
-      userStatusEl.textContent = result.reason;
+      status(rankStatusEl, result.reason, 'bad');
     }
 
     syncButton.disabled = false;
@@ -215,7 +224,7 @@
         }));
       await persist();
     } catch {
-      userStatusEl.textContent = "couldn't read that file";
+      status(rankStatusEl, "Couldn't read that file.", 'bad');
     }
   });
 

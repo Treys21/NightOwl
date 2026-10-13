@@ -44,7 +44,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </header>
     <div class="tool-scroll">
       <p id="lu-error" class="error" hidden></p>
-      <div id="lu-body"><p class="muted small empty">Loading your rosters…</p></div>
+      <div id="lu-body"><div class="skel" role="status" aria-label="Loading your rosters"><i></i><i></i><i></i></div></div>
     </div>
   `;
 
@@ -246,7 +246,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('lu-error').hidden = !state.error;
     $('lu-error').textContent = state.error || '';
     if (state.nfl) $('lu-week').textContent = `Week ${lineupWeek(state.nfl)}`;
-    if (!state.loadedAt) return;
+    if (!state.loadedAt) {
+      if (state.error) $('lu-body').innerHTML = ''; // no endless placeholders under an error
+      return;
+    }
 
     const { leagues, wins } = computed();
     const html = [];

@@ -41,7 +41,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     <div class="tool-scroll">
       <p id="se-error" class="error" hidden></p>
       <div id="se-summary"></div>
-      <div id="se-body"><p class="muted small empty">Loading your leagues…</p></div>
+      <div id="se-body"><div class="skel" role="status" aria-label="Loading your leagues"><i></i><i></i><i></i></div></div>
     </div>
   `;
 
@@ -388,6 +388,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('se-error').textContent = state.error || '';
     if (!state.leagues.length) {
       if (state.loadedAt) $('se-body').innerHTML = '<p class="muted small empty">No in-season leagues found.</p>';
+      else if (state.error) $('se-body').innerHTML = '';
       $('se-summary').innerHTML = '';
       return;
     }

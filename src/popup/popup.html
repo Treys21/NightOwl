@@ -9,43 +9,42 @@
     <header>
       <img class="logo" src="../../icons/icon48.png" alt="" width="28" height="28" />
       <h1>Night Owl</h1>
-      <span id="synced" class="muted"></span>
+      <button id="open-tab" class="link" hidden>Open in tab ↗</button>
     </header>
 
-    <section class="row">
-      <label for="username">Sleeper username</label>
-      <input id="username" type="text" placeholder="your Sleeper username" spellcheck="false" />
-      <button id="save-user">Save</button>
-    </section>
-    <p id="user-status" class="muted small"></p>
-
-    <label class="alerts">
-      <input id="alerts" type="checkbox" />
-      <span>Lineup alerts <span class="muted small">Notify me when a starter is ruled out or on bye before kickoff.</span></span>
-    </label>
-
-    <section class="row">
-      <label for="format">Scoring</label>
-      <select id="format"></select>
-      <button id="sync">Sync from Ringer</button>
+    <section class="card">
+      <h2>Your Sleeper account</h2>
+      <div class="row">
+        <input id="username" type="text" placeholder="Sleeper username" spellcheck="false" aria-label="Sleeper username" />
+        <button id="save-user">Save</button>
+      </div>
+      <p id="user-status" class="status"></p>
+      <label class="switch-row">
+        <input id="alerts" type="checkbox" />
+        <span><b>Lineup alerts</b><span class="muted">A notification when a starter is ruled out or on bye before kickoff.</span></span>
+      </label>
     </section>
 
-    <section class="toolbar">
-      <button id="export">Export</button>
-      <button id="import">Import</button>
-      <button id="open-tab" hidden>Open in tab</button>
+    <section class="card">
+      <h2>Draft rankings <span id="synced" class="muted"></span></h2>
+      <div class="row">
+        <select id="format" aria-label="Scoring"></select>
+        <button id="sync">Sync from Ringer</button>
+      </div>
+      <p id="rank-status" class="status"></p>
+      <div class="row add">
+        <input id="add-name" type="text" placeholder="Add a player" aria-label="Player name" />
+        <input id="add-pos" type="text" placeholder="Pos" maxlength="4" aria-label="Position" />
+        <input id="add-team" type="text" placeholder="Team" maxlength="4" aria-label="Team" />
+        <button id="add" class="quiet" aria-label="Add player">Add</button>
+      </div>
+      <ol id="list"></ol>
+      <div class="foot">
+        <span class="muted">Drag to reorder</span>
+        <span class="links"><button id="export" class="link">Export</button><button id="import" class="link">Import</button></span>
+      </div>
       <input id="import-file" type="file" accept="application/json" hidden />
     </section>
-
-    <section class="add">
-      <input id="add-name" type="text" placeholder="Player name" />
-      <input id="add-pos" type="text" placeholder="Pos" maxlength="4" />
-      <input id="add-team" type="text" placeholder="Tm" maxlength="4" />
-      <button id="add">Add</button>
-    </section>
-
-    <p class="muted small">Drag rows to reorder. Ranks renumber automatically.</p>
-    <ol id="list"></ol>
 
     <script src="../shared/storage.js"></script>
     <script src="../shared/format.js"></script>

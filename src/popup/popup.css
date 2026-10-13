@@ -1,66 +1,76 @@
-:root { color-scheme: dark; }
-
+/* Popup: settings and the rankings editor, in the panel's palette. */
+:root {
+  color-scheme: dark;
+  --bg: #151926; --card: #1c2130; --line: #2e384b; --hair: rgba(163, 187, 211, .12);
+  --text: #fff; --sub: #bfcfe0; --muted: #8d9fbc;
+  --teal: #00ceb8; --teal-ink: #022047; --pink: #f75c8d;
+}
+* { box-sizing: border-box; }
 body {
-  width: 380px;
-  margin: 0;
-  padding: 12px;
-  background: #181c28;
-  color: #ffffff;
-  font: 13px/1.45 Inter, Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  width: 380px; margin: 0; padding: 12px;
+  background: var(--bg); color: var(--text);
+  font: 13px/1.45 Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.logo { flex: none; border-radius: 7px; filter: drop-shadow(0 0 5px rgba(255,79,216,.45)); }
-h1 { font: 600 14px Poppins, sans-serif; margin: 0; flex: 1; }
+header { display: flex; align-items: center; gap: 9px; margin: 2px 2px 12px; }
+.logo { flex: none; border-radius: 7px; }
+h1 { font: 600 15px Poppins, sans-serif; margin: 0; flex: 1; }
 
-.muted { color: #a3bbd3; }
-.small { font-size: 11px; }
-p.muted { margin: 6px 0; }
-
-section { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-.row label { font-size: 11px; color: #a3bbd3; white-space: nowrap; }
-
-input[type='text'] {
-  flex: 1; min-width: 0; background: #1f2431; border: 1px solid #3a465b;
-  color: #ffffff; border-radius: 6px; padding: 5px 8px; font-size: 12px;
+.card { background: var(--card); border: 1px solid var(--hair); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+h2 {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 10px;
+  font: 600 11px Inter, sans-serif; letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
 }
-#add-pos, #add-team { flex: 0 0 46px; }
+h2 .muted { font-size: 11px; letter-spacing: 0; text-transform: none; }
+.muted { color: var(--muted); }
 
-select {
-  flex: 1; background: #1f2431; border: 1px solid #3a465b;
-  color: #ffffff; border-radius: 6px; padding: 5px 8px; font-size: 12px;
+.row { display: flex; gap: 6px; align-items: center; }
+.row.add { margin-top: 8px; }
+.status { min-height: 0; margin: 6px 2px 0; font-size: 12px; color: var(--sub); }
+.status:empty { display: none; }
+.status.ok { color: var(--teal); }
+.status.bad { color: var(--pink); }
+
+input[type='text'], select {
+  flex: 1; min-width: 0; height: 34px; padding: 0 11px; font: 13px Inter, sans-serif; color: var(--text);
+  background: rgba(0, 0, 0, .28); border: 1px solid var(--hair); border-radius: 10px; outline: none;
 }
+input[type='text']:focus, select:focus { border-color: var(--teal); }
+#add-pos, #add-team { flex: 0 0 54px; text-align: center; padding: 0 6px; }
 
 button {
-  background: #00ceb8; border: none; color: #022047; border-radius: 6px;
-  padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+  height: 34px; padding: 0 14px; border: 0; border-radius: 10px; cursor: pointer;
+  font: 600 12.5px Poppins, sans-serif; color: var(--teal-ink); background: var(--teal); white-space: nowrap;
 }
 button:hover { background: #19dcc6; }
-.toolbar button { background: #262e3e; color: #a3bbd3; }
-.toolbar button:hover { background: #3a465b; }
+button:disabled { opacity: .6; cursor: wait; }
+button.quiet { color: var(--sub); background: transparent; box-shadow: inset 0 0 0 1px var(--hair); }
+button.quiet:hover { color: var(--text); background: rgba(163, 187, 211, .06); }
+button.link { height: auto; padding: 2px 4px; color: var(--muted); background: none; font: 600 12px Inter, sans-serif; }
+button.link:hover { color: var(--text); background: none; }
+:is(button, input, select, label):focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+.switch-row { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hair); cursor: pointer; }
+.switch-row input { margin: 3px 0 0; accent-color: var(--teal); width: 15px; height: 15px; flex: none; }
+.switch-row b { display: block; font-weight: 600; }
+.switch-row .muted { display: block; font-size: 12px; margin-top: 1px; }
 
 ol {
-  list-style: none; margin: 8px 0 0; padding: 0;
-  max-height: 320px; overflow: auto;
-  border: 1px solid #3a465b; border-radius: 8px;
+  list-style: none; margin: 10px 0 0; padding: 0; max-height: 300px; overflow: auto;
+  border: 1px solid var(--hair); border-radius: 10px;
 }
-li {
-  display: flex; align-items: center; gap: 8px;
-  padding: 5px 8px; border-bottom: 1px solid rgba(58,70,91,.5); cursor: grab;
-}
-li:last-child { border-bottom: none; }
+ol:empty { display: none; }
+li { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 10px; border-top: 1px solid var(--hair); cursor: grab; }
+li:first-child { border-top: 0; }
+li:hover { background: rgba(163, 187, 211, .04); }
 li.dragging { opacity: .4; }
-li.over { border-top: 2px solid #00ceb8; }
-
-.rank { color: #a3bbd3; font-size: 11px; width: 26px; flex: 0 0 26px; }
+li.over { box-shadow: inset 0 2px 0 var(--teal); }
+.rank { flex: 0 0 24px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.meta { color: #a3bbd3; font-size: 11px; }
-.del {
-  background: none; color: #a3bbd3; padding: 2px 6px; font-size: 14px; font-weight: 400;
-}
-.del:hover { background: none; color: #f75c8d; }
+.meta { color: var(--muted); font-size: 11.5px; }
+.del { height: 26px; width: 26px; padding: 0; color: var(--muted); background: none; font: 400 16px Inter, sans-serif; border-radius: 7px; }
+.del:hover { color: var(--pink); background: rgba(247, 92, 141, .1); }
+.empty { padding: 16px; text-align: center; color: var(--muted); font-size: 12px; }
 
-.empty { padding: 18px; text-align: center; color: #a3bbd3; font-size: 12px; }
-label.alerts { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0 12px; font-size: 13px; cursor: pointer; }
-label.alerts input { margin-top: 3px; accent-color: #00ceb8; }
-label.alerts .muted { display: block; margin-top: 2px; }
+.foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; }
+.links { display: flex; gap: 6px; }

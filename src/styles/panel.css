@@ -152,3 +152,9 @@ header .iconbtn { margin-left: auto; }
 @container panel (max-width: 360px) {
   .switch button { padding: 5px 2px; font-size: 12px; }
 }
+
+/* During first-run setup only Draft works without a username: the switch
+   stays usable but steps back so the form is the focus. */
+.panel.setting-up .switch { opacity: .55; }
+.panel.setting-up .switch .ind { opacity: 0; }
+.panel.setting-up .switch button.on { color: #a3bbd3; }
