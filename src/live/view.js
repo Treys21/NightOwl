@@ -439,6 +439,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
     popping = true;
     layer.classList.add('busy');
+    layer.classList.remove('dormant');
 
     const big = isBig(ev);
     const mood = moodOf(ev);
@@ -480,6 +481,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const last = state.events.find((ev) => !ev.catchUp);
     const recap = !last && state.events[0];
     const live = state.schedule.games.find((g) => g.status === 'in_game');
+    // Nothing playing and nothing to show: give the room to the list.
+    $('stage').classList.toggle('dormant', !last && !live);
     $('stage-idle').innerHTML = last
       ? `<span class="muted small">Last play · ${clockOf(last.ts)}</span>
          <span class="idle-who"><img alt="" src="${/^[A-Z]{2,3}$/.test(last.pid) ? teams.logo(last.team) : teams.headshot(last.pid)}"><b>${esc(last.name)}</b></span>
@@ -529,6 +532,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // 0.995 shows as ">99%", never a misleading 100%.
   const pctLabel = (p) => (p > 0.99 && p < 1 ? '>99%' : p < 0.01 && p > 0 ? '<1%' : `${Math.round(p * 100)}%`);
 
+  // Matchup scores always carry two decimals, as on Sleeper (178.20).
+  const score = (n) => (Math.round(n * 100) / 100).toFixed(2);
+
   // Your share of the combined score, as the teal/pink bar Sleeper draws.
   const share = (a, b) => (a + b > 0 ? Math.round((a / (a + b)) * 100) : 50);
 
@@ -549,6 +555,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     let favored = 0;
     let withChance = 0;
     let withOpp = 0;
+    const final = { won: 0, lost: 0, open: 0 };
 
     $('scoreboard').innerHTML = leagues.map((lg) => {
       const s = board.get(lg.leagueId);
@@ -558,6 +565,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const before = prev[lg.leagueId];
       const moved = before && (before.mine !== s.mine || before.opp !== s.opp);
       const chance = winChance(lg);
+      // Every starter on both sides has played: show the result, not odds.
+      const decided = s.opp != null && stillToPlay(lg.matchup.mine) === 0 && stillToPlay(lg.matchup.opp) === 0 && chance != null;
+      if (s.opp != null) {
+        if (!decided) final.open++;
+        else if (s.margin > 0) final.won++;
+        else if (s.margin < 0) final.lost++;
+      }
       // Once odds exist the card's tone follows them, so a card never says
       // "losing" next to "Win 96%". The score gap stays neutral.
       const mood = chance != null ? (chance >= 0.5 ? 'win' : 'lose') : s.margin > 0 ? 'win' : s.margin < 0 ? 'lose' : 'tie';
@@ -565,24 +579,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       // The bar shows your chance to win once projections are in, else your
       // share of the combined score.
       const pct = s.opp == null ? 100 : chance == null ? share(s.mine, s.opp) : Math.round(chance * 100);
-      const odds = chance == null ? '' : `<span class="winpct ${chance >= 0.5 ? 'good' : 'bad'}" title="Chance to win, from live points plus projections for the time left">Win ${pctLabel(chance)}</span>`;
+      const odds = decided
+        ? `<span class="winpct ${s.margin >= 0 ? 'good' : 'bad'}">${s.margin > 0 ? 'Won by' : s.margin < 0 ? 'Lost by' : 'Tied'}</span>`
+        : chance == null ? '' : `<span class="winpct ${chance >= 0.5 ? 'good' : 'bad'}" title="Chance to win, from live points plus projections for the time left">Win ${pctLabel(chance)}</span>`;
+      const toPlay = (side) => (chance == null || decided || !side ? '' : ` · ${stillToPlay(side)} to play`);
       return `<details class="match ${mood}${moved ? ' flash' : ''}" data-id="${lg.leagueId}"${open.has(lg.leagueId) ? ' open' : ''}>
         <summary>
-          <div class="m-league"><span class="lname">${esc(lg.name)}</span>${odds}${s.margin == null ? '' : `<span class="margin${chance == null ? ` ${mood}` : ''}">${signed(s.margin)}</span>`}</div>
+          <div class="m-league"><span class="lname">${esc(lg.name)}</span>${odds}${s.margin == null ? '' : `<span class="margin${chance == null || decided ? ` ${mood}` : ''}">${decided ? score(Math.abs(s.margin)) : signed(s.margin)}</span>`}</div>
           <div class="m-row">
             ${avatarImg(lg.myAvatar, lg.myName, 'me')}
             <div class="m-side me">
-              <span class="tname">${esc(lg.myName)}${chance == null ? '' : ` · ${stillToPlay(lg.matchup.mine)} to play`}</span>
-              <span class="big${moved && before.mine !== s.mine ? ' bump' : ''}" data-from="${before ? before.mine : s.mine}" data-to="${s.mine}">${fmt(s.mine)}</span>
+              <span class="tname">${esc(lg.myName)}${toPlay(lg.matchup.mine)}</span>
+              <span class="big${moved && before.mine !== s.mine ? ' bump' : ''}" data-from="${before ? before.mine : s.mine}" data-to="${s.mine}">${score(s.mine)}</span>
             </div>
             <span class="vs">VS</span>
             <div class="m-side opp">
-              <span class="tname">${esc(lg.oppName || 'Bye week')}${chance == null || !lg.matchup.opp ? '' : ` · ${stillToPlay(lg.matchup.opp)} to play`}</span>
-              <span class="big${moved && before.opp !== s.opp ? ' bump' : ''}" data-from="${before ? before.opp : s.opp}" data-to="${s.opp == null ? '' : s.opp}">${fmt(s.opp)}</span>
+              <span class="tname">${esc(lg.oppName || 'Bye week')}${toPlay(lg.matchup.opp)}</span>
+              <span class="big${moved && before.opp !== s.opp ? ' bump' : ''}" data-from="${before ? before.opp : s.opp}" data-to="${s.opp == null ? '' : s.opp}">${s.opp == null ? '' : score(s.opp)}</span>
             </div>
             ${lg.oppName ? avatarImg(lg.oppAvatar, lg.oppName, 'opp') : ''}
           </div>
-          ${s.opp == null ? '' : `<span class="wp" role="img" aria-label="${chance == null ? `Your share of points: ${pct}%` : `Win chance: ${pct}%`}" title="${chance == null ? 'Your share of the points so far' : 'Your chance to win'}"><span style="width:${pct}%"></span><i style="left:${pct}%"></i></span>`}
+          ${s.opp == null || decided ? '' : `<span class="wp" role="img" aria-label="${chance == null ? `Your share of points: ${pct}%` : `Win chance: ${pct}%`}" title="${chance == null ? 'Your share of the points so far' : 'Your chance to win'}"><span style="width:${pct}%"></span><i style="left:${pct}%"></i></span>`}
         </summary>
         ${trendSvg(state.trend.series[lg.leagueId])}
         <div class="lineups">
@@ -594,7 +611,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     // Once win odds exist, count where you're favored (what matters); before
     // that, where you're ahead right now.
-    $('net-total').innerHTML = withChance
+    $('net-total').innerHTML = withOpp && !final.open
+      ? `<span class="pill-count ${final.won >= final.lost ? 'good' : 'bad'}" title="This week's results">${final.won}–${final.lost}</span>`
+      : withChance
       ? `<span class="pill-count ${favored * 2 >= withChance ? 'good' : 'bad'}" title="Favored to win ${favored} of ${withChance}">${favored}/${withChance} favored</span>`
       : withOpp ? `<span class="pill-count ${winning * 2 >= withOpp ? 'good' : 'bad'}" title="Leading in ${winning} of ${withOpp}">${winning}/${withOpp} up</span>` : '';
     root.querySelectorAll('.match .big[data-to]').forEach(countUp);
@@ -610,7 +629,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const step = (now) => {
       const t = Math.min(1, (now - start) / 900);
       const eased = 1 - Math.pow(1 - t, 3);
-      el.textContent = fmt(Math.round((from + (to - from) * eased) * 100) / 100);
+      el.textContent = score(from + (to - from) * eased);
       if (t < 1 && el.isConnected) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);

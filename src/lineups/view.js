@@ -39,7 +39,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const MARKUP = `
     <header class="bar">
-      <div class="title"><strong>Lineups</strong><span id="lu-week" class="muted small"></span></div>
+      <div class="title"><strong id="lu-week">Lineups</strong><span id="lu-sub" class="muted small"></span></div>
       <div class="actions"><button id="lu-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button></div>
     </header>
     <div class="tool-scroll">
@@ -60,7 +60,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     await players.load();
     state.nfl = await api.state();
     const season = state.nfl.season;
-    const week = state.nfl.display_week || state.nfl.week;
+    // Lineups look ahead: Sleeper moves `week` on as soon as the last game
+    // ends, while `display_week` stays on the finished week until midweek.
+    const week = lineupWeek(state.nfl);
     const seasonType = state.nfl.season_type === 'post' ? 'post' : 'regular';
 
     if (!state.userId) {
@@ -237,11 +239,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const ORDER = { start: 0, bench: 1, taxi: 2, ir: 3 };
   const sortRows = (rows) => rows.slice().sort((a, b) => ORDER[a.status] - ORDER[b.status] || (a.slotIndex ?? 99) - (b.slotIndex ?? 99) || b.proj - a.proj);
 
+  const lineupWeek = (nfl) => Math.max(nfl.week || 0, nfl.display_week || 0) || 1;
+
   function render() {
     if (!root) return;
     $('lu-error').hidden = !state.error;
     $('lu-error').textContent = state.error || '';
-    if (state.nfl) $('lu-week').textContent = `· Week ${state.nfl.display_week || state.nfl.week}`;
+    if (state.nfl) $('lu-week').textContent = `Week ${lineupWeek(state.nfl)}`;
     if (!state.loadedAt) return;
 
     const { leagues, wins } = computed();
@@ -287,13 +291,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const logos = w.games.slice(0, 8).map((g) => `<span class="lu-game"><img alt="" src="${teams.logo(g.away)}"><img alt="" src="${teams.logo(g.home)}"></span>`).join('');
       html.push(`<details class="lu-window${i === 0 ? ' next' : ''}" data-k="${w.kickoff}"${open ? ' open' : ''}>
         <summary>
+          ${i === 0 ? '<span class="lu-eyebrow">Next lock</span>' : ''}
           <div class="lu-when">
-            ${i === 0 ? ring(w.kickoff, soon) : ''}
-            <span class="lu-label">${i === 0 ? '<span class="lu-next">NEXT UP</span>' : ''}${esc(windowLabel(w))}</span>
-            <span class="lu-lock${soon ? ' soon' : ''}">locks in ${countdown(w.kickoff)}</span>
+            <span class="lu-label">${esc(windowLabel(w))}</span>
+            <span class="lu-lock${soon ? ' soon' : ''}">${w.kickoff - Date.now() < 12 * 3600000 ? ring(w.kickoff, soon) : ''}locks in ${countdown(w.kickoff)}</span>
           </div>
-          <div class="lu-games">${logos}</div>
-          <div class="lu-counts">${starting} starting · ${benched} benched${toFix ? ` · <span class="lu-flagcount">${toFix} to fix</span>` : ''}${allSet ? '<span class="lu-allset">✓ All set</span>' : ''}</div>
+          <div class="lu-meta">
+            <div class="lu-games">${logos}</div>
+            <div class="lu-counts">${starting} starting · ${benched} benched${toFix ? ` · <span class="lu-flagcount">${toFix} to fix</span>` : ''}${allSet ? '<span class="lu-allset">✓ All set</span>' : ''}</div>
+          </div>
         </summary>
         ${blocks.length ? `<div class="lu-leagues">${blocks.join('')}</div>` : '<p class="muted small empty">Nobody on your rosters plays in this window.</p>'}
       </details>`);

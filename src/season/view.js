@@ -35,7 +35,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const MARKUP = `
     <header class="bar">
-      <div class="title"><strong>Season</strong><span id="se-week" class="muted small"></span></div>
+      <div class="title"><strong id="se-week">Season</strong><span id="se-sub" class="muted small"></span></div>
       <div class="actions"><button id="se-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button></div>
     </header>
     <div class="tool-scroll">
@@ -243,7 +243,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `${n}${tail}`;
   };
   const record = (w, l, t) => `${w}–${l}${t ? `–${t}` : ''}`;
-  const luckText = (luck) => (luck == null ? '–' : luck === 0 ? 'even' : `${luck > 0 ? '+' : '−'}${num(Math.abs(luck))} ${Math.abs(luck) === 1 ? 'win' : 'wins'}`);
+  const signedTenth = (n) => { const v = Math.round(n * 10) / 10; return v === 0 ? '0' : `${v > 0 ? '+' : '−'}${num(Math.abs(v))}`; };
   const oddsLabel = (p) => (p >= 0.995 ? '>99%' : p > 0 && p < 0.005 ? '<1%' : percent(p));
   const playerName = (pid) => (pid ? players.info(pid).name : 'an empty slot');
 
@@ -321,8 +321,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `<section class="se-draft">
       <div class="se-draft-head">
         <div><b>${lg.draft.season} draft order</b><span class="muted small">${lg.live ? 'live, ' : ''}if the season ended now</span></div>
-        <div class="se-seg" role="group" aria-label="Draft order method">${Object.entries(METHODS).map(([key, m]) => `
-          <button type="button" data-method="${key}" aria-pressed="${state.draftMethod === key}" title="${esc(m.blurb)}">${m.label}</button>`).join('')}
+        <div class="tabs" role="group" aria-label="Draft order method">${Object.entries(METHODS).map(([key, m]) => `
+          <button type="button" class="tab${state.draftMethod === key ? ' on' : ''}" data-method="${key}" aria-pressed="${state.draftMethod === key}" title="${esc(m.blurb)}">${m.label}</button>`).join('')}
         </div>
       </div>
       <table class="se-table se-draft-table">
@@ -344,29 +344,34 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </section>`;
   }
 
-  function firstsLine(lg) {
-    if (!lg.draft) return '';
+  // A value over its label; tone is 'up' (good), 'down' (bad) or ''.
+  const kpi = (value, label, { tone = '', title = '' } = {}) =>
+    `<div class="se-kpi ${tone}"${title ? ` title="${esc(title)}"` : ''}><b>${value}</b><span>${label}</span></div>`;
+
+  function firstsKpi(lg) {
     const firsts = draftPicks(lg).filter((p) => lg.draft.owner(1, p.rosterId) === lg.me.rosterId).map((p) => pickLabel(1, p.pick));
-    const label = `projected ${firsts.length > 1 ? '1sts' : '1st'}`;
-    return `<span title="Round 1 picks you hold, by the projected ${lg.draft.season} draft order"><b>${firsts.length ? firsts.join(', ') : 'No'}</b> ${label}</span>`;
+    return kpi(firsts.length ? firsts.join(', ') : 'Traded', `${lg.draft.season} 1st`, {
+      title: `Round 1 picks you hold, by the projected ${lg.draft.season} draft order`
+    });
   }
 
   function leagueBlock(lg) {
     const m = lg.me;
     const inPlayoffs = lg.playoffTeams && m.rank <= lg.playoffTeams;
+    const luck = m.luck == null ? '–' : signedTenth(m.luck);
     return `<details class="se-league" data-id="${esc(lg.leagueId)}"${state.open.has(lg.leagueId) ? ' open' : ''}>
       <summary>
         <div class="se-head">
           <span class="se-name">${esc(lg.name)}</span>
           <span class="se-rank${inPlayoffs ? ' in' : ''}" title="${inPlayoffs ? 'In a playoff spot' : 'Outside the playoff spots'}">${ordinal(m.rank)} of ${lg.rows.length}</span>
         </div>
-        <div class="se-stats">
-          <span><b>${record(m.wins, m.losses, m.ties)}</b> record${lg.medianGame ? ' <i class="se-aside" title="This league also plays the league median every week">incl. median</i>' : ''}</span>
-          <span><b>${record(m.allPlay.w, m.allPlay.l, m.allPlay.t)}</b> all-play</span>
-          <span class="${m.luck > 0 ? 'up' : m.luck < 0 ? 'down' : ''}"><b>${luckText(m.luck)}</b> luck</span>
-          ${m.playoffOdds == null ? '' : `<span class="${m.playoffOdds >= 0.5 ? 'up' : 'down'}"><b>${oddsLabel(m.playoffOdds)}</b> playoff odds</span>`}
-          ${m.efficiency == null ? '' : `<span><b>${percent(m.efficiency)}</b> of max points</span>`}
-          ${firstsLine(lg)}
+        <div class="se-kpis">
+          ${kpi(record(m.wins, m.losses, m.ties), lg.medianGame ? 'incl. median' : 'record', { title: lg.medianGame ? 'This league also plays the league median every week' : '' })}
+          ${m.playoffOdds == null
+            ? kpi(record(m.allPlay.w, m.allPlay.l, m.allPlay.t), 'all-play', { title: 'Your record if you played every team every week' })
+            : kpi(oddsLabel(m.playoffOdds), 'playoffs', { tone: m.playoffOdds >= 0.5 ? 'up' : 'down', title: 'Chance to make the playoffs, from 2,000 simulations' })}
+          ${kpi(luck, Math.abs(m.luck) === 1 ? 'win of luck' : 'wins of luck', { tone: m.luck > 0 ? 'up' : m.luck < 0 ? 'down' : '', title: 'Wins above what your weekly scores earned' })}
+          ${lg.draft ? firstsKpi(lg) : kpi(m.efficiency == null ? '–' : percent(m.efficiency), 'of max points', { title: 'Points scored out of the best lineup you could have set' })}
         </div>
         ${reviewLine(lg.review)}
       </summary>
@@ -377,7 +382,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function render() {
     if (!root) return;
-    $('se-week').textContent = state.week ? `· Week ${state.week}${state.live ? ' · live' : ''}` : '';
+    if (state.week) $('se-week').textContent = `Week ${state.week}`;
+    $('se-sub').textContent = state.live ? 'live' : '';
     $('se-error').hidden = !state.error;
     $('se-error').textContent = state.error || '';
     if (!state.leagues.length) {
@@ -396,7 +402,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('se-summary').innerHTML = `<div class="se-summary">
       <div><b>${record(sum.w, sum.l, sum.t)}</b><span>overall</span></div>
       <div><b>${record(sum.aw, sum.al, sum.at)}</b><span>all-play</span></div>
-      <div class="${sum.luck > 0.05 ? 'up' : sum.luck < -0.05 ? 'down' : ''}"><b>${luckText(Math.round(sum.luck * 10) / 10)}</b><span>luck</span></div>
+      <div class="${sum.luck > 0.05 ? 'up' : sum.luck < -0.05 ? 'down' : ''}"><b>${signedTenth(sum.luck)}</b><span>wins of luck</span></div>
       <div><b>${sum.in} of ${state.leagues.length}</b><span>in playoff spots</span></div>
     </div>`;
     $('se-body').innerHTML = state.leagues.map(leagueBlock).join('');

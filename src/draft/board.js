@@ -13,7 +13,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     { key: 'rank', label: 'Rk' },
     { key: 'name', label: 'Player' },
     { key: 'position', label: 'Pos' },
-    { key: 'status', label: 'Status' },
+    { key: 'status', label: 'Pick', title: 'Overall pick he went at' },
     { key: 'delta', label: 'Value', title: 'Pick minus your rank: + fell to a value, − went early' }
   ];
   const EMPTY = {
@@ -53,7 +53,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function rowHtml(row) {
     const classes = [row.pickNo && 'drafted', row.byMe && 'mine', !row.matched && 'unmatched'].filter(Boolean).join(' ');
-    const status = row.pickNo ? `#${row.pickNo}` : (row.matched ? 'available' : 'no match');
+    const status = row.pickNo ? `#${row.pickNo}` : (row.matched ? '' : 'no match');
     const delta = missing(row.delta)
       ? ''
       : `<span class="delta ${row.delta > 0 ? 'value' : 'reach'}">${row.delta > 0 ? '+' : ''}${row.delta}</span>`;
@@ -92,8 +92,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     el.innerHTML = `
       ${state.myTurn ? `<div class="turn">You're on the clock${state.message ? ` · ${esc(state.message)}` : ''}</div>` : ''}
       <div class="controls">
-        ${POSITIONS.map((p) => `<button class="chip ${prefs.position === p ? 'active' : ''}" data-pos="${p}">${p}</button>`).join('')}
-        <label class="toggle"><input type="checkbox" data-act="hide-drafted" ${prefs.hideDrafted ? 'checked' : ''}/> hide drafted</label>
+        ${POSITIONS.map((p) => `<button class="chip ${prefs.position === p ? 'active' : ''}" data-pos="${p}">${p === 'ALL' ? 'All' : p}</button>`).join('')}
+        <label class="toggle"><input type="checkbox" data-act="hide-drafted" ${prefs.hideDrafted ? 'checked' : ''}/> Hide drafted</label>
         <span class="status ${state.kind || ''}">${state.myTurn ? '' : esc(state.message || '')}</span>
       </div>
       ${unmatched > 0 && state.status === 'ok'

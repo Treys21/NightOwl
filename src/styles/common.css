@@ -1,8 +1,11 @@
 /* Shared by the Live, Lineups and Bets views: palette tokens, the view's
    bar and scroller, cards, tabs, chips, empty/error states. */
 /* Sleeper's own palette, read off sleeper.com: navy panels, teal accent with
-   navy text on it, pink for the bad news, blue-grey secondary text. */
-.tool {
+   navy text on it, pink for the bad news, blue-grey secondary text.
+   Defined on the panel so every view (the Draft board too) shares them. */
+.panel, .tool {
+  --raised: #2c3549;
+  --hair: rgba(163, 187, 211, 0.12);
   --bg: #181c28;
   --panel: #1f2431;
   --card: rgba(163, 187, 211, 0.07);
@@ -93,3 +96,32 @@ h2::after { content: ''; flex: 1; min-width: 20px; height: 1px; background: line
 /* Comfortable targets in a dense panel. */
 button.icon { min-width: 28px; min-height: 28px; }
 .tab, .chip { min-height: 26px; }
+
+/* ==== Controls: one look across every tool ====
+   Teal fill is reserved for the tool switch and for "good / you / hit".
+   Secondary choices (sub-tabs, filters, Mine / Opponents, positions) are
+   quiet: outlined when off, a raised neutral surface when on. Helps / Hurts
+   filters take their meaning's colour only while selected. */
+.tab, .chip {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 28px; padding: 3px 11px; border-radius: 999px;
+  font: 600 12px Poppins, sans-serif; letter-spacing: 0; white-space: nowrap;
+  color: var(--sub); background: transparent; box-shadow: inset 0 0 0 1px var(--hair);
+}
+.tab:hover, .chip:hover { color: var(--text); background: rgba(163, 187, 211, 0.06); }
+.tab.on, .chip.on, .chip.active { color: var(--text); background: var(--raised); box-shadow: none; }
+.tab[data-filter="good"].on { color: var(--teal); background: var(--teal-soft); }
+.tab[data-filter="bad"] { color: var(--sub); background: transparent; }
+.tab[data-filter="bad"].on { color: var(--pink); background: var(--pink-soft); }
+.tabs { display: inline-flex; gap: 4px; }
+select {
+  min-height: 28px; font: 600 12px Inter, sans-serif; color: var(--text); cursor: pointer;
+  background: transparent; border: 0; box-shadow: inset 0 0 0 1px var(--hair); border-radius: 999px; padding: 3px 10px;
+}
+select:hover { background: rgba(163, 187, 211, 0.06); }
+select option { background: var(--panel); color: var(--text); }
+
+/* Every tool's top bar: the week as the title, quiet status beside it. */
+.bar { min-height: 44px; padding: 6px 10px 6px 14px; border-bottom: 1px solid var(--hair); }
+.title strong { font: 600 14.5px Poppins, sans-serif; }
+.title .muted.small { font-size: 12px; }

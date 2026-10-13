@@ -3,17 +3,14 @@
 /* Matchups — head-to-head cards with both owners' avatars */
 .match {
   position: relative; border-radius: 16px; margin-bottom: 10px; overflow: hidden;
-  background: linear-gradient(160deg, rgba(163, 187, 211, .07), rgba(163, 187, 211, .025));
-  border: 1px solid rgba(163, 187, 211, .08);
-  transition: transform .2s, border-color .3s, box-shadow .3s;
+  background: var(--card); border: 1px solid var(--hair);
+  transition: border-color .3s;
 }
-.match:hover { transform: translateY(-1px); border-color: rgba(163, 187, 211, .18); }
+.match:hover { border-color: rgba(163, 187, 211, .22); }
 .match::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--line); }
-.match.win { box-shadow: inset 60px 0 60px -60px rgba(0, 206, 184, .35); }
 .match.win::before { background: var(--teal); }
-.match.lose { box-shadow: inset 60px 0 60px -60px rgba(247, 92, 141, .3); }
 .match.lose::before { background: var(--pink); }
-.match[open] { background: linear-gradient(160deg, rgba(163, 187, 211, .1), rgba(163, 187, 211, .04)); }
+.match[open] { background: var(--card-hover); }
 .match > summary { list-style: none; display: block; padding: 11px 12px 13px 14px; cursor: pointer; }
 .match > summary::-webkit-details-marker { display: none; }
 .m-league { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 9px; }
@@ -37,7 +34,7 @@
 .vs { font: 800 10.5px Poppins, sans-serif; color: var(--muted); letter-spacing: .1em; padding: 3px 5px; border-radius: 6px; background: rgba(0, 0, 0, .25); }
 .wp { position: relative; display: block; height: 5px; border-radius: 3px; margin-top: 9px; background: linear-gradient(90deg, rgba(247, 92, 141, .5), var(--pink)); overflow: visible; }
 .wp > span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, rgba(0, 206, 184, .5), var(--teal)); transition: width .9s cubic-bezier(.2, .9, .3, 1); }
-.wp > i { position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(255, 255, 255, .7); transition: left .9s cubic-bezier(.2, .9, .3, 1); }
+.wp > i { position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); box-shadow: 0 0 0 2px var(--bg); transition: left .9s cubic-bezier(.2, .9, .3, 1); }
 .match.flash { animation: flash 2.5s ease-out; }
 .big.bump { display: inline-block; animation: bump .6s cubic-bezier(.2, 1.6, .4, 1); }
 .pill-count { font: 700 11px Poppins, sans-serif; padding: 1px 8px; border-radius: 999px; margin-left: 4px; }
@@ -62,9 +59,6 @@
 .bad { color: var(--pink); }
 
 /* Feed */
-.tabs { display: flex; gap: 4px; }
-.tab { font: 600 12px Poppins, sans-serif; padding: 3px 9px; background: var(--teal-soft); color: var(--teal); }
-.tab.on { background: var(--teal); color: var(--teal-ink); }
 #feed { list-style: none; padding: 0; margin: 0; }
 .ev {
   position: relative; overflow: hidden; border-radius: 14px; padding: 11px 12px 11px 14px; margin-bottom: 8px;
@@ -106,12 +100,9 @@
 /* The stage: a fixed strip just for play animations */
 .stage {
   flex: none; position: relative; height: 196px; overflow: hidden;
-  margin: 0 12px 4px; border-radius: 16px; transition: height .3s ease;
-  background:
-    radial-gradient(120% 90% at 50% 120%, rgba(0, 206, 184, .10), transparent 60%),
-    repeating-linear-gradient(90deg, transparent 0 38px, rgba(163, 187, 211, .04) 38px 40px),
-    var(--panel);
-  border: 1px solid var(--line);
+  margin: 10px 12px 4px; border-radius: 14px; transition: height .3s ease;
+  background: rgba(163, 187, 211, .045);
+  border: 1px solid var(--hair);
 }
 .stage .idle {
   position: absolute; inset: 0;
@@ -242,7 +233,7 @@
    they never read as a single play. */
 .recap > details {
   position: relative; margin-bottom: 8px; border-radius: 14px; overflow: hidden;
-  background: rgba(163, 187, 211, .04); border: 1px dashed rgba(163, 187, 211, .22);
+  background: var(--card); border: 1px solid var(--hair);
 }
 .recap summary {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
@@ -259,32 +250,33 @@
 }
 .recap-row .impacts { grid-column: 1 / -1; margin-left: 38px; }
 
-/* ==== Game-day layout: Feed | Matchups | Games ==== */
+/* ==== Game-day layout: Feed | Matchups | Games ====
+   Second-level navigation: underlined text tabs, so they never read as
+   another row of chips. */
 .lv-tabs {
-  flex: none; display: flex; gap: 4px; margin: 4px 12px 6px; padding: 3px;
-  border-radius: 11px; background: rgba(0, 0, 0, .25);
+  flex: none; display: flex; gap: 2px; margin: 0 12px; padding: 0;
+  border-bottom: 1px solid var(--hair); max-width: 520px;
 }
 .lv-tabs button {
   flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  font: 600 12.5px Poppins, sans-serif; padding: 5px 6px; border-radius: 8px;
-  background: none; color: var(--sub);
+  font: 600 12.5px Poppins, sans-serif; padding: 9px 6px 8px; border-radius: 0;
+  background: none; color: var(--muted); box-shadow: inset 0 -2px 0 transparent;
+  transition: color .2s, box-shadow .2s;
 }
-.lv-tabs button:hover { color: var(--text); }
-.lv-tabs button.on { background: var(--chip); color: var(--text); box-shadow: inset 0 0 0 1px rgba(163, 187, 211, .14); }
+.lv-tabs button:hover { color: var(--text); background: none; }
+.lv-tabs button.on { color: var(--text); box-shadow: inset 0 -2px 0 var(--text); }
+.lv-tabs button:active { transform: none; }
 .lv-count { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .lv-count:empty { display: none; }
 .lv-tabs .pill-count { font-size: 10.5px; padding: 0 6px; }
 
-/* Filters stay pinned while the feed scrolls under them. */
+/* Filters stay pinned while the feed scrolls under them: one row. */
 .lv-toolbar {
   position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  margin: 0 -12px 8px; padding: 8px 12px; background: var(--bg);
-  border-bottom: 1px solid rgba(163, 187, 211, .08);
+  margin: 0 -12px 8px; padding: 8px 12px; background: rgba(19, 23, 34, .94); backdrop-filter: blur(6px);
 }
-#lv-league {
-  margin-left: auto; max-width: 150px; font: 600 12px Inter, sans-serif; color: var(--text);
-  background: var(--chip); border: 1px solid rgba(163, 187, 211, .14); border-radius: 8px; padding: 3px 6px;
-}
+#lv-league { margin-left: auto; max-width: 118px; min-width: 0; padding: 3px 8px; text-overflow: ellipsis; }
+.lv-toolbar .tab { padding: 3px 10px; }
 
 /* Compact play rows. */
 #feed .ev { padding: 8px 10px 8px 12px; margin-bottom: 6px; }
@@ -342,11 +334,10 @@ details.game[open] > summary.game-h::before { transform: rotate(90deg); }
 
 /* Between plays the stage shrinks to a strip with the last play on two lines,
    and grows back when a play lands. */
-.stage:not(.busy) { height: 76px; }
+.stage:not(.busy) { height: 64px; }
+.stage.dormant:not(.busy) { display: none; }
 .stage:not(.busy) .idle { flex-direction: row; flex-wrap: wrap; align-content: center; column-gap: 8px; row-gap: 3px; font-size: 12.5px; }
 .stage:not(.busy) .idle .idle-impacts { flex-basis: 100%; }
-.tab[data-filter="bad"] { background: var(--pink-soft); color: var(--pink); }
-.tab[data-filter="bad"].on { background: var(--pink); color: #fff; }
 
 /* Win chance through the day, inside an opened matchup. */
 .trend { margin: 2px 12px 8px; }

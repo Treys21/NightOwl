@@ -33,21 +33,14 @@
 .bt-tool-row.chips { flex-wrap: wrap; gap: 5px; }
 #bt-q {
   flex: 1; min-width: 0; font: 13px Inter, sans-serif; color: #fff;
-  background: rgba(0, 0, 0, .35); border: 1px solid rgba(163, 187, 211, .16); border-radius: 10px; padding: 7px 10px;
+  background: rgba(0, 0, 0, .3); border: 1px solid var(--hair); border-radius: 999px; padding: 7px 14px; min-height: 34px;
   outline: none; transition: border-color .2s, box-shadow .2s;
 }
 #bt-q:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(0, 206, 184, .18); }
 #bt-q::placeholder { color: var(--muted); }
-#bt-sort, #bt-win {
-  font: 600 12px Poppins, sans-serif; color: #fff; background: rgba(0, 0, 0, .35);
-  border: 1px solid rgba(163, 187, 211, .16); border-radius: 10px; padding: 6px 8px; cursor: pointer;
-}
-.bt-toolbar .chip {
-  font: 600 12px Poppins, sans-serif; color: var(--sub); background: rgba(0, 0, 0, .3);
-  border: 1px solid rgba(163, 187, 211, .12); border-radius: 999px; padding: 3px 10px; cursor: pointer;
-}
-.bt-toolbar .chip.on { color: var(--teal-ink); background: var(--teal); border-color: transparent; }
-.bt-toolbar .chip.ghost { margin-left: auto; background: none; color: var(--teal); border-color: rgba(0, 206, 184, .35); }
+#bt-sort, #bt-win { min-height: 34px; }
+.bt-toolbar .chip.ghost { margin-left: auto; box-shadow: none; color: var(--muted); padding: 3px 4px; }
+.bt-toolbar .chip.ghost:hover { color: var(--text); background: none; }
 .bt-group-h:not(:first-child) { margin-top: 12px; }
 .bt-group-h {
   position: sticky; top: var(--bt-tb, 0px); z-index: 3; margin: 0 -12px 6px; padding: 7px 12px;

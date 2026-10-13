@@ -53,7 +53,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const MARKUP = `
     <header class="bar">
-      <div class="title"><strong>Bets</strong><span id="bt-week" class="muted small"></span></div>
+      <div class="title"><strong id="bt-week">Bets</strong></div>
       <div class="actions">
         <div class="tabs" id="bt-who">
           <button data-who="mine" class="tab on">Mine</button>
@@ -395,7 +395,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!root) return;
     $('bt-error').hidden = !state.error;
     $('bt-error').textContent = state.error || '';
-    if (state.nfl) $('bt-week').textContent = `· Week ${state.nfl.display_week || state.nfl.week}`;
+    if (state.nfl) $('bt-week').textContent = `Week ${state.nfl.display_week || state.nfl.week}`;
     for (const b of $('bt-who').children) b.classList.toggle('on', (b.dataset.who === 'all') === state.showOpp);
     if (!state.loadedAt) return;
 

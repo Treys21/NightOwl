@@ -7,8 +7,8 @@
 .se-summary > div { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; background: var(--bg); }
 .se-summary b { font: 700 15px Poppins, sans-serif; font-variant-numeric: tabular-nums; color: var(--text); }
 .se-summary span { font-size: 11px; color: var(--muted); }
-.se-summary .up b, .se-stats .up b, .se-table .up { color: var(--teal); }
-.se-summary .down b, .se-stats .down b, .se-table .down { color: var(--pink); }
+.se-summary .up b, .se-table .up { color: var(--teal); }
+.se-summary .down b, .se-table .down { color: var(--pink); }
 
 .se-league {
   margin-bottom: 8px; border-radius: 12px;
@@ -20,9 +20,14 @@
 .se-name { font: 700 13.5px Poppins, sans-serif; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
 .se-rank { flex: none; margin-left: auto; font: 700 12px Poppins, sans-serif; color: var(--sub); }
 .se-rank.in { color: var(--teal); }
-.se-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 5px; font-size: 12px; color: var(--muted); }
-.se-stats b { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; margin-right: 3px; }
-.se-review { margin-top: 7px; font-size: 12px; color: var(--sub); line-height: 1.45; }
+/* Four numbers per league, value over label, like the summary above. */
+.se-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.se-kpi { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.se-kpi b { font: 700 15px Poppins, sans-serif; font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.se-kpi span { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.se-kpi.up b { color: var(--teal); }
+.se-kpi.down b { color: var(--pink); }
+.se-review { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--hair); font-size: 12px; color: var(--muted); line-height: 1.45; }
 .se-review.flip b { color: #feae58; }
 
 .se-table { width: calc(100% - 16px); margin: 0 8px 4px; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -51,13 +56,6 @@
 .se-draft-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 0 14px 6px; }
 .se-draft-head > div:first-child { display: flex; flex-direction: column; gap: 1px; }
 .se-draft-head b { font: 700 12.5px Poppins, sans-serif; color: var(--text); }
-.se-seg { display: inline-flex; padding: 2px; border-radius: 8px; background: rgba(163, 187, 211, .08); }
-.se-seg button {
-  min-height: 26px; padding: 3px 10px; border: 0; border-radius: 6px; background: none; cursor: pointer;
-  font: 600 11.5px Poppins, sans-serif; color: var(--muted);
-}
-.se-seg button[aria-pressed="true"] { background: var(--teal-soft); color: var(--teal); }
-.se-seg button:hover { color: var(--text); }
 .se-draft-table td:first-child, .se-draft-table th:first-child { width: 36px; color: var(--sub); }
 .se-via { display: block; font-size: 11px; color: var(--muted); font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
 .se-draft .se-note b { color: var(--text); }
@@ -71,4 +69,8 @@
 @container card (max-width: 360px) {
   .se-standings th:nth-child(5), .se-standings td:nth-child(5),
   .se-draft-table th:nth-child(5), .se-draft-table td:nth-child(5) { display: none; }
+}
+
+@container card (max-width: 340px) {
+  .se-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
 }
