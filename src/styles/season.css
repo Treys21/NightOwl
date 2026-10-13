@@ -36,7 +36,6 @@
 
 @container view (max-width: 380px) {
   .se-summary { grid-template-columns: repeat(2, 1fr); }
-  .se-table th:nth-child(4), .se-table td:nth-child(4), .se-table th:nth-child(5), .se-table td:nth-child(5) { display: none; }
 }
 @container view (min-width: 760px) {
   #se-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 10px; align-items: start; }
@@ -46,3 +45,30 @@
 /* A chevron shows the league opens into full standings. */
 .se-head::after { content: '▾'; flex: none; margin-left: 2px; color: var(--muted); font-size: 14px; line-height: 1; transition: transform .2s; }
 .se-league[open] .se-head::after { transform: rotate(180deg); }
+
+/* Draft order, under a league's standings. */
+.se-draft { margin: 6px 0 2px; padding-top: 10px; border-top: 1px solid var(--line); }
+.se-draft-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 0 14px 6px; }
+.se-draft-head > div:first-child { display: flex; flex-direction: column; gap: 1px; }
+.se-draft-head b { font: 700 12.5px Poppins, sans-serif; color: var(--text); }
+.se-seg { display: inline-flex; padding: 2px; border-radius: 8px; background: rgba(163, 187, 211, .08); }
+.se-seg button {
+  min-height: 26px; padding: 3px 10px; border: 0; border-radius: 6px; background: none; cursor: pointer;
+  font: 600 11.5px Poppins, sans-serif; color: var(--muted);
+}
+.se-seg button[aria-pressed="true"] { background: var(--teal-soft); color: var(--teal); }
+.se-seg button:hover { color: var(--text); }
+.se-draft-table td:first-child, .se-draft-table th:first-child { width: 36px; color: var(--sub); }
+.se-via { display: block; font-size: 11px; color: var(--muted); font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+.se-draft .se-note b { color: var(--text); }
+
+/* Tables fit their card (cards sit side by side on wide panels). All-play
+   gives way first, then points for; the draft table drops its score. */
+.se-league { container: card / inline-size; }
+@container card (max-width: 500px) {
+  .se-standings th:nth-child(4), .se-standings td:nth-child(4) { display: none; }
+}
+@container card (max-width: 360px) {
+  .se-standings th:nth-child(5), .se-standings td:nth-child(5),
+  .se-draft-table th:nth-child(5), .se-draft-table td:nth-child(5) { display: none; }
+}

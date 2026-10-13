@@ -54,7 +54,8 @@ src/
   live/                view.js, scoring.js, tracker.js
   lineups/             view.js, core.js (windows, optimal lineup)
   bets/                view.js, core.js (lines, odds, hit rates)
-  season/              view.js, core.js (all-play, luck, max points, win odds)
+  season/              view.js, core.js (all-play, luck, max points, win odds,
+                       live week, draft order, power rating)
   styles/              panel, draft, common, live, bets, lineups, season (.css)
   popup/               username, rankings editor, Ringer sync
 test/                  node --test, with real captured fixtures

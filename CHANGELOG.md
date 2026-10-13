@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+New, in Season:
+- **Draft order** for dynasty and keeper leagues: next year's round-1 order if
+  the season ended now, worst first, scored 30% on wins and 70% on max points.
+  Switch between **Linear** (min-max: gaps count in proportion) and
+  **Inverse** (reciprocal: the worst teams pull far ahead). Traded picks show
+  who holds them, and you see every pick you own across all rounds.
+- **Power rating** (0–100) for every team: record 35%, points per week 35%,
+  steadiness 15%, last three weeks 15%.
+- **Live standings:** once a week's games start, records, points, max points,
+  luck and the draft order count that week as if it ended now, refreshing
+  every 2 minutes while it's played.
+
+Fixed:
+- Season's luck and week review lagged a week after Sleeper had already
+  recorded results: finished weeks now come from Sleeper's own records.
+
 ## 3.4.0
 New:
 - **Setup inside the panel:** type your Sleeper username right in the panel

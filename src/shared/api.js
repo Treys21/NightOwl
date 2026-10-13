@@ -94,6 +94,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     rosters: (leagueId) => getJson(`${V1}/league/${leagueId}/rosters`),
     users: (leagueId) => getJson(`${V1}/league/${leagueId}/users`),
     matchups: (leagueId, week) => getJson(`${V1}/league/${leagueId}/matchups/${week}`),
+    // Future picks that changed hands: [{ season, round, roster_id, owner_id, previous_owner_id }]
+    tradedPicks: (leagueId) => getJson(`${V1}/league/${leagueId}/traded_picks`),
     leagueDrafts: (leagueId) => getJson(`${V1}/league/${leagueId}/drafts`),
     draft: (draftId) => getJson(`${V1}/draft/${draftId}`),
     draftPicks: (draftId) => getJson(`${V1}/draft/${draftId}/picks`),

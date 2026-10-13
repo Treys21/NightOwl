@@ -8,6 +8,8 @@
 //             points players actually scored (Sleeper's "max points")
 //   win %     chance to win a live matchup, from current points plus each
 //             starter's projection for the part of his game that's left
+//   draft     next year's draft order: worst first, on wins and max points
+//   power     0-100 rating from record, scoring, consistency and form
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -231,7 +233,171 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return made;
   }
 
-  NightOwl.season = { optimal, biggestMiss, allPlay, standings, outlook, winProbability, phi, teamStrength, playoffOdds, hash };
+  /**
+   * Fold a week that's still being played into each roster's season totals,
+   * as if every game ended now: current leaders win, the top half wins the
+   * median game, and points and max points so far are added.
+   *   matchups  that week's Sleeper matchups (points so far)
+   *   maxOf     rosterId -> best lineup on points so far (null to skip)
+   * -> new roster objects; the inputs are untouched.
+   */
+  function asItStands(rosters, matchups, maxOf, { medianGame = false } = {}) {
+    const pts = new Map(matchups.map((m) => [m.roster_id, m.points || 0]));
+    const result = new Map(matchups.map((m) => [m.roster_id, { w: 0, l: 0, t: 0, against: 0 }]));
+    const pairs = new Map();
+    for (const m of matchups) {
+      if (m.matchup_id == null) continue;
+      if (!pairs.has(m.matchup_id)) pairs.set(m.matchup_id, []);
+      pairs.get(m.matchup_id).push(m.roster_id);
+    }
+    for (const [a, b] of pairs.values()) {
+      if (b == null) continue;
+      const pa = pts.get(a);
+      const pb = pts.get(b);
+      result.get(a)[pa > pb ? 'w' : pa < pb ? 'l' : 't']++;
+      result.get(b)[pb > pa ? 'w' : pb < pa ? 'l' : 't']++;
+      result.get(a).against += pb;
+      result.get(b).against += pa;
+    }
+    if (medianGame) {
+      const order = [...pts.entries()].sort((x, y) => y[1] - x[1]);
+      order.forEach(([id], i) => { result.get(id)[i < Math.floor(order.length / 2) ? 'w' : 'l']++; });
+    }
+    return rosters.map((r) => {
+      const s = r.settings || {};
+      const add = result.get(r.roster_id) || { w: 0, l: 0, t: 0, against: 0 };
+      const max = maxOf(r.roster_id);
+      return Object.assign({}, r, {
+        settings: Object.assign({}, s, {
+          wins: (s.wins || 0) + add.w,
+          losses: (s.losses || 0) + add.l,
+          ties: (s.ties || 0) + add.t,
+          fpts: points(s.fpts, s.fpts_decimal) + (pts.get(r.roster_id) || 0),
+          fpts_decimal: 0,
+          fpts_against: points(s.fpts_against, s.fpts_against_decimal) + add.against,
+          fpts_against_decimal: 0,
+          ppts: max == null ? s.ppts : points(s.ppts, s.ppts_decimal) + max,
+          ppts_decimal: max == null ? s.ppts_decimal : 0
+        })
+      });
+    });
+  }
+
+  /**
+   * Weeks already in Sleeper's records: the most games any team has played,
+   * per week (two a week with a median game). Sleeper adds a week to the
+   * records a day or so after it ends; this says whether it's in yet.
+   */
+  function weeksRecorded(rosters, { medianGame = false } = {}) {
+    const games = Math.max(0, ...rosters.map((r) => {
+      const s = r.settings || {};
+      return (s.wins || 0) + (s.losses || 0) + (s.ties || 0);
+    }));
+    return Math.floor(games / (medianGame ? 2 : 1));
+  }
+
+  // Draft order: the worst teams pick first, by a score that weighs wins and
+  // max points (what the roster could have scored, so benching your way to a
+  // high pick doesn't work). Each part runs from 0 (best team) to 1 (worst):
+  //   linear   min-max: gaps count in proportion to their size
+  //   inverse  reciprocals first ((top+1)/(wins+1), top/max), then min-max:
+  //            the bottom teams pull far ahead; gaps near the top barely count
+  const DRAFT_WIN_WEIGHT = 0.3;
+
+  // 0 for the lowest value, 1 for the highest; all 0 when they're equal.
+  const minMax = (values) => {
+    const lo = Math.min(...values);
+    const hi = Math.max(...values);
+    return values.map((v) => (hi > lo ? (v - lo) / (hi - lo) : 0));
+  };
+
+  /**
+   * teams:   [{ rosterId, wins, max }] (wins may hold half-wins for ties; max
+   *          is 0 or null before any week is scored)
+   * method:  'linear' | 'inverse'
+   * -> teams in pick order, each with { pick, score, winScore, maxScore }
+   */
+  function draftOrder(teams, { method = 'linear', winWeight = DRAFT_WIN_WEIGHT } = {}) {
+    if (!teams.length) return [];
+    const wins = teams.map((t) => t.wins || 0);
+    const maxes = teams.map((t) => t.max || 0);
+    let winScores;
+    let maxScores;
+    if (method === 'inverse') {
+      const top = Math.max(...wins);
+      const best = Math.max(...maxes);
+      winScores = minMax(wins.map((w) => (top + 1) / (w + 1)));
+      const inverted = maxes.map((m) => (m > 0 ? best / m : null));
+      const worst = Math.max(1, ...inverted.filter((v) => v != null));
+      maxScores = minMax(inverted.map((v) => (v == null ? worst : v)));
+    } else {
+      winScores = minMax(wins.map((w) => -w));
+      maxScores = minMax(maxes.map((m) => -m));
+    }
+    return teams
+      .map((t, i) => Object.assign({}, t, {
+        winScore: winScores[i],
+        maxScore: maxScores[i],
+        score: winWeight * winScores[i] + (1 - winWeight) * maxScores[i]
+      }))
+      .sort((a, b) => b.score - a.score || (a.wins || 0) - (b.wins || 0) || (a.max || 0) - (b.max || 0) || a.rosterId - b.rosterId)
+      .map((t, i) => Object.assign(t, { pick: i + 1 }));
+  }
+
+  /**
+   * Who holds each team's pick in a future draft, after trades.
+   *   tradedPicks  Sleeper /traded_picks: [{ season, round, roster_id, owner_id }]
+   * -> (round, rosterId) -> roster id that owns that pick now
+   */
+  function pickOwners(tradedPicks, season) {
+    const owners = new Map();
+    for (const p of tradedPicks || []) {
+      if (String(p.season) === String(season)) owners.set(`${p.round}:${p.roster_id}`, p.owner_id);
+    }
+    return (round, rosterId) => owners.get(`${round}:${rosterId}`) ?? rosterId;
+  }
+
+  // Power rating, 0-100, after jerry-in-the-office's power rankings. Each part
+  // is a percentile within the league:
+  //   35% record, 35% points per week, 15% consistency (small week-to-week
+  //   spread), 15% recent form (last 3 weeks weighted 3-2-1)
+  const percentile = (value, all) => {
+    const below = all.filter((v) => v < value).length;
+    const equal = all.filter((v) => v === value).length;
+    return all.length ? (below + equal / 2) / all.length : 0.5;
+  };
+
+  /**
+   * rows:  standings rows ({ rosterId, wins, losses, ties })
+   * weeks: weekly scores, as for allPlay
+   * -> { [rosterId]: rating 0-100, one decimal }
+   */
+  function powerRatings(rows, weeks) {
+    const stats = rows.map((r) => {
+      const scores = weeks.map((w) => w[r.rosterId]).filter((v) => v != null);
+      const games = r.wins + r.losses + r.ties;
+      const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+      const sd = scores.length > 1 ? Math.sqrt(scores.reduce((a, b) => a + (b - avg) ** 2, 0) / scores.length) : 0;
+      const last = scores.slice(-3);
+      const form = last.length === 3 ? (last[2] * 3 + last[1] * 2 + last[0]) / 6 : avg;
+      return { id: r.rosterId, pct: games ? (r.wins + r.ties / 2) / games : 0, avg, sd, form };
+    });
+    const pcts = stats.map((s) => s.pct);
+    const avgs = stats.map((s) => s.avg);
+    const sds = stats.map((s) => s.sd);
+    const out = {};
+    for (const s of stats) {
+      const consistency = Math.max(...sds) > 0 ? 1 - percentile(s.sd, sds) : 0.5;
+      const rating = 0.35 * percentile(s.pct, pcts) + 0.35 * percentile(s.avg, avgs) + 0.15 * consistency + 0.15 * percentile(s.form, avgs);
+      out[s.id] = round1(rating * 100);
+    }
+    return out;
+  }
+
+  NightOwl.season = {
+    optimal, biggestMiss, allPlay, standings, outlook, winProbability, phi, teamStrength, playoffOdds, hash,
+    asItStands, weeksRecorded, draftOrder, pickOwners, powerRatings, DRAFT_WIN_WEIGHT
+  };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.season;

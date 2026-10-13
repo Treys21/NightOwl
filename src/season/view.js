@@ -1,16 +1,20 @@
 // Season tool: one row per league with where you stand, how lucky you've
 // been, and how many points your lineup choices left on the bench. Expanding
-// a league shows its full standings with all-play records.
+// a league shows its full standings with all-play records and power ratings,
+// and, in dynasty and keeper leagues, next year's draft order. While a week is
+// being played, everything counts it as if the games ended now.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
   'use strict';
 
   const { api, players, storage, season } = NightOwl;
-  const { escape: esc, short: num, percent } = NightOwl.format;
+  const { escape: esc, short: num, tenths, percent } = NightOwl.format;
   const { NOT_STARTING_SLOTS } = NightOwl.lineups;
 
   const REFRESH_MS = 10 * 60000;
+  const LIVE_REFRESH_MS = 2 * 60000; // while a week is being played
+  const KEEPS_PLAYERS = new Set([1, 2]); // settings.type: 1 keeper, 2 dynasty
 
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
@@ -21,6 +25,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     week: null,
     leagues: [],
     open: new Set(), // league ids expanded
+    draftMethod: 'linear', // or 'inverse'; see season.draftOrder
+    live: false, // some league counts a week still being played
     loadedAt: 0,
     timer: null,
     busy: false,
@@ -103,6 +109,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   async function load() {
     const shared = await storage.get('settings', {});
     const own = await storage.get('live.settings', {});
+    const prefs = await storage.get('season.settings', {});
+    if (prefs.draftMethod) state.draftMethod = prefs.draftMethod;
     const username = (shared.username || '').trim();
     if (!username) throw new Error('Add your Sleeper username to get started.');
     if (username !== state.username) { state.username = username; state.userId = null; }
@@ -122,31 +130,47 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const playing = all.filter((lg) => (lg.status === 'in_season' || lg.status === 'post_season') && !excluded.has(lg.league_id));
     state.leagues = (await Promise.all(playing.map(async (lg) => {
       const start = (lg.settings && lg.settings.start_week) || 1;
-      const finished = [];
-      for (let w = start; w < week; w++) finished.push(w);
-      const [rosters, users, lastWeek] = await Promise.all([
+      const playoffTeams = (lg.settings && lg.settings.playoff_teams) || 0;
+      const playoffStart = (lg.settings && lg.settings.playoff_week_start) || 15;
+      const keeps = KEEPS_PLAYERS.has(lg.settings && lg.settings.type);
+      const medianGame = !!(lg.settings && lg.settings.league_average_match);
+      const [rosters, users, traded] = await Promise.all([
         api.rosters(lg.league_id),
         api.users(lg.league_id),
-        finished.length ? api.matchups(lg.league_id, finished[finished.length - 1]) : Promise.resolve([])
+        keeps ? api.tradedPicks(lg.league_id).catch(() => []) : Promise.resolve([])
       ]);
       const mine = rosters.find((r) => r.owner_id === state.userId || (r.co_owners || []).includes(state.userId));
       if (!mine) return null;
+      // Finished weeks are the ones in Sleeper's records (wins, points, max
+      // points), which can lag the NFL calendar by a day or so. The next week
+      // is live once it has points.
+      const finished = [];
+      const recorded = season.weeksRecorded(rosters, { medianGame });
+      for (let w = start; w < start + recorded && w < playoffStart; w++) finished.push(w);
+      const next = start + recorded;
+      const inProgress = next <= nfl.week && next < playoffStart;
+      const [lastWeek, thisWeek] = await Promise.all([
+        finished.length ? api.matchups(lg.league_id, finished[finished.length - 1]) : Promise.resolve([]),
+        inProgress ? api.matchups(lg.league_id, next) : Promise.resolve([])
+      ]);
       const weeks = await weekScores(lg.league_id, finished);
       const names = new Map(users.map((u) => [u.user_id, (u.metadata && u.metadata.team_name) || u.display_name]));
-      const medianGame = !!(lg.settings && lg.settings.league_average_match);
-      const rows = season.standings(rosters, weeks, { medianGame }).map((row) => Object.assign(row, { name: names.get(row.ownerId) || `Team ${row.rosterId}` }));
-      const playoffTeams = (lg.settings && lg.settings.playoff_teams) || 0;
-      const playoffStart = (lg.settings && lg.settings.playoff_week_start) || 15;
-      if (playoffTeams && week < playoffStart) {
+      const live = liveWeek(lg, rosters, thisWeek || [], { medianGame });
+      const counted = live ? live.rosters : rosters;
+      const allWeeks = live ? weeks.concat([live.scores]) : weeks;
+      const rows = season.standings(counted, allWeeks, { medianGame }).map((row) => Object.assign(row, { name: names.get(row.ownerId) || `Team ${row.rosterId}` }));
+      const power = season.powerRatings(rows, weeks.length ? weeks : allWeeks);
+      for (const r of rows) r.power = power[r.rosterId];
+      if (playoffTeams && next < playoffStart) {
         try {
-          const schedule = await remainingSchedule(lg.league_id, week, playoffStart);
+          const schedule = await remainingSchedule(lg.league_id, live ? next + 1 : next, playoffStart);
           const odds = season.playoffOdds({
             teams: rows.map((r) => Object.assign({ rosterId: r.rosterId, wins: r.wins, ties: r.ties, pf: r.pf }, season.teamStrength(weeks, r.rosterId))),
             schedule,
             playoffTeams,
             medianGame,
             sims: 2000,
-            seed: season.hash(`${lg.league_id}:${week}`)
+            seed: season.hash(`${lg.league_id}:${next}`)
           });
           for (const r of rows) r.playoffOdds = odds[r.rosterId];
         } catch (err) {
@@ -158,12 +182,39 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         name: lg.name.trim(),
         playoffTeams,
         medianGame,
+        live: live ? next : null,
+        draft: keeps ? {
+          season: Number(lg.season) + 1,
+          rounds: (lg.settings && lg.settings.draft_rounds) || 4,
+          owner: season.pickOwners(traded, Number(lg.season) + 1)
+        } : null,
         rows,
         me: rows.find((r) => r.rosterId === mine.roster_id),
         review: finished.length ? weekReview(lg, lastWeek || [], mine, finished[finished.length - 1]) : null
       };
     }))).filter(Boolean).sort((a, b) => a.me.rank / a.rows.length - b.me.rank / b.rows.length || a.name.localeCompare(b.name));
+    state.live = state.leagues.some((lg) => lg.live);
     state.loadedAt = Date.now();
+  }
+
+  // The week being played, folded into the season as it stands, or null
+  // before anything has been scored.
+  function liveWeek(lg, rosters, matchups, { medianGame }) {
+    if (!matchups.some((m) => m.points > 0)) return null;
+    const byRoster = new Map(rosters.map((r) => [r.roster_id, r]));
+    const positionsOf = (pid) => players.info(pid).positions;
+    const maxes = new Map(matchups.map((m) => {
+      const r = byRoster.get(m.roster_id) || {};
+      const unavailable = new Set([...(r.reserve || []), ...(r.taxi || [])]);
+      const pool = (m.players || []).filter((pid) => !unavailable.has(pid));
+      const pp = m.players_points || {};
+      const best = season.optimal(lg.roster_positions || [], pool, (pid) => pp[pid] || 0, positionsOf);
+      return [m.roster_id, Math.max(best.points, m.points || 0)];
+    }));
+    return {
+      rosters: season.asItStands(rosters, matchups, (id) => (maxes.has(id) ? maxes.get(id) : null), { medianGame }),
+      scores: Object.fromEntries(matchups.map((m) => [m.roster_id, m.points || 0]))
+    };
   }
 
   async function refresh() {
@@ -212,8 +263,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function table(lg) {
     const cut = lg.playoffTeams;
-    return `<table class="se-table">
-      <thead><tr><th>#</th><th>Team</th><th title="Wins-losses">Record</th><th title="Record if you played every team every week">All-play</th><th title="Points for">PF</th><th title="Wins above what your scores earned">Luck</th>${lg.rows.some((r) => r.playoffOdds != null) ? '<th title="Chance to make the playoffs">Playoffs</th>' : ''}</tr></thead>
+    return `<table class="se-table se-standings">
+      <thead><tr><th>#</th><th>Team</th><th title="Wins-losses">Record</th><th title="Record if you played every team every week">All-play</th><th title="Points for">PF</th><th title="Wins above what your scores earned">Luck</th><th title="Power rating, 0–100: record 35%, points per week 35%, steadiness 15%, last 3 weeks 15%">Power</th>${lg.rows.some((r) => r.playoffOdds != null) ? '<th title="Chance to make the playoffs">Playoffs</th>' : ''}</tr></thead>
       <tbody>${lg.rows.map((r) => `
         <tr class="${r === lg.me ? 'me' : ''}${cut && r.rank === cut ? ' cut' : ''}">
           <td>${r.rank}</td>
@@ -222,9 +273,82 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <td>${record(r.allPlay.w, r.allPlay.l, r.allPlay.t)}</td>
           <td>${num(r.pf)}</td>
           <td class="${r.luck > 0 ? 'up' : r.luck < 0 ? 'down' : ''}">${r.luck == null ? '–' : `${r.luck > 0 ? '+' : r.luck < 0 ? '−' : ''}${num(Math.abs(r.luck))}`}</td>
+          <td>${r.power == null ? '–' : Math.round(r.power)}</td>
           ${r.playoffOdds == null ? '' : `<td>${oddsLabel(r.playoffOdds)}</td>`}
         </tr>`).join('')}</tbody>
-    </table>${cut ? `<p class="muted small se-note">Line under ${ordinal(cut)}: playoff cut.</p>` : ''}`;
+    </table>${notes(lg)}`;
+  }
+
+  function notes(lg) {
+    const parts = [];
+    if (lg.playoffTeams) parts.push(`Line under ${ordinal(lg.playoffTeams)}: playoff cut.`);
+    if (lg.live) parts.push(`Week ${lg.live} counts as if it ended now.`);
+    return parts.length ? `<p class="muted small se-note">${parts.join(' ')}</p>` : '';
+  }
+
+  // ---- draft order --------------------------------------------------------
+
+  const METHODS = {
+    linear: { label: 'Linear', blurb: 'Gaps count in proportion to their size.' },
+    inverse: { label: 'Inverse', blurb: 'The worst teams pull far ahead; small gaps near the top barely count.' }
+  };
+  const pickLabel = (round, slot) => `${round}.${String(slot).padStart(2, '0')}`;
+
+  function draftPicks(lg) {
+    return season.draftOrder(
+      lg.rows.map((r) => ({ rosterId: r.rosterId, wins: r.wins + r.ties / 2, max: r.max || 0, row: r })),
+      { method: state.draftMethod }
+    );
+  }
+
+  // Picks you hold in every round, in draft order (rookie drafts run the same
+  // order each round).
+  function myPicks(lg, picks) {
+    const mine = lg.me.rosterId;
+    const out = [];
+    for (let round = 1; round <= lg.draft.rounds; round++) {
+      for (const p of picks) if (lg.draft.owner(round, p.rosterId) === mine) out.push(pickLabel(round, p.pick));
+    }
+    return out;
+  }
+
+  function draftBlock(lg) {
+    if (!lg.draft) return '';
+    const picks = draftPicks(lg);
+    const byRoster = new Map(lg.rows.map((r) => [r.rosterId, r]));
+    const held = myPicks(lg, picks);
+    const weight = Math.round(season.DRAFT_WIN_WEIGHT * 100);
+    return `<section class="se-draft">
+      <div class="se-draft-head">
+        <div><b>${lg.draft.season} draft order</b><span class="muted small">${lg.live ? 'live, ' : ''}if the season ended now</span></div>
+        <div class="se-seg" role="group" aria-label="Draft order method">${Object.entries(METHODS).map(([key, m]) => `
+          <button type="button" data-method="${key}" aria-pressed="${state.draftMethod === key}" title="${esc(m.blurb)}">${m.label}</button>`).join('')}
+        </div>
+      </div>
+      <table class="se-table se-draft-table">
+        <thead><tr><th title="Round 1 pick">Pick</th><th>Team</th><th title="Wins">W</th><th title="Max points: best possible lineup every week">Max PF</th><th title="${weight}% wins, ${100 - weight}% max points; higher picks earlier">Score</th></tr></thead>
+        <tbody>${picks.map((p) => {
+          const holder = lg.draft.owner(1, p.rosterId);
+          const traded = holder !== p.rosterId ? byRoster.get(holder) : null;
+          return `<tr class="${holder === lg.me.rosterId ? 'me' : ''}">
+            <td>${pickLabel(1, p.pick)}</td>
+            <td class="se-team">${esc(p.row.name)}${traded ? `<span class="se-via" title="Pick traded to ${esc(traded.name)}">→ ${esc(traded.name)}</span>` : ''}</td>
+            <td>${num(p.wins)}</td>
+            <td>${p.max ? tenths(p.max) : '–'}</td>
+            <td>${p.score.toFixed(3)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+      <p class="muted small se-note">${weight}% wins + ${100 - weight}% max points, worst first. ${esc(METHODS[state.draftMethod].blurb)}
+        ${held.length ? `You hold <b>${held.join(', ')}</b>.` : `You hold no ${lg.draft.season} picks.`}</p>
+    </section>`;
+  }
+
+  function firstsLine(lg) {
+    if (!lg.draft) return '';
+    const firsts = draftPicks(lg).filter((p) => lg.draft.owner(1, p.rosterId) === lg.me.rosterId).map((p) => pickLabel(1, p.pick));
+    const label = `projected ${firsts.length > 1 ? '1sts' : '1st'}`;
+    return `<span title="Round 1 picks you hold, by the projected ${lg.draft.season} draft order"><b>${firsts.length ? firsts.join(', ') : 'No'}</b> ${label}</span>`;
   }
 
   function leagueBlock(lg) {
@@ -242,16 +366,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <span class="${m.luck > 0 ? 'up' : m.luck < 0 ? 'down' : ''}"><b>${luckText(m.luck)}</b> luck</span>
           ${m.playoffOdds == null ? '' : `<span class="${m.playoffOdds >= 0.5 ? 'up' : 'down'}"><b>${oddsLabel(m.playoffOdds)}</b> playoff odds</span>`}
           ${m.efficiency == null ? '' : `<span><b>${percent(m.efficiency)}</b> of max points</span>`}
+          ${firstsLine(lg)}
         </div>
         ${reviewLine(lg.review)}
       </summary>
       ${table(lg)}
+      ${draftBlock(lg)}
     </details>`;
   }
 
   function render() {
     if (!root) return;
-    $('se-week').textContent = state.week ? `· Week ${state.week}` : '';
+    $('se-week').textContent = state.week ? `· Week ${state.week}${state.live ? ' · live' : ''}` : '';
     $('se-error').hidden = !state.error;
     $('se-error').textContent = state.error || '';
     if (!state.leagues.length) {
@@ -289,6 +415,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     setTimeout(() => el.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
     $('se-refresh').addEventListener('click', refresh);
+    $('se-body').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-method]');
+      if (!btn || btn.dataset.method === state.draftMethod) return;
+      state.draftMethod = btn.dataset.method;
+      storage.set({ 'season.settings': { draftMethod: state.draftMethod } });
+      render();
+    });
     $('se-body').addEventListener('toggle', (e) => {
       const id = e.target.dataset && e.target.dataset.id;
       if (!id) return;
@@ -296,7 +429,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }, true);
     render();
     if (Date.now() - state.loadedAt > REFRESH_MS / 2) refresh();
-    state.timer = setInterval(refresh, REFRESH_MS);
+    // Every 2 minutes while a week is being played, otherwise every 10.
+    state.timer = setInterval(() => {
+      if (Date.now() - state.loadedAt >= (state.live ? LIVE_REFRESH_MS : REFRESH_MS) - 1000) refresh();
+    }, LIVE_REFRESH_MS);
   }
 
   function unmount() {
