@@ -52,5 +52,7 @@
   .view-draft th:nth-child(5), .view-draft td:nth-child(5) { width: 48px; }
   .view-draft th { font-size: 11px; }
   .view-draft td:nth-child(2) .meta { display: none; }
-  .view-draft .controls { padding: 8px 10px; }
+  .view-draft .controls { padding: 8px 10px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .view-draft .controls::-webkit-scrollbar { display: none; }
+  .view-draft .controls > * { flex: none; }
 }

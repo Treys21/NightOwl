@@ -149,7 +149,7 @@
   .bt-tool-row.chips::-webkit-scrollbar { display: none; }
   .bt-tool-row.chips .chip { flex: none; }
   /* Expand all stays reachable while the position chips scroll under it. */
-  #bt-toggle-all { position: sticky; right: 0; margin-left: auto; box-shadow: -10px 0 8px -2px var(--bg); background: var(--bg); }
+  #bt-toggle-all { position: sticky; right: 0; margin-left: auto; padding: 3px 4px 3px 10px; box-shadow: -12px 0 10px -4px #151926; background: #151926; border-radius: 0; }
   #bt-win, #bt-sort { max-width: 92px; }
 }
 @container view (max-width: 420px) {
