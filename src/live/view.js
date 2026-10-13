@@ -298,7 +298,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (!gap) celebrate(fresh);
       } else {
         // First look this week (or this install): everything so far becomes a
-        // "So far today" recap instead of an empty feed.
+        // "This week so far" recap instead of an empty feed.
         const fresh = tracker.diffEvents(tracker.trimSnapshot({}, leagues), cur, leagues, info, Date.now());
         for (const ev of fresh) { ev.catchUp = true; ev.firstLook = true; ev.since = ev.ts; }
         if (fresh.length) state.openRecaps.add(`${fresh[0].since}-${fresh[0].ts}`); // start it open
@@ -389,7 +389,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <summary class="game-h"><img alt="" src="${teams.logo(g.away)}">${esc(g.away)} <span class="muted">@</span> <img alt="" src="${teams.logo(g.home)}">${esc(g.home)} ${status}<span class="game-count">${rows.length} starters · ${mine} yours</span></summary>
         ${rows.length ? `<ol class="game-list">${rows.map((r) => r.html).join('')}</ol>` : '<p class="muted small">None of your matchups have a starter in this game.</p>'}
       </details>`;
-    }).join('') || '<p class="muted small empty">No games on right now.</p>';
+    }).join('') || `<p class="muted small empty">${gamesIdleText()}</p>`;
     $('lv-count-games').textContent = games.filter((g) => g.status === 'in_game').length ? `${games.filter((g) => g.status === 'in_game').length} live` : '';
   }
 
@@ -473,6 +473,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (big) burst(layer, mood, c);
 
     setTimeout(() => { pop.remove(); setTimeout(nextPop, POP_GAP_MS); }, POP_MS);
+  }
+
+  // Why the Games tab is empty, and when it won't be.
+  function gamesIdleText() {
+    const games = state.schedule.games;
+    if (games.length && games.every((g) => g.status === 'complete' || g.status === 'canceled')) {
+      return `Every Week ${state.ctx ? state.ctx.week : ''} game is final. Next week's games show up here at kickoff.`;
+    }
+    const next = (state.clocks || []).filter((c) => c.kickoff > Date.now()).sort((a, b) => a.kickoff - b.kickoff)[0];
+    return next ? `No games on right now. Next kickoff ${NightOwl.format.dayTime(next.kickoff)}.` : 'No games on right now.';
   }
 
   // Between plays the stage shows the last one, or what it's waiting on.
@@ -699,7 +709,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </div>`).join('');
     return `<li class="recap"><details data-recap="${key}"${state.openRecaps.has(key) ? ' open' : ''}>
         <summary>
-          <span class="recap-title"><b>${group[0].firstLook ? 'So far today' : 'While you were away'}</b><span class="muted small">${group[0].firstLook ? `up to ${clockOf(group[0].ts)}` : `${clockOf(since)} – ${clockOf(group[0].ts)}`} · ${group.length} player${group.length === 1 ? '' : 's'}</span></span>
+          <span class="recap-title"><b>${group[0].firstLook ? 'This week so far' : 'While you were away'}</b><span class="muted small">${group[0].firstLook ? `as of ${clockOf(group[0].ts)}` : `${clockOf(since)} – ${clockOf(group[0].ts)}`} · ${group.length} player${group.length === 1 ? '' : 's'}</span></span>
         </summary>
         <div class="recap-rows">${rows}</div>
       </details></li>`;

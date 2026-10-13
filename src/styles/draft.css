@@ -20,6 +20,7 @@
   border-bottom: 1px solid #3a465b; white-space: nowrap;
 }
 .view-draft th:hover { color: #fff; }
+.view-draft th .sort { margin-left: 3px; color: #00ceb8; }
 .view-draft td { padding: 6px 10px; border-bottom: 1px solid rgba(58,70,91,.5); white-space: nowrap; }
 .view-draft tr.drafted { opacity: .4; }
 .view-draft tr.drafted .name { text-decoration: line-through; }

@@ -240,8 +240,8 @@
   padding: 10px 12px; cursor: pointer; list-style: none;
 }
 .recap summary::-webkit-details-marker { display: none; }
-.recap summary::before { content: '▾'; display: inline-block; font-size: 14px; color: var(--muted); margin-right: 4px; transform: rotate(-90deg); transition: transform .2s; }
-.recap details[open] summary::before { transform: none; }
+.recap summary::after { content: '▾'; flex: none; font-size: 14px; color: var(--muted); transition: transform .2s; }
+.recap details[open] summary::after { transform: rotate(180deg); }
 .recap-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .recap-title b { color: var(--text); }
 .recap-row {
@@ -301,8 +301,8 @@ summary.game-h {
   font: 700 12px Poppins, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--sub);
 }
 summary.game-h::-webkit-details-marker { display: none; }
-summary.game-h::before { content: '▸'; color: var(--muted); transition: transform .2s; }
-details.game[open] > summary.game-h::before { transform: rotate(90deg); }
+summary.game-h::after { content: '▾'; flex: none; margin-left: 6px; color: var(--muted); font-size: 14px; transition: transform .2s; }
+details.game[open] > summary.game-h::after { transform: rotate(180deg); }
 .game-count { margin-left: auto; font-size: 11px; letter-spacing: .02em; text-transform: none; color: var(--muted); font-weight: 600; }
 #feed .ev.good, #feed .ev.bad { color: var(--text); }
 .lv-tabs .pill-count { white-space: nowrap; }

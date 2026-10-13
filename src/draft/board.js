@@ -69,7 +69,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function tableHtml(rows, prefs) {
     const head = COLUMNS.map((col) => {
-      const arrow = prefs.sortBy === col.key ? (prefs.sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+      const arrow = prefs.sortBy === col.key ? `<span class="sort">${prefs.sortDir === 'asc' ? '↑' : '↓'}</span>` : '';
       return `<th data-sort="${col.key}"${col.title ? ` title="${esc(col.title)}"` : ''}>${col.label}${arrow}</th>`;
     }).join('');
     return `<table><thead><tr>${head}</tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody></table>`;
