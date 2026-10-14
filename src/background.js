@@ -15,29 +15,29 @@ importScripts(
 
 const ALLOWED = ['https://site.api.espn.com/', 'https://sports.core.api.espn.com/'];
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (sender.id !== chrome.runtime.id || !msg || msg.type !== 'nightowl-ktc') return false;
-  fetch(globalThis.NightOwl.ktc.URLS[msg.kind === 'redraft' ? 'redraft' : 'dynasty'], { credentials: 'omit', signal: AbortSignal.timeout(30000) })
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id || !message || message.type !== 'nightowl-ktc') return false;
+  fetch(globalThis.NightOwl.ktc.URLS[message.kind === 'redraft' ? 'redraft' : 'dynasty'], { credentials: 'omit', signal: AbortSignal.timeout(30000) })
     .then((res) => (res.ok ? res.text() : Promise.reject(new Error(`KeepTradeCut ${res.status}`))))
     .then(
       (html) => sendResponse({ ok: true, data: globalThis.NightOwl.ktc.parse(html) }),
-      (err) => sendResponse({ ok: false, error: String(err.message || err) })
+      (error) => sendResponse({ ok: false, error: String(error.message || error) })
     );
   return true;
 });
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return false;
-  if (!msg || msg.type !== 'nightowl-fetch' || typeof msg.url !== 'string') return false;
-  if (!ALLOWED.some((prefix) => msg.url.startsWith(prefix))) {
+  if (!message || message.type !== 'nightowl-fetch' || typeof message.url !== 'string') return false;
+  if (!ALLOWED.some((prefix) => message.url.startsWith(prefix))) {
     sendResponse({ ok: false, error: 'host not allowed' });
     return false;
   }
-  fetch(msg.url, { signal: AbortSignal.timeout(api.TIMEOUT_MS) })
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`${res.status} ${msg.url}`))))
+  fetch(message.url, { signal: AbortSignal.timeout(api.TIMEOUT_MS) })
+    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`${res.status} ${message.url}`))))
     .then(
       (data) => sendResponse({ ok: true, data }),
-      (err) => sendResponse({ ok: false, error: String(err.message || err) })
+      (error) => sendResponse({ ok: false, error: String(error.message || error) })
     );
   return true;
 });
@@ -56,8 +56,8 @@ const scheduleRefresh = () => chrome.alarms.create(REFRESH_ALARM, { periodInMinu
 chrome.runtime.onInstalled.addListener(() => { schedule(); scheduleRefresh(); });
 chrome.runtime.onStartup.addListener(() => { schedule(); scheduleRefresh(); });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === ALARM) checkLineups().catch((err) => console.warn('[Night Owl alerts]', err));
-  if (alarm.name === REFRESH_ALARM) refreshData().catch((err) => console.warn('[Night Owl refresh]', err));
+  if (alarm.name === ALARM) checkLineups().catch((error) => console.warn('[Night Owl alerts]', error));
+  if (alarm.name === REFRESH_ALARM) refreshData().catch((error) => console.warn('[Night Owl refresh]', error));
 });
 
 async function fetchKtc(kind) {
@@ -71,7 +71,7 @@ async function refreshData() {
   if (!settings.username) return;
   const status = { at: Date.now(), ok: [], failed: {} };
   const attempt = async (name, work) => {
-    try { await work(); status.ok.push(name); } catch (err) { status.failed[name] = String((err && err.message) || err); }
+    try { await work(); status.ok.push(name); } catch (error) { status.failed[name] = String((error && error.message) || error); }
   };
   await attempt('players', () => players.load());
   for (const kind of ['dynasty', 'redraft']) await attempt(`ktc-${kind}`, () => ktcValues.load(kind, players.list(), fetchKtc));
@@ -94,19 +94,19 @@ async function checkLineups() {
   const seasonType = leagues.seasonType(nfl);
 
   const games = lineups.parseGames(await api.kickoffs(nfl.season, week, seasonType));
-  await saveClosingLines(games, `${nfl.season}-${seasonType}-${week}`).catch((err) => console.warn('[Night Owl lines]', err));
+  await saveClosingLines(games, `${nfl.season}-${seasonType}-${week}`).catch((error) => console.warn('[Night Owl lines]', error));
   if (settings.alerts === false) return;
 
   const { userId } = await account.resolve();
   const excluded = await account.excluded();
-  const playing = (await api.leagues(userId, nfl.season)).filter((lg) => leagues.isPlaying(lg) && !excluded.has(lg.league_id));
+  const playing = (await api.leagues(userId, nfl.season)).filter((league) => leagues.isPlaying(league) && !excluded.has(league.league_id));
   if (!playing.length) return;
 
-  const lineupsByLeague = (await Promise.all(playing.map(async (lg) => {
-    const [rosters, matchups] = await Promise.all([api.rosters(lg.league_id), api.matchups(lg.league_id, week)]);
+  const lineupsByLeague = (await Promise.all(playing.map(async (league) => {
+    const [rosters, matchups] = await Promise.all([api.rosters(league.league_id), api.matchups(league.league_id, week)]);
     const roster = leagues.mine(rosters, userId);
     const set = roster && (matchups || []).find((m) => m.roster_id === roster.roster_id);
-    return set ? { leagueId: lg.league_id, name: lg.name.trim(), starters: set.starters || [] } : null;
+    return set ? { leagueId: league.league_id, name: league.name.trim(), starters: set.starters || [] } : null;
   }))).filter(Boolean);
 
   const [injuries] = await Promise.all([api.injuries().then(alerts.parseInjuries), players.load()]);
@@ -119,9 +119,9 @@ async function checkLineups() {
     week: `${nfl.season}-${seasonType}-${week}`,
     now: Date.now(),
     sent,
-    teamOf: (pid) => players.info(pid).team,
+    teamOf: (playerId) => players.info(playerId).team,
     kickoffOf: (team) => (kickoff.has(team) ? kickoff.get(team) : games.length ? null : undefined),
-    statusOf: (pid) => injuries.get(players.espnId(pid)) || null
+    statusOf: (playerId) => injuries.get(players.espnId(playerId)) || null
   });
 
   for (const alert of found) {

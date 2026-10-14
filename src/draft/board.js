@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const esc = NightOwl.format.escape;
+  const escapeHtml = NightOwl.format.escape;
 
   const POSITIONS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
   const COLUMNS = [
@@ -55,8 +55,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `
       <tr class="${classes}">
         <td>${row.rank}</td>
-        <td><span class="name">${esc(row.name)}</span> <span class="meta">${esc(row.team || '')}</span></td>
-        <td><span class="pos-pill ${esc(row.position || '')}">${esc(row.position || '')}</span></td>
+        <td><span class="name">${escapeHtml(row.name)}</span> <span class="meta">${escapeHtml(row.team || '')}</span></td>
+        <td><span class="pos-pill ${escapeHtml(row.position || '')}">${escapeHtml(row.position || '')}</span></td>
         <td class="meta">${status}</td>
         <td>${delta}</td>
       </tr>`;
@@ -65,45 +65,45 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function tableHtml(rows, prefs) {
     const head = COLUMNS.map((col) => {
       const arrow = prefs.sortBy === col.key ? `<span class="sort">${prefs.sortDir === 'asc' ? '↑' : '↓'}</span>` : '';
-      return `<th data-sort="${col.key}"${col.title ? ` title="${esc(col.title)}"` : ''}>${col.label}${arrow}</th>`;
+      return `<th data-sort="${col.key}"${col.title ? ` title="${escapeHtml(col.title)}"` : ''}>${col.label}${arrow}</th>`;
     }).join('');
     return `<table><thead><tr>${head}</tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody></table>`;
   }
 
   const live = new WeakMap();
 
-  function bind(el) {
+  function bind(element) {
     const change = (patch) => {
-      const { prefs, onChange } = live.get(el);
+      const { prefs, onChange } = live.get(element);
       Object.assign(prefs, patch);
       NightOwl.storage.saveUi(patch);
       onChange();
     };
-    el.addEventListener('click', (e) => {
+    element.addEventListener('click', (e) => {
       const chip = e.target.closest('[data-pos]');
       if (chip) return change({ position: chip.dataset.pos });
       const th = e.target.closest('[data-sort]');
       if (th) {
-        const { prefs } = live.get(el);
+        const { prefs } = live.get(element);
         const key = th.dataset.sort;
         change({ sortBy: key, sortDir: prefs.sortBy === key && prefs.sortDir === 'asc' ? 'desc' : 'asc' });
       }
       return undefined;
     });
-    el.addEventListener('change', (e) => {
+    element.addEventListener('change', (e) => {
       if (e.target.matches('[data-act="hide-drafted"]')) change({ hideDrafted: e.target.checked });
     });
   }
 
   /**
-   * @param {Element} el
+   * @param {Element} element
    * @param {{status?: string, rows?: any[], myTurn?: boolean, message?: string, kind?: string}} state
    * @param {any} prefs
    * @param {() => void} onChange
    */
-  function render(el, state, prefs, onChange) {
-    if (!live.has(el)) bind(el);
-    live.set(el, { prefs, onChange });
+  function render(element, state, prefs, onChange) {
+    if (!live.has(element)) bind(element);
+    live.set(element, { prefs, onChange });
     const allRows = state.rows || [];
     const rows = sortRows(filterRows(allRows, prefs), prefs);
     const unmatched = allRows.filter((r) => !r.matched).length;
@@ -112,11 +112,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       : rows.length ? tableHtml(rows, prefs) : '<div class="empty">Nothing matches the current filter.</div>';
 
     const html = `
-      ${state.myTurn ? `<div class="turn">You're on the clock${state.message ? ` · ${esc(state.message)}` : ''}</div>` : ''}
+      ${state.myTurn ? `<div class="turn">You're on the clock${state.message ? ` · ${escapeHtml(state.message)}` : ''}</div>` : ''}
       ${state.status !== 'ok' ? '' : `<div class="controls">
         ${POSITIONS.map((p) => `<button class="chip ${prefs.position === p ? 'active' : ''}" data-pos="${p}">${p === 'ALL' ? 'All' : p}</button>`).join('')}
         <label class="toggle"><input type="checkbox" data-act="hide-drafted" ${prefs.hideDrafted ? 'checked' : ''}/> Hide drafted</label>
-        <span class="status ${state.kind || ''}">${state.myTurn ? '' : esc(state.message || '')}</span>
+        <span class="status ${state.kind || ''}">${state.myTurn ? '' : escapeHtml(state.message || '')}</span>
       </div>`}
       ${unmatched > 0 && state.status === 'ok'
         ? `<div class="warnbar">${unmatched} ranked player${unmatched === 1 ? '' : 's'} didn't match a Sleeper player. Check the spelling in the popup.</div>`
@@ -124,10 +124,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       <div class="body">${body}</div>
     `;
 
-    const old = el.querySelector('.body');
+    const old = element.querySelector('.body');
     const scroll = old ? old.scrollTop : 0;
-    if (!NightOwl.dom.setHtml(el, html)) return;
-    const next = el.querySelector('.body');
+    if (!NightOwl.dom.setHtml(element, html)) return;
+    const next = element.querySelector('.body');
     if (next) next.scrollTop = scroll;
   }
 

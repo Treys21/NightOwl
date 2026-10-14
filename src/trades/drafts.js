@@ -35,21 +35,21 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const ordered = (trades || []).slice().sort((a, b) => a.at - b.at);
     const gives = new Map();
     for (const t of ordered) {
-      for (const [rid, side] of Object.entries(t.sides)) {
+      for (const [rosterId, side] of Object.entries(t.sides)) {
         for (const p of side.gavePicks) {
           if (!gives.has(keyOf(p))) gives.set(keyOf(p), []);
-          gives.get(keyOf(p)).push({ rid, at: t.at });
+          gives.get(keyOf(p)).push({ rid: rosterId, at: t.at });
         }
       }
     }
     for (const t of ordered) {
       const verdict = new Map();
-      for (const [rid, side] of Object.entries(t.sides)) {
+      for (const [rosterId, side] of Object.entries(t.sides)) {
         for (const p of side.gotPicks) {
           const hit = idx.get(keyOf(p));
           if (!hit) continue;
-          const passedOn = (gives.get(keyOf(p)) || []).some((g) => g.rid === rid && g.at > t.at);
-          verdict.set(keyOf(p), !passedOn && String(hit.by) === String(rid) ? { player: hit.pid } : { passed: true, pos: hit.pos, teams: hit.teams });
+          const passedOn = (gives.get(keyOf(p)) || []).some((g) => g.rid === rosterId && g.at > t.at);
+          verdict.set(keyOf(p), !passedOn && String(hit.by) === String(rosterId) ? { player: hit.pid } : { passed: true, pos: hit.pos, teams: hit.teams });
         }
       }
       for (const side of Object.values(t.sides)) {
@@ -115,22 +115,22 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     for (const trade of trades || []) {
       const sides = Object.entries(trade.sides);
       if (!sides.some(([, side]) => side.gotPicks.concat(side.gavePicks).some(thisDraft))) continue;
-      for (const [rid, side] of sides) {
+      for (const [rosterId, side] of sides) {
         const worth = (list) => list.reduce((sum, a) => sum + assetValue(a), 0);
-        const got = side.got.map((pid) => ({ pid })).concat(side.gotPicks.filter((p) => !thisDraft(p)).map((pick) => ({ pick })));
-        const gave = side.gave.map((pid) => ({ pid })).concat(side.gavePicks.filter((p) => !thisDraft(p)).map((pick) => ({ pick })));
-        moved[rid] = (moved[rid] || 0) + worth(got) - worth(gave);
+        const got = side.got.map((playerId) => ({ pid: playerId })).concat(side.gotPicks.filter((p) => !thisDraft(p)).map((pick) => ({ pick })));
+        const gave = side.gave.map((playerId) => ({ pid: playerId })).concat(side.gavePicks.filter((p) => !thisDraft(p)).map((pick) => ({ pick })));
+        moved[rosterId] = (moved[rosterId] || 0) + worth(got) - worth(gave);
       }
     }
     const baseline = {};
     for (const c of b.picks) baseline[c.from] = (baseline[c.from] || 0) + c.expected;
     const out = {};
     const rids = new Set([...Object.keys(b.byRoster), ...Object.keys(baseline), ...Object.keys(moved)]);
-    for (const rid of rids) {
-      const t = b.byRoster[rid] || { value: 0, expected: 0, picks: 0, excess: 0 };
-      const base = baseline[rid] || 0;
-      const trade = moved[rid] || 0;
-      out[rid] = {
+    for (const rosterId of rids) {
+      const t = b.byRoster[rosterId] || { value: 0, expected: 0, picks: 0, excess: 0 };
+      const base = baseline[rosterId] || 0;
+      const trade = moved[rosterId] || 0;
+      out[rosterId] = {
         value: t.value, expected: t.expected, picks: t.picks, trades: Math.round(trade), baseline: Math.round(base),
         gain: Math.round(t.excess + (t.expected + trade - base)),
         score: (t.excess + (t.expected + trade - base)) / Math.max(b.average, FLOOR)

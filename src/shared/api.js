@@ -39,10 +39,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const data = await load();
       track(url, true);
       return data;
-    } catch (err) {
-      if (globalThis.navigator && navigator.onLine === false) throw err;
+    } catch (error) {
+      if (globalThis.navigator && navigator.onLine === false) throw error;
       track(url, false);
-      throw err;
+      throw error;
     }
   }
 

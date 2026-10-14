@@ -20,9 +20,9 @@ const kick = { DAL: now + 3600000, PHI: now - 600000, KC: null };
 const base = {
   week: 5,
   now,
-  teamOf: (pid) => ({ lamb: 'DAL', hurts: 'PHI', kelce: 'KC', dak: 'DAL' })[pid],
+  teamOf: (playerId) => ({ lamb: 'DAL', hurts: 'PHI', kelce: 'KC', dak: 'DAL' })[playerId],
   kickoffOf: (team) => kick[team],
-  statusOf: (pid) => ({ lamb: { status: 'Out', note: 'Hamstring.' }, hurts: { status: 'Out' }, dak: { status: 'Questionable' } })[pid] || null
+  statusOf: (playerId) => ({ lamb: { status: 'Out', note: 'Hamstring.' }, hurts: { status: 'Out' }, dak: { status: 'Questionable' } })[playerId] || null
 };
 
 test('alerts for out and bye starters before lock, one per player across leagues', () => {
@@ -34,9 +34,9 @@ test('alerts for out and bye starters before lock, one per player across leagues
     ['lamb', 'Out', ['Office', 'Dynasty']],
     ['kelce', 'Bye', ['Office']]
   ]);
-  const msg = alerts.message(found[0], 'CeeDee Lamb');
-  assert.equal(msg.title, 'CeeDee Lamb is out');
-  assert.equal(msg.body, 'Still in your lineup in Office, Dynasty. Hamstring.');
+  const message = alerts.message(found[0], 'CeeDee Lamb');
+  assert.equal(message.title, 'CeeDee Lamb is out');
+  assert.equal(message.body, 'Still in your lineup in Office, Dynasty. Hamstring.');
 });
 
 test('never repeats an alert that was already sent', () => {

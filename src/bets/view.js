@@ -4,7 +4,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, teams, players, storage, account, dom } = NightOwl;
-  const { escape: esc, short: num, percent: pct, dayTime: timeOf, dayTimeShort, windowTitle } = NightOwl.format;
+  const { escape: escapeHtml, short: num, percent: pct, dayTime: timeOf, dayTimeShort, windowTitle } = NightOwl.format;
   const { isPlaying, mine: rosterOf, displayWeek, seasonType: seasonTypeOf } = NightOwl.leagues;
   const core = NightOwl.bets;
   const windowsOf = (games) => NightOwl.lineups.windows(games);
@@ -84,38 +84,38 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const playing = (await api.leagues(userId, season)).filter(isPlaying);
     state.leagueCount = playing.length;
     const people = new Map();
-    const add = (pid, leagueName, side) => {
-      if (!pid || pid === '0') return;
-      if (!people.has(pid)) people.set(pid, []);
-      people.get(pid).push({ leagueName, side });
+    const add = (playerId, leagueName, side) => {
+      if (!playerId || playerId === '0') return;
+      if (!people.has(playerId)) people.set(playerId, []);
+      people.get(playerId).push({ leagueName, side });
     };
-    await Promise.all(playing.map(async (lg) => {
-      const [rosters, matchups] = await Promise.all([api.rosters(lg.league_id), api.matchups(lg.league_id, week)]);
+    await Promise.all(playing.map(async (league) => {
+      const [rosters, matchups] = await Promise.all([api.rosters(league.league_id), api.matchups(league.league_id, week)]);
       const own = rosterOf(rosters, userId);
       if (!own) return;
       const pair = NightOwl.tracker.pickMatchup(matchups || [], own.roster_id);
       if (!pair) return;
-      const name = lg.name.trim();
-      pair.mine.starters.forEach((pid) => add(pid, name, 'me'));
-      if (pair.opp) pair.opp.starters.forEach((pid) => add(pid, name, 'opp'));
+      const name = league.name.trim();
+      pair.mine.starters.forEach((playerId) => add(playerId, name, 'me'));
+      if (pair.opp) pair.opp.starters.forEach((playerId) => add(playerId, name, 'opp'));
     }));
     state.people = people;
   }
 
   async function loadProps(force) {
-    const shownTeams = new Set([...state.people.keys()].map((pid) => players.info(pid).team));
+    const shownTeams = new Set([...state.people.keys()].map((playerId) => players.info(playerId).team));
     const games = state.games.filter((g) => g.state !== 'post' && g.id && (shownTeams.has(g.home) || shownTeams.has(g.away)));
     for (const g of games) {
       if (!force && Date.now() - (state.propsAt.get(g.id) || 0) < PROPS_TTL_MS) continue;
       try {
         const ladders = core.parseMilestones(await api.propBets(g.id));
         for (const [espnId, list] of Object.entries(ladders)) {
-          const pid = players.byEspn(espnId);
-          if (pid) state.ladders[pid] = list;
+          const playerId = players.byEspn(espnId);
+          if (playerId) state.ladders[playerId] = list;
         }
         state.propsAt.set(g.id, Date.now());
-      } catch (err) {
-        console.warn('[Night Owl bets] props unavailable for', g.id, err.message || err);
+      } catch (error) {
+        console.warn('[Night Owl bets] props unavailable for', g.id, error.message || error);
         state.propsAt.set(g.id, Date.now());
       }
     }
@@ -138,8 +138,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     try {
       state.games = NightOwl.lineups.parseGames(await api.kickoffs(season, week, seasonType));
-    } catch (err) {
-      console.warn('[Night Owl bets] ESPN games unavailable, using Sleeper dates', err);
+    } catch (error) {
+      console.warn('[Night Owl bets] ESPN games unavailable, using Sleeper dates', error);
       state.games = NightOwl.lineups.gamesFromSchedule(await api.schedule(season, seasonType), week);
     }
 
@@ -147,7 +147,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const stored = await storage.get('bets.lines', null);
     const previous = stored && stored.key === key ? stored.lines : {};
     let fresh = {};
-    try { fresh = core.parseLines(await api.lines()); } catch (err) { console.warn('[Night Owl bets] Sleeper lines unavailable', err); }
+    try { fresh = core.parseLines(await api.lines()); } catch (error) { console.warn('[Night Owl bets] Sleeper lines unavailable', error); }
     state.lines = core.mergeLines(previous, fresh);
     state.linesKey = key;
     await storage.set({ 'bets.lines': { key, lines: state.lines } });
@@ -156,14 +156,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       try {
         state.ranks = core.defenseRanks(await api.defenseSeason(season, seasonType));
         state.ranksAt = Date.now();
-      } catch (err) { console.warn('[Night Owl bets] defense stats unavailable', err); }
+      } catch (error) { console.warn('[Night Owl bets] defense stats unavailable', error); }
     }
 
     try {
       const rows = await api.weekProjections(season, week, seasonType);
       state.proj = {};
       for (const r of rows) state.proj[r.player_id] = r.stats || {};
-    } catch (err) { console.warn('[Night Owl bets] projections unavailable', err); }
+    } catch (error) { console.warn('[Night Owl bets] projections unavailable', error); }
 
     await loadProps(force);
     await loadLive();
@@ -176,11 +176,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const live = {};
     for (const r of rows) live[r.player_id] = r.stats || {};
     state.fresh = new Set();
-    for (const [pid, markets] of Object.entries(state.lines)) {
-      if (!state.people.has(pid)) continue;
+    for (const [playerId, markets] of Object.entries(state.lines)) {
+      if (!state.people.has(playerId)) continue;
       for (const m of markets) {
-        const p = core.progress(m, live[pid]);
-        const k = `${pid}:${m.type}`;
+        const p = core.progress(m, live[playerId]);
+        const k = `${playerId}:${m.type}`;
         if (p && p.hit && !state.hits.has(k)) {
           if (state.loadedAt) state.fresh.add(k);
           state.hits.add(k);
@@ -197,9 +197,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     try {
       await load(force);
       state.error = null;
-    } catch (err) {
-      console.error('[Night Owl bets]', err);
-      state.error = NightOwl.format.errorText(err);
+    } catch (error) {
+      console.error('[Night Owl bets]', error);
+      state.error = NightOwl.format.errorText(error);
     } finally {
       state.busy = false;
       if (root) $('bt-refresh').classList.remove('spin');
@@ -212,13 +212,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     clearTimeout(state.liveTimer);
     if (!root || !state.games.some((g) => g.state === 'in')) return;
     state.liveTimer = setTimeout(async () => {
-      try { await loadLive(); render(); } catch (err) { console.warn('[Night Owl bets] live stats', err); }
+      try { await loadLive(); render(); } catch (error) { console.warn('[Night Owl bets] live stats', error); }
       scheduleLive();
     }, LIVE_MS);
   }
 
-  function face(pid, team) {
-    return `<img class="face" alt="" src="${teams.photo(pid, team)}" style="border-color:${teams.colors(team).primary}">`;
+  function face(playerId, team) {
+    return `<img class="face" alt="" src="${teams.photo(playerId, team)}" style="border-color:${teams.colors(team).primary}">`;
   }
 
   function sparkline(recent, line) {
@@ -227,104 +227,104 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const top = Math.max(line * 1.4, ...values, 1);
     const bars = recent.map((r) => {
       const h = Math.max(6, Math.round((r.value / top) * 100));
-      return `<i class="${r.value > line ? 'over' : ''}" style="height:${h}%" title="${esc(r.opponent || '')} ${esc(r.date || '')}: ${num(r.value)}"></i>`;
+      return `<i class="${r.value > line ? 'over' : ''}" style="height:${h}%" title="${escapeHtml(r.opponent || '')} ${escapeHtml(r.date || '')}: ${num(r.value)}"></i>`;
     }).join('');
     return `<span class="bt-spark">${bars}<b style="bottom:${Math.round((line / top) * 100)}%"></b></span>`;
   }
 
-  function marketRow(pid, m, inPlay) {
+  function marketRow(playerId, m, inPlay) {
     const hr = core.hitRate(m.recent, m.line);
-    const projected = core.statValue(state.proj[pid], m.keys);
-    const live = inPlay ? core.progress(m, state.live[pid]) : null;
-    const k = `${pid}:${m.type}`;
+    const projected = core.statValue(state.proj[playerId], m.keys);
+    const live = inPlay ? core.progress(m, state.live[playerId]) : null;
+    const k = `${playerId}:${m.type}`;
     const lean = projected != null && !m.td && !m.max ? Math.round((projected - m.line) * 10) / 10 : null;
     const recentTitle = m.recent.map((r) => `${r.opponent || ''} ${num(r.value)}`).join(' · ');
     return `<div class="bt-tr${live && live.hit ? ' hit' : ''}${state.fresh.has(k) ? ' just-hit' : ''}">
-      <span class="bt-td-lbl">${esc(m.label)}</span>
+      <span class="bt-td-lbl">${escapeHtml(m.label)}</span>
       <span class="bt-td-line">${num(m.line)}</span>
       <span class="bt-td-odds" title="Over pays ${m.over || '–'}× · ${m.pOver != null ? pct(m.pOver) : '–'} implied">${m.over ? core.american(m.over) : '–'}</span>
       <span class="bt-td-odds" title="Under pays ${m.under || '–'}×">${m.under ? core.american(m.under) : '–'}</span>
-      <span class="bt-td-l10${hr && hr.over * 2 > hr.games ? ' good' : ''}" title="Last ${m.recent.length}: ${esc(recentTitle)}">${sparkline(m.recent, m.line)}${hr ? `${hr.over}/${hr.games}` : '–'}</span>
+      <span class="bt-td-l10${hr && hr.over * 2 > hr.games ? ' good' : ''}" title="Last ${m.recent.length}: ${escapeHtml(recentTitle)}">${sparkline(m.recent, m.line)}${hr ? `${hr.over}/${hr.games}` : '–'}</span>
       <span class="bt-td-proj ${lean > 0 ? 'up' : lean < 0 ? 'down' : ''}" title="${projected != null ? `Sleeper projects ${num(projected)}` : 'No projection for this stat'}">${lean != null ? `${lean > 0 ? '+' : ''}${num(lean)}` : '–'}</span>
       ${live ? `<span class="bt-tr-live${live.hit ? ' hit' : ''}"><i style="width:${Math.round(live.pct * 100)}%"></i><em>${live.hit ? '✓ ' : ''}${num(live.value)} / ${num(live.line)}</em></span>` : ''}
     </div>`;
   }
 
-  function ladderRow(pid, ladder, inPlay) {
-    const market = (state.lines[pid] || []).find((m) => m.keys.join() === ladder.keys.join() && !m.max);
+  function ladderRow(playerId, ladder, inPlay) {
+    const market = (state.lines[playerId] || []).find((m) => m.keys.join() === ladder.keys.join() && !m.max);
     const values = market ? market.recent.map((r) => r.value).filter((v) => v != null) : [];
-    const liveValue = inPlay ? (core.statValue(state.live[pid], ladder.keys) ?? 0) : null;
+    const liveValue = inPlay ? (core.statValue(state.live[playerId], ladder.keys) ?? 0) : null;
     const rungs = core.trimRungs(ladder.rungs, market ? market.line : null).map((r) => {
       const rate = values.length ? values.filter((v) => v >= r).length / values.length : null;
       const reached = liveValue != null && liveValue >= r;
       return `<span class="bt-rung${reached ? ' reached' : ''}" title="${rate != null ? `${r}+ in ${Math.round(rate * values.length)} of last ${values.length}` : `${r}+`}">
         ${r}+${rate != null ? `<small>${pct(rate)}</small>` : ''}</span>`;
     }).join('');
-    return `<div class="bt-ladder"><span class="bt-ladder-lbl">${esc(ladder.label)}</span><div class="bt-rungs">${rungs}</div></div>`;
+    return `<div class="bt-ladder"><span class="bt-ladder-lbl">${escapeHtml(ladder.label)}</span><div class="bt-rungs">${rungs}</div></div>`;
   }
 
   function context(p, game) {
     if (!game) return '';
-    const opp = game.home === p.team ? game.away : game.home;
+    const opponent = game.home === p.team ? game.away : game.home;
     const at = game.home === p.team ? 'vs' : '@';
-    const rank = state.ranks[opp] && state.ranks[opp][p.pos === 'DEF' ? 'QB' : p.pos];
+    const rank = state.ranks[opponent] && state.ranks[opponent][p.pos === 'DEF' ? 'QB' : p.pos];
     const imp = core.impliedTotals(game);
-    const parts = [`<span class="bt-opp"><img alt="" src="${teams.logo(opp)}">${at} ${esc(opp)}</span>`];
+    const parts = [`<span class="bt-opp"><img alt="" src="${teams.logo(opponent)}">${at} ${escapeHtml(opponent)}</span>`];
     if (rank && p.pos !== 'DEF') {
       const tone = rank.rank <= 8 ? 'good' : rank.rank >= 25 ? 'bad' : '';
-      parts.push(`<span class="bt-rank ${tone}" title="${esc(opp)} allows ${rank.perGame} fantasy pts/game to ${esc(p.pos)}s">${core.ordinal(rank.rank)} most to ${esc(p.pos)}s</span>`);
+      parts.push(`<span class="bt-rank ${tone}" title="${escapeHtml(opponent)} allows ${rank.perGame} fantasy pts/game to ${escapeHtml(p.pos)}s">${core.ordinal(rank.rank)} most to ${escapeHtml(p.pos)}s</span>`);
     }
     if (imp && imp.teams[p.team] != null) parts.push(`<span class="bt-chip">Team total <b>${num(imp.teams[p.team])}</b></span>`);
-    if (imp) parts.push(`<span class="bt-chip">O/U <b>${num(imp.total)}</b>${imp.favorite ? ` · ${esc(imp.favorite)} −${num(imp.spread)}` : ''}</span>`);
+    if (imp) parts.push(`<span class="bt-chip">O/U <b>${num(imp.total)}</b>${imp.favorite ? ` · ${escapeHtml(imp.favorite)} −${num(imp.spread)}` : ''}</span>`);
     return `<div class="bt-ctx">${parts.join('')}</div>`;
   }
 
-  function detail(pid, spots, game, inPlay) {
-    const p = players.info(pid);
-    const markets = state.lines[pid] || [];
-    const ladders = state.ladders[pid] || [];
+  function detail(playerId, spots, game, inPlay) {
+    const p = players.info(playerId);
+    const markets = state.lines[playerId] || [];
+    const ladders = state.ladders[playerId] || [];
     const others = markets.filter((m) => !m.td);
     const td = markets.find((m) => m.td && m.type === 'anytime_touchdowns');
     const tdHr = td ? core.hitRate(td.recent, 0.5) : null;
-    const spotChips = spots.map((s) => `<span class="impact ${s.side === 'me' ? 'helps' : 'hurts'}">${esc(s.leagueName)} · ${s.side === 'me' ? 'you' : 'opp'}</span>`).join('');
+    const spotChips = spots.map((s) => `<span class="impact ${s.side === 'me' ? 'helps' : 'hurts'}">${escapeHtml(s.leagueName)} · ${s.side === 'me' ? 'you' : 'opp'}</span>`).join('');
     return `<div class="bt-detail">
       <div class="impacts">${spotChips}</div>
       ${td && td.over ? `<div class="bt-tdline">Anytime TD <b class="am">${core.american(td.over)}</b> · ${pct(td.pOver)} implied${tdHr ? ` · scored in ${tdHr.over} of last ${tdHr.games}` : ''}${td.under ? ` · No <b class="am">${core.american(td.under)}</b>` : ''}</div>` : ''}
       ${context(p, game)}
       ${others.length ? `<div class="bt-table">
         <div class="bt-tr bt-th"><span>Line</span><span></span><span>Over</span><span>Under</span><span>Last 10</span><span>Proj</span></div>
-        ${others.map((m) => marketRow(pid, m, inPlay)).join('')}
+        ${others.map((m) => marketRow(playerId, m, inPlay)).join('')}
       </div>` : '<p class="muted small">No player lines posted yet.</p>'}
-      ${ladders.length ? `<div class="bt-ladders"><span class="bt-sub">DraftKings milestones · hit rate last 10</span>${ladders.map((l) => ladderRow(pid, l, inPlay)).join('')}</div>` : ''}
+      ${ladders.length ? `<div class="bt-ladders"><span class="bt-sub">DraftKings milestones · hit rate last 10</span>${ladders.map((l) => ladderRow(playerId, l, inPlay)).join('')}</div>` : ''}
     </div>`;
   }
 
-  function item(pid, spots, game, showWindow) {
-    const p = players.info(pid);
-    const markets = state.lines[pid] || [];
+  function item(playerId, spots, game, showWindow) {
+    const p = players.info(playerId);
+    const markets = state.lines[playerId] || [];
     const td = markets.find((m) => m.type === 'anytime_touchdowns');
     const key = core.keyMarket(markets, p.pos);
     const inPlay = state.previewing || !!(game && game.state !== 'pre');
-    const liveTd = td && inPlay ? core.progress(td, state.live[pid]) : null;
-    const keyLive = key && inPlay ? core.progress(key, state.live[pid]) : null;
+    const liveTd = td && inPlay ? core.progress(td, state.live[playerId]) : null;
+    const keyLive = key && inPlay ? core.progress(key, state.live[playerId]) : null;
     const keyHr = key ? core.hitRate(key.recent, key.line) : null;
-    const keyProj = key ? core.statValue(state.proj[pid], key.keys) : null;
+    const keyProj = key ? core.statValue(state.proj[playerId], key.keys) : null;
     const keyLean = key && keyProj != null && !key.max ? keyProj - key.line : null;
-    const hits = inPlay ? markets.filter((m) => { const pr = core.progress(m, state.live[pid]); return pr && pr.hit; }).length : 0;
+    const hits = inPlay ? markets.filter((m) => { const pr = core.progress(m, state.live[playerId]); return pr && pr.hit; }).length : 0;
     const mine = spots.filter((s) => s.side === 'me').length;
     const theirs = spots.length - mine;
-    const open = state.open.has(pid);
+    const open = state.open.has(playerId);
     const keyHtml = key
       ? `<span class="bt-key">${keyLive
-        ? `<span class="bt-key-live${keyLive.hit ? ' hit' : ''}">${keyLive.hit ? '✓ ' : ''}${num(keyLive.value)}</span> <span class="bt-key-lbl">of ${num(key.line)} ${esc(key.label)}</span>`
-        : `<span class="bt-key-lbl">${esc(key.label)}</span> <b>${num(key.line)}</b>${keyHr ? ` <span class="bt-key-hr${keyHr.over * 2 > keyHr.games ? ' good' : ''}">${keyHr.over}/${keyHr.games}</span>` : ''}${keyLean != null && Math.abs(keyLean) >= 0.5 ? ` <span class="bt-key-lean ${keyLean > 0 ? 'up' : 'down'}">${keyLean > 0 ? '▲' : '▼'}</span>` : ''}`}</span>`
-      : `<span class="muted small">${inPlay ? esc(core.liveLine(p.pos, state.live[pid]) || 'No line for this game') : 'No lines yet'}</span>`;
-    const justCashed = markets.some((m) => state.fresh.has(`${pid}:${m.type}`));
-    return `<details class="bt-item${mine ? ' mine' : ' theirs'}${state.showOpp ? ' mixed' : ''}${justCashed ? ' cashing' : ''}${!key && !inPlay ? ' nolines' : ''}${state.justOpened.has(pid) ? ' opening' : ''}" data-key="p:${esc(pid)}" data-pid="${esc(pid)}" style="--tc:${teams.colors(p.team).primary}"${open ? ' open' : ''}>
+        ? `<span class="bt-key-live${keyLive.hit ? ' hit' : ''}">${keyLive.hit ? '✓ ' : ''}${num(keyLive.value)}</span> <span class="bt-key-lbl">of ${num(key.line)} ${escapeHtml(key.label)}</span>`
+        : `<span class="bt-key-lbl">${escapeHtml(key.label)}</span> <b>${num(key.line)}</b>${keyHr ? ` <span class="bt-key-hr${keyHr.over * 2 > keyHr.games ? ' good' : ''}">${keyHr.over}/${keyHr.games}</span>` : ''}${keyLean != null && Math.abs(keyLean) >= 0.5 ? ` <span class="bt-key-lean ${keyLean > 0 ? 'up' : 'down'}">${keyLean > 0 ? '▲' : '▼'}</span>` : ''}`}</span>`
+      : `<span class="muted small">${inPlay ? escapeHtml(core.liveLine(p.pos, state.live[playerId]) || 'No line for this game') : 'No lines yet'}</span>`;
+    const justCashed = markets.some((m) => state.fresh.has(`${playerId}:${m.type}`));
+    return `<details class="bt-item${mine ? ' mine' : ' theirs'}${state.showOpp ? ' mixed' : ''}${justCashed ? ' cashing' : ''}${!key && !inPlay ? ' nolines' : ''}${state.justOpened.has(playerId) ? ' opening' : ''}" data-key="p:${escapeHtml(playerId)}" data-pid="${escapeHtml(playerId)}" style="--tc:${teams.colors(p.team).primary}"${open ? ' open' : ''}>
       <summary>
-        ${face(pid, p.team)}
+        ${face(playerId, p.team)}
         <span class="bt-sum">
-          <span class="bt-sum-top"><span class="ev-name">${esc(p.name)}</span><span class="muted small">${esc(p.pos)} · ${esc(p.team)}${showWindow && game ? ` · ${esc(timeOf(game.kickoff))}` : ''}</span></span>
+          <span class="bt-sum-top"><span class="ev-name">${escapeHtml(p.name)}</span><span class="muted small">${escapeHtml(p.pos)} · ${escapeHtml(p.team)}${showWindow && game ? ` · ${escapeHtml(timeOf(game.kickoff))}` : ''}</span></span>
           <span class="bt-sum-bot">${keyHtml}
             ${mine > 1 ? `<span class="bt-exp you" title="Starting in ${mine} of your leagues">${mine} leagues</span>` : ''}${theirs && (state.showOpp || !mine) ? `<span class="bt-exp opp" title="Starting for ${theirs} opponent${theirs > 1 ? 's' : ''}">opp ×${theirs}</span>` : ''}
             ${hits ? `<span class="bt-exp hit">✓ ${hits} hit</span>` : ''}</span>
@@ -332,7 +332,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         ${td && td.over ? `<span class="bt-atd${liveTd && liveTd.hit ? ' hit' : ''}" title="Anytime TD ${core.american(td.over)} · ${pct(td.pOver)}"><b>${liveTd && liveTd.hit ? '✓ TD' : core.american(td.over)}</b><small>${liveTd && liveTd.hit ? 'scored' : `ATD ${pct(td.pOver)}`}</small></span>` : '<span></span>'}
         <span class="bt-chev">›</span>
       </summary>
-      ${open ? detail(pid, spots, game, inPlay) : ''}
+      ${open ? detail(playerId, spots, game, inPlay) : ''}
     </details>`;
   }
 
@@ -373,7 +373,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const q = ui.q.trim().toLowerCase();
     const rows = [...state.people]
       .filter(([, spots]) => state.showOpp || spots.some((s) => s.side === 'me'))
-      .map(([pid, spots]) => ({ pid, spots, p: players.info(pid) }))
+      .map(([playerId, spots]) => ({ pid: playerId, spots, p: players.info(playerId) }))
       .map((r) => Object.assign(r, { game: gameOf.get(r.p.team), win: winOf(r.p.team) }))
       .filter((r) => r.win)
       .filter((r) => ui.pos === 'ALL' || r.p.pos === ui.pos)
@@ -382,7 +382,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const mineFirst = (a, b) => (b.spots.some((s) => s.side === 'me') - a.spots.some((s) => s.side === 'me')) || b.spots.length - a.spots.length;
     const blocks = [];
-    const header = (key, inner, count) => blocks.push({ key, html: `<h3 class="bt-group-h" data-key="${esc(key)}">${inner}<span>${count}</span></h3>` });
+    const header = (key, inner, count) => blocks.push({ key, html: `<h3 class="bt-group-h" data-key="${escapeHtml(key)}">${inner}<span>${count}</span></h3>` });
     if (ui.sort === 'kickoff') {
       const sortedWins = wins.slice().sort((a, b) => phaseOf(a) - phaseOf(b) || a.kickoff - b.kickoff);
       for (const w of sortedWins) {
@@ -390,7 +390,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (!list.length) continue;
         const phase = phaseOf(w);
         const tag = phase === 0 ? '<span class="live-tag">LIVE</span> ' : phase === 2 ? '<span class="muted">Final · </span>' : '';
-        header(`g:${w.kickoff}`, `${tag}${esc(windowTitle(w))}`, list.length);
+        header(`g:${w.kickoff}`, `${tag}${escapeHtml(windowTitle(w))}`, list.length);
         for (const r of list) blocks.push({ key: `p:${r.pid}`, html: item(r.pid, r.spots, r.game, false) });
       }
     } else {
@@ -398,7 +398,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         ? r.spots.filter((s) => s.side === 'me').length * 10 - r.spots.filter((s) => s.side === 'opp').length
         : core.SORTS[ui.sort](state.lines[r.pid], state.proj[r.pid]));
       const list = rows.slice().sort((a, b) => score(b) - score(a) || mineFirst(a, b));
-      if (list.length) header(`s:${ui.sort}`, `Sorted by ${esc(SORT_LABELS[ui.sort])}`, list.length);
+      if (list.length) header(`s:${ui.sort}`, `Sorted by ${escapeHtml(SORT_LABELS[ui.sort])}`, list.length);
       for (const r of list) blocks.push({ key: `p:${r.pid}`, html: item(r.pid, r.spots, r.game, true) });
     }
     patch(blocks, q || ui.pos !== 'ALL' || ui.win !== 'all');
@@ -420,10 +420,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const tpl = document.createElement('template');
       for (const b of blocks) {
         if (state.rendered.get(b.key) === b.html) continue;
-        const el = body.querySelector(`[data-key="${CSS.escape(b.key)}"]`);
-        if (!el) continue;
+        const element = body.querySelector(`[data-key="${CSS.escape(b.key)}"]`);
+        if (!element) continue;
         tpl.innerHTML = b.html;
-        el.replaceWith(tpl.content.firstElementChild);
+        element.replaceWith(tpl.content.firstElementChild);
       }
     }
     state.rendered = new Map(blocks.map((b) => [b.key, b.html]));
@@ -439,9 +439,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const real = state.live;
     const realHits = state.hits;
     const fake = {};
-    for (const [pid, markets] of Object.entries(state.lines)) {
-      if (!state.people.has(pid)) continue;
-      const s = (fake[pid] = {});
+    for (const [playerId, markets] of Object.entries(state.lines)) {
+      if (!state.people.has(playerId)) continue;
+      const s = (fake[playerId] = {});
       for (const m of markets) {
         const share = 0.35 + Math.random() * 0.95;
         const target = (m.td ? 1 : m.line) * share;
@@ -452,21 +452,21 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.previewing = true;
     state.hits = new Set();
     state.fresh = new Set();
-    for (const [pid, markets] of Object.entries(state.lines)) {
+    for (const [playerId, markets] of Object.entries(state.lines)) {
       for (const m of markets) {
-        const p = core.progress(m, fake[pid]);
-        if (p && p.hit) state.fresh.add(`${pid}:${m.type}`);
+        const p = core.progress(m, fake[playerId]);
+        if (p && p.hit) state.fresh.add(`${playerId}:${m.type}`);
       }
     }
     render();
     setTimeout(() => { state.live = real; state.hits = realHits; state.fresh = new Set(); state.previewing = false; render(); }, 10000);
   }
 
-  function mount(el) {
-    if (root === el) return;
-    root = el;
+  function mount(element) {
+    if (root === element) return;
+    root = element;
     root.classList.add('tool', 'intro');
-    setTimeout(() => el.classList.remove('intro'), 1600);
+    setTimeout(() => element.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
     $('bt-refresh').addEventListener('click', () => refresh(true));
     root.querySelector('.title strong').title = 'Double-click to preview live tracking';
@@ -500,9 +500,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('bt-body').addEventListener('toggle', (e) => {
       const d = e.target;
       if (!d.classList || !d.classList.contains('bt-item')) return;
-      const pid = d.dataset.pid;
-      if (d.open === state.open.has(pid)) return;
-      if (d.open) { state.open.add(pid); state.justOpened.add(pid); } else state.open.delete(pid);
+      const playerId = d.dataset.pid;
+      if (d.open === state.open.has(playerId)) return;
+      if (d.open) { state.open.add(playerId); state.justOpened.add(playerId); } else state.open.delete(playerId);
       render();
     }, true);
     state.timers.push(setInterval(() => refresh(false), REFRESH_MS));

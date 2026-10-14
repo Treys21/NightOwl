@@ -82,8 +82,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         pending = false;
         try {
           decorate();
-        } catch (err) {
-          console.debug('[Night Owl badges]', err);
+        } catch (error) {
+          console.debug('[Night Owl badges]', error);
         }
       }, 400);
     });
@@ -94,7 +94,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (observer) observer.disconnect();
     observer = null;
     document.querySelectorAll(`.${BADGE_CLASS}`).forEach((badge) => badge.remove());
-    document.querySelectorAll(`[${MARKED_ATTR}]`).forEach((el) => el.removeAttribute(MARKED_ATTR));
+    document.querySelectorAll(`[${MARKED_ATTR}]`).forEach((element) => element.removeAttribute(MARKED_ATTR));
   }
 
   NightOwl.badges = { update, stop };

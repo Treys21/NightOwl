@@ -27,5 +27,5 @@
   (async () => {
     await panel.mount();
     if (isDraftRoom(location.href)) await panel.setTool('draft');
-  })().catch((err) => console.error('[Night Owl] failed to start', err));
+  })().catch((error) => console.error('[Night Owl] failed to start', error));
 })(globalThis.NightOwl);

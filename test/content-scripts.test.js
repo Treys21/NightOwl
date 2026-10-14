@@ -12,7 +12,7 @@ function sandbox() {
   const noop = () => {};
   const chrome = {
     runtime: { id: 'test', getURL: (p) => p, sendMessage: noop },
-    storage: { local: { get: (k, cb) => cb({}), set: (i, cb) => cb && cb(), remove: (k, cb) => cb && cb() }, onChanged: { addListener: noop } }
+    storage: { local: { get: (k, callback) => callback({}), set: (i, callback) => callback && callback(), remove: (k, callback) => callback && callback() }, onChanged: { addListener: noop } }
   };
   const document = { addEventListener: noop, hidden: false, getElementById: () => null };
   const context = { chrome, document, console, setTimeout, clearTimeout, setInterval: noop, location: { href: 'https://sleeper.com/' }, window: { addEventListener: noop } };
@@ -67,7 +67,7 @@ test('the background worker starts, with every script it imports', () => {
     console, setTimeout, clearTimeout, fetch: async () => ({ ok: false }),
     chrome: {
       runtime: { id: 'test', getURL: (p) => p, onMessage: event(), onInstalled: event(), onStartup: event() },
-      storage: { local: { get: (k, cb) => cb({}), set: (i, cb) => cb && cb(), remove: (k, cb) => cb && cb() }, onChanged: event() },
+      storage: { local: { get: (k, callback) => callback({}), set: (i, callback) => callback && callback(), remove: (k, callback) => callback && callback() }, onChanged: event() },
       alarms: { create: noop, onAlarm: event() },
       notifications: { create: noop, clear: noop, onClicked: event() },
       tabs: { create: noop }

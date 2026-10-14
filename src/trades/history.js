@@ -19,8 +19,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (ids.length < 2) continue;
       const sides = {};
       for (const id of ids) sides[id] = { got: [], gave: [], gotPicks: [], gavePicks: [] };
-      for (const [pid, rid] of Object.entries(tx.adds || {})) if (sides[rid]) sides[rid].got.push(pid);
-      for (const [pid, rid] of Object.entries(tx.drops || {})) if (sides[rid]) sides[rid].gave.push(pid);
+      for (const [playerId, rosterId] of Object.entries(tx.adds || {})) if (sides[rosterId]) sides[rosterId].got.push(playerId);
+      for (const [playerId, rosterId] of Object.entries(tx.drops || {})) if (sides[rosterId]) sides[rosterId].gave.push(playerId);
       for (const p of tx.draft_picks || []) {
         const pick = { season: String(p.season), round: p.round, from: p.roster_id };
         if (sides[p.owner_id]) sides[p.owner_id].gotPicks.push(pick);
@@ -33,21 +33,21 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function realized(trade, weekly) {
     const out = {};
-    for (const [rid, side] of Object.entries(trade.sides)) {
+    for (const [rosterId, side] of Object.entries(trade.sides)) {
       let started = 0;
       let bench = 0;
       for (const w of weekly) {
         if (w.week <= trade.week) continue;
-        const entry = w.rosters[rid];
+        const entry = w.rosters[rosterId];
         if (!entry) continue;
         const starters = new Set(entry.starters || []);
-        for (const pid of side.got) {
-          const pts = entry.points && entry.points[pid];
-          if (pts == null) continue;
-          if (starters.has(pid)) started += pts; else bench += pts;
+        for (const playerId of side.got) {
+          const points = entry.points && entry.points[playerId];
+          if (points == null) continue;
+          if (starters.has(playerId)) started += points; else bench += points;
         }
       }
-      out[rid] = { started: Math.round(started * 10) / 10, bench: Math.round(bench * 10) / 10 };
+      out[rosterId] = { started: Math.round(started * 10) / 10, bench: Math.round(bench * 10) / 10 };
     }
     return out;
   }
@@ -56,20 +56,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const letterFor = (score) => (LETTERS.find(([min]) => score >= min) || [0, 'F'])[1];
   const toneOf = (letter) => letter[0];
 
-  function grade(trade, ctx, real) {
+  function grade(trade, context, real) {
     const ids = Object.keys(trade.sides);
-    const assets = (rid, which) => {
-      const s = trade.sides[rid];
-      return (which === 'got' ? s.got : s.gave).map((pid) => ({ pid })).concat((which === 'got' ? s.gotPicks : s.gavePicks).map((pick) => ({ pick })));
+    const assets = (rosterId, which) => {
+      const s = trade.sides[rosterId];
+      return (which === 'got' ? s.got : s.gave).map((playerId) => ({ pid: playerId })).concat((which === 'got' ? s.gotPicks : s.gavePicks).map((pick) => ({ pick })));
     };
     const out = {};
-    for (const rid of ids) {
-      const got = ctx.sideValue(assets(rid, 'got').map(ctx.assetValue));
-      const gave = ctx.sideValue(assets(rid, 'gave').map(ctx.assetValue));
+    for (const rosterId of ids) {
+      const got = context.sideValue(assets(rosterId, 'got').map(context.assetValue));
+      const gave = context.sideValue(assets(rosterId, 'gave').map(context.assetValue));
       const size = Math.max(got, gave, 1);
       const valueNet = got - gave;
-      const others = ids.filter((o) => o !== rid);
-      const mine = real && real[rid] ? real[rid].started : 0;
+      const others = ids.filter((o) => o !== rosterId);
+      const mine = real && real[rosterId] ? real[rosterId].started : 0;
       const theirs = sum(others.map((o) => (real && real[o] ? real[o].started : 0)));
       const ptsNet = mine - theirs;
       const hasValue = got > 0 || gave > 0;
@@ -77,29 +77,29 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const valuePct = hasValue ? valueNet / size : 0;
       const ptsPct = ptsNet / ptsSize;
       const score = hasValue ? 0.85 * valuePct + 0.15 * ptsPct : ptsPct;
-      out[rid] = { valueNet, valuePct, ptsNet: Math.round(ptsNet * 10) / 10, ptsPct, score, letter: letterFor(score), tone: toneOf(letterFor(score)) };
+      out[rosterId] = { valueNet, valuePct, ptsNet: Math.round(ptsNet * 10) / 10, ptsPct, score, letter: letterFor(score), tone: toneOf(letterFor(score)) };
     }
     return out;
   }
 
-  function profiles(graded, keyOf = (trade, rid) => rid) {
+  function profiles(graded, keyOf = (trade, rosterId) => rosterId) {
     const out = {};
     for (const { trade, grades } of graded) {
-      for (const [rid, side] of Object.entries(trade.sides)) {
-        const key = keyOf(trade, rid);
+      for (const [rosterId, side] of Object.entries(trade.sides)) {
+        const key = keyOf(trade, rosterId);
         const p = out[key] || (out[key] = { trades: 0, pcts: [], picks: 0, assets: 0, gave: 0, got: 0, partners: {} });
         p.trades++;
-        p.pcts.push(grades[rid].valuePct);
+        p.pcts.push(grades[rosterId].valuePct);
         p.picks += side.gotPicks.length + side.gavePicks.length;
         p.assets += side.got.length + side.gave.length + side.gotPicks.length + side.gavePicks.length;
         p.gave += side.gave.length;
         p.got += side.got.length;
-        for (const o of Object.keys(trade.sides)) if (o !== rid) p.partners[keyOf(trade, o)] = (p.partners[keyOf(trade, o)] || 0) + 1;
+        for (const o of Object.keys(trade.sides)) if (o !== rosterId) p.partners[keyOf(trade, o)] = (p.partners[keyOf(trade, o)] || 0) + 1;
       }
     }
     const done = {};
-    for (const [rid, p] of Object.entries(out)) {
-      done[rid] = {
+    for (const [rosterId, p] of Object.entries(out)) {
+      done[rosterId] = {
         trades: p.trades,
         avgPct: Math.round(sum(p.pcts) / p.pcts.length * 1000) / 1000,
         picksShare: p.assets ? p.picks / p.assets : 0,

@@ -35,9 +35,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   const logo = (team) => `https://sleepercdn.com/images/team_logos/nfl/${String(team).toLowerCase()}.png`;
-  const headshot = (pid) => `https://sleepercdn.com/content/nfl/players/thumb/${pid}.jpg`;
+  const headshot = (playerId) => `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`;
 
-  const isDefenseId = (pid) => /^[A-Z]{2,3}$/.test(String(pid));
+  const isDefenseId = (playerId) => /^[A-Z]{2,3}$/.test(String(playerId));
 
   NightOwl.teams = {
     colors,
@@ -45,7 +45,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     logo,
     headshot,
     isDefenseId,
-    photo: (pid, team) => (isDefenseId(pid) ? logo(team) : headshot(pid))
+    photo: (playerId, team) => (isDefenseId(playerId) ? logo(team) : headshot(playerId))
   };
 })(globalThis.NightOwl);
 

@@ -11,30 +11,30 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const MIN_GAIN = 0.05;
 
   function lineupPoints(slots, pool, weeks, positionsOf) {
-    const perWeek = weeks.map((w) => optimal(slots, pool, (pid) => (w.isOut(pid) ? 0 : w.projOf(pid)), positionsOf).points * (w.weight || 1));
+    const perWeek = weeks.map((w) => optimal(slots, pool, (playerId) => (w.isOut(playerId) ? 0 : w.projOf(playerId)), positionsOf).points * (w.weight || 1));
     return { total: perWeek.reduce((a, b) => a + b, 0), perWeek };
   }
 
-  const restOfSeason = (pid, weeks) => weeks.reduce((sum, w) => sum + (w.isOut(pid) ? 0 : w.projOf(pid) * (w.weight || 1)), 0);
+  const restOfSeason = (playerId, weeks) => weeks.reduce((sum, w) => sum + (w.isOut(playerId) ? 0 : w.projOf(playerId) * (w.weight || 1)), 0);
 
   function waiverTargets({ slots, pool, droppable, openSpots = 0, candidates, weeks, positionsOf, minGain = MIN_GAIN }) {
     if (!weeks.length) return [];
     const base = lineupPoints(slots, pool, weeks, positionsOf);
 
     const byPosition = new Map();
-    for (const pid of candidates) {
-      const ros = restOfSeason(pid, weeks);
+    for (const playerId of candidates) {
+      const ros = restOfSeason(playerId, weeks);
       if (ros <= 0) continue;
-      const pos = (positionsOf(pid) || [])[0] || '?';
+      const pos = (positionsOf(playerId) || [])[0] || '?';
       if (!byPosition.has(pos)) byPosition.set(pos, []);
-      byPosition.get(pos).push({ pid, ros });
+      byPosition.get(pos).push({ pid: playerId, ros });
     }
     const scan = [...byPosition.values()].flatMap((list) => list.sort((a, b) => b.ros - a.ros).slice(0, SCAN_PER_POSITION));
 
     let drops = [null];
     if (openSpots <= 0) {
       drops = droppable
-        .map((pid) => ({ pid, loss: base.total - lineupPoints(slots, pool.filter((p) => p !== pid), weeks, positionsOf).total, ros: restOfSeason(pid, weeks) }))
+        .map((playerId) => ({ pid: playerId, loss: base.total - lineupPoints(slots, pool.filter((p) => p !== playerId), weeks, positionsOf).total, ros: restOfSeason(playerId, weeks) }))
         .sort((a, b) => a.loss - b.loss || a.ros - b.ros)
         .slice(0, DROP_OPTIONS)
         .map((d) => d.pid);
@@ -42,15 +42,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
 
     const out = [];
-    for (const { pid, ros } of scan) {
+    for (const { pid: playerId, ros } of scan) {
       let best = null;
       for (const drop of drops) {
-        const next = lineupPoints(slots, pool.filter((p) => p !== drop).concat(pid), weeks, positionsOf);
+        const next = lineupPoints(slots, pool.filter((p) => p !== drop).concat(playerId), weeks, positionsOf);
         const gain = next.total - base.total;
         if (!best || gain > best.gain) best = { gain, nowGain: next.perWeek[0] - base.perWeek[0], drop };
       }
       if (best.gain >= minGain || best.nowGain >= minGain * 0.5) {
-        out.push({ pid, gain: round1(best.gain), nowGain: round1(best.nowGain), drop: best.drop, ros: round1(ros), next: round1(weeks[0].isOut(pid) ? 0 : weeks[0].projOf(pid)) });
+        out.push({ pid: playerId, gain: round1(best.gain), nowGain: round1(best.nowGain), drop: best.drop, ros: round1(ros), next: round1(weeks[0].isOut(playerId) ? 0 : weeks[0].projOf(playerId)) });
       }
     }
     return out.sort((a, b) => b.gain - a.gain || b.nowGain - a.nowGain);
@@ -76,20 +76,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function applyTrade(rosters, aId, bId, aGives, bGives) {
-    const move = (ro, out, inn) => {
+    const move = (roster, out, inn) => {
       const gone = new Set(out);
       const keep = (list) => (list || []).filter((p) => !gone.has(p));
-      return Object.assign({}, ro, {
-        players: keep(ro.players).concat(inn),
-        starters: keep(ro.starters),
-        reserve: keep(ro.reserve),
-        taxi: keep(ro.taxi)
+      return Object.assign({}, roster, {
+        players: keep(roster.players).concat(inn),
+        starters: keep(roster.starters),
+        reserve: keep(roster.reserve),
+        taxi: keep(roster.taxi)
       });
     };
-    return rosters.map((ro) => {
-      if (ro.roster_id === aId) return move(ro, aGives, bGives);
-      if (ro.roster_id === bId) return move(ro, bGives, aGives);
-      return ro;
+    return rosters.map((roster) => {
+      if (roster.roster_id === aId) return move(roster, aGives, bGives);
+      if (roster.roster_id === bId) return move(roster, bGives, aGives);
+      return roster;
     });
   }
 

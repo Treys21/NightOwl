@@ -10,11 +10,11 @@ const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/live-w
 const leagueIds = Object.keys(fixture.leagues);
 
 function leagueCtx(leagueId, rosterId) {
-  const lg = fixture.leagues[leagueId];
-  return { leagueId, name: lg.name, scoring: lg.scoring, matchup: tracker.pickMatchup(lg.matchups, rosterId) };
+  const league = fixture.leagues[leagueId];
+  return { leagueId, name: league.name, scoring: league.scoring, matchup: tracker.pickMatchup(league.matchups, rosterId) };
 }
 
-const info = (pid) => ({ name: pid, pos: '', team: '' });
+const info = (playerId) => ({ name: playerId, pos: '', team: '' });
 
 test('fixture leagues really do score differently', () => {
   const [a, b] = leagueIds.map((id) => fixture.leagues[id].scoring);
@@ -57,15 +57,15 @@ const leagues = [
 test('a 15-yard catch is scored separately in each league, signed by side', () => {
   const prev = { LAMB: { rec: 3, rec_yd: 40 }, X: {}, Y: {} };
   const cur = { LAMB: { rec: 4, rec_yd: 55, rec_fd: 1 }, X: {}, Y: {} };
-  const [ev] = tracker.diffEvents(prev, cur, leagues, info, 1);
-  const a = ev.impacts.find((i) => i.leagueId === 'A');
-  const b = ev.impacts.find((i) => i.leagueId === 'B');
+  const [event] = tracker.diffEvents(prev, cur, leagues, info, 1);
+  const a = event.impacts.find((i) => i.leagueId === 'A');
+  const b = event.impacts.find((i) => i.leagueId === 'B');
   assert.equal(a.side, 'me');
   assert.equal(a.pts, 2.5);
   assert.equal(b.side, 'opp');
   assert.equal(b.pts, 2.5);
-  assert.equal(ev.net, 0);
-  assert.match(ev.text, /\+1 rec · \+15 rec yds/);
+  assert.equal(event.net, 0);
+  assert.match(event.text, /\+1 rec · \+15 rec yds/);
 });
 
 test('players with no stat change produce no event', () => {
@@ -84,21 +84,21 @@ test('first play after kickoff counts ({} means tracked with no stats yet)', () 
 });
 
 test('stat corrections come through as negative deltas', () => {
-  const [ev] = tracker.diffEvents({ LAMB: { rec_td: 1 }, X: {}, Y: {} }, { LAMB: { rec_td: 0 } }, leagues, info, 1);
-  assert.equal(ev.impacts.find((i) => i.leagueId === 'A').pts, -6);
-  assert.equal(ev.net, 0);
+  const [event] = tracker.diffEvents({ LAMB: { rec_td: 1 }, X: {}, Y: {} }, { LAMB: { rec_td: 0 } }, leagues, info, 1);
+  assert.equal(event.impacts.find((i) => i.leagueId === 'A').pts, -6);
+  assert.equal(event.net, 0);
 });
 
 test('defense points-allowed tiers net out to the real change', () => {
   const def = { pts_allow_14_20: 1, pts_allow_21_27: 0 };
-  const lg = [{ leagueId: 'D', name: 'D', scoring: def, matchup: { mine: { starters: ['DAL'] }, opp: null } }];
-  const [ev] = tracker.diffEvents(
+  const league = [{ leagueId: 'D', name: 'D', scoring: def, matchup: { mine: { starters: ['DAL'] }, opp: null } }];
+  const [event] = tracker.diffEvents(
     { DAL: { pts_allow: 17, pts_allow_14_20: 1 } },
     { DAL: { pts_allow: 24, pts_allow_21_27: 1 } },
-    lg, info, 1
+    league, info, 1
   );
-  assert.equal(ev.net, -1);
-  assert.equal(ev.text, '+7 pts allowed');
+  assert.equal(event.net, -1);
+  assert.equal(event.text, '+7 pts allowed');
 });
 
 test('trimSnapshot keeps only watched players, {} for no stats yet', () => {

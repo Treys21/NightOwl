@@ -34,10 +34,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const rendered = new WeakMap();
 
-  function setHtml(el, html) {
-    if (rendered.get(el) === html) return false;
-    rendered.set(el, html);
-    el.innerHTML = html;
+  function setHtml(element, html) {
+    if (rendered.get(element) === html) return false;
+    rendered.set(element, html);
+    element.innerHTML = html;
     return true;
   }
 

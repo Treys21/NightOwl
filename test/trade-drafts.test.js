@@ -35,7 +35,7 @@ test('expected value is what the picks around a slot returned', () => {
 
 test('board: rounds down, slots across; a pick that beats its neighbours scores up, one that busts scores down', () => {
   const values = { A: 5000, B: 4800, C: 9000, D: 4500, E: 3000, F: 0, G: 2800, H: 2500 };
-  const b = d.board(rookie, (pid) => values[pid]);
+  const b = d.board(rookie, (playerId) => values[playerId]);
   assert.strictEqual(b.rounds, 2);
   assert.strictEqual(b.rows[0].length, 4);
   assert.strictEqual(b.rows[0][2].pid, 'C');
@@ -48,7 +48,7 @@ test('board: rounds down, slots across; a pick that beats its neighbours scores 
 
 test('after trades: a pick bought is graded against its price, a pick sold against what it fetched', () => {
   const values = { A: 5000, B: 4800, C: 9000, D: 4500, E: 3000, F: 0, G: 2800, H: 2500 };
-  const b = d.board(rookie, (pid) => values[pid]);
+  const b = d.board(rookie, (playerId) => values[playerId]);
   const trade = (got, gave, gotPicks, gavePicks) => ({ got, gave, gotPicks, gavePicks });
   const trades = [{ sides: { 10: trade([], ['P'], [{ season: '2025', round: 1, from: 30 }], []), 30: trade(['P'], [], [], [{ season: '2025', round: 1, from: 30 }]) } }];
   const net = d.afterTrades(b, rookie, trades, (a) => (a.pid === 'P' ? 8000 : 0));
@@ -63,7 +63,7 @@ test('after trades: a pick bought is graded against its price, a pick sold again
 test('the pick chart sets each slot\'s baseline, and a late-round hit is graded on total growth', () => {
   const chart = ({ round }) => ({ 1: 6000, 2: 4000 }[round]);
   const values = { A: 6000, B: 6000, C: 6000, D: 6000, E: 4000, F: 4000, G: 4000, H: 9000 };
-  const b = d.board(rookie, (pid) => values[pid], chart);
+  const b = d.board(rookie, (playerId) => values[playerId], chart);
   assert.strictEqual(b.picks[0].expected, 6000);
   assert.strictEqual(b.picks[7].expected, 4000);
   const net = d.afterTrades(b, rookie, [], () => 0);
@@ -99,7 +99,7 @@ test('a late pick that loses all its value costs little; an early one costs its 
     { no: 1, round: 1, slot: 1, by: 1, pid: 'a' }, { no: 2, round: 1, slot: 2, by: 2, pid: 'b' },
     { no: 3, round: 2, slot: 2, by: 2, pid: 'c' }, { no: 4, round: 2, slot: 1, by: 1, pid: 'd' } ] };
   const values = { a: 0, b: 6000, c: 0, d: 6000 };
-  const b = d.board(draft, (pid) => values[pid], chart);
+  const b = d.board(draft, (playerId) => values[playerId], chart);
   const early = b.picks[0];
   const late = b.picks[2];
   assert.strictEqual(early.excess, -6000, 'an early bust counts in full');

@@ -16,8 +16,8 @@
     if (mins < 24 * 60) return `${Math.round(mins / 60)}h ago`;
     return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
-  const status = (el, text, tone = '') => { el.textContent = text; el.className = `status ${tone}`; };
-  const esc = NightOwl.format.escape;
+  const status = (element, text, tone = '') => { element.textContent = text; element.className = `status ${tone}`; };
+  const escapeHtml = NightOwl.format.escape;
 
   let rankings = [];
   let dragIndex = null;
@@ -63,8 +63,8 @@
         (player, index) => `
         <li draggable="true" data-index="${index}">
           <span class="rank">${player.rank}</span>
-          <span class="name">${esc(player.name)}</span>
-          <span class="meta">${esc(player.position || '')} ${esc(player.team || '')}</span>
+          <span class="name">${escapeHtml(player.name)}</span>
+          <span class="meta">${escapeHtml(player.position || '')} ${escapeHtml(player.team || '')}</span>
           <button class="del" data-del="${index}" title="Remove">×</button>
         </li>`
       )

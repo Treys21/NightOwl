@@ -20,21 +20,21 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function findAlerts({ leagues, statusOf, teamOf, kickoffOf, week, now, sent = new Set() }) {
     const byPlayer = new Map();
-    for (const lg of leagues) {
-      for (const pid of lg.starters || []) {
-        if (!pid || pid === '0') continue;
-        const team = teamOf(pid);
+    for (const league of leagues) {
+      for (const playerId of league.starters || []) {
+        if (!playerId || playerId === '0') continue;
+        const team = teamOf(playerId);
         const kickoff = team ? kickoffOf(team) : undefined;
         if (kickoff === undefined) continue;
-        const status = kickoff === null ? 'Bye' : (statusOf(pid) || {}).status;
+        const status = kickoff === null ? 'Bye' : (statusOf(playerId) || {}).status;
         if (status !== 'Bye' && !WONT_PLAY.has(status)) continue;
         if (kickoff !== null && kickoff <= now) continue;
-        const key = `${week}:${pid}:${status}`;
+        const key = `${week}:${playerId}:${status}`;
         if (sent.has(key)) continue;
-        if (!byPlayer.has(pid)) {
-          byPlayer.set(pid, { key, pid, status, note: status === 'Bye' ? '' : (statusOf(pid) || {}).note || '', kickoff, leagues: [] });
+        if (!byPlayer.has(playerId)) {
+          byPlayer.set(playerId, { key, pid: playerId, status, note: status === 'Bye' ? '' : (statusOf(playerId) || {}).note || '', kickoff, leagues: [] });
         }
-        byPlayer.get(pid).leagues.push({ leagueId: lg.leagueId, name: lg.name });
+        byPlayer.get(playerId).leagues.push({ leagueId: league.leagueId, name: league.name });
       }
     }
     return [...byPlayer.values()];

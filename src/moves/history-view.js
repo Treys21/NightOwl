@@ -4,129 +4,129 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { players, tradeLoader, ktc } = NightOwl;
-  const { escape: esc } = NightOwl.format;
+  const { escape: escapeHtml } = NightOwl.format;
 
   const SHOWN = 12;
   const sum = (xs) => xs.reduce((a, b) => a + b, 0);
   const pct = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.round(Math.abs(n) * 100)}%`;
 
   function create(deps) {
-    const { state, V, league, render, active } = deps;
+    const { state, V, league: currentLeague, render, active } = deps;
     const hs = state.history;
 
-    function pricing(lg) {
-      if (!V.usesKtc(lg)) return { sideValue: sum, assetValue: () => 0 };
+    function pricing(league) {
+      if (!V.usesKtc(league)) return { sideValue: sum, assetValue: () => 0 };
       return {
         sideValue: (vs) => ktc.sideValue(vs),
-        assetValue: (a) => (a.pick ? V.pickAsset(lg, a.pick) : V.dynastyValue(lg, a.pid))
+        assetValue: (a) => (a.pick ? V.pickAsset(league, a.pick) : V.dynastyValue(league, a.pid))
       };
     }
 
-    function ensure(lg) {
-      if (lg.historyPromise) return lg.historyPromise;
-      lg.historyPromise = tradeLoader.load(lg, state.nfl, pricing(lg)).then((h) => {
-        lg.history = h;
-        lg.trade = summarize(lg, h);
+    function ensure(league) {
+      if (league.historyPromise) return league.historyPromise;
+      league.historyPromise = tradeLoader.load(league, state.nfl, pricing(league)).then((h) => {
+        league.history = h;
+        league.trade = summarize(league, h);
         return h;
-      }).catch((err) => {
-        console.warn('[Night Owl history] unavailable', lg.name, err);
-        lg.historyPromise = null;
+      }).catch((error) => {
+        console.warn('[Night Owl history] unavailable', league.name, error);
+        league.historyPromise = null;
         return null;
       });
-      return lg.historyPromise;
+      return league.historyPromise;
     }
 
-    function summarize(lg, h) {
+    function summarize(league, h) {
       const seasons = Math.max(1, h.seasons.length);
       const appetite = new Map();
       const record = new Map();
-      for (const ro of lg.raw.rosters) {
-        const p = h.profiles[ro.owner_id];
-        appetite.set(ro.roster_id, Math.max(0.25, Math.min(1, 0.25 + (p ? p.trades / seasons : 0) / 3)));
-        if (p) record.set(ro.roster_id, p);
+      for (const roster of league.raw.rosters) {
+        const p = h.profiles[roster.owner_id];
+        appetite.set(roster.roster_id, Math.max(0.25, Math.min(1, 0.25 + (p ? p.trades / seasons : 0) / 3)));
+        if (p) record.set(roster.roster_id, p);
       }
       return { band: h.band, appetite, record, seasons };
     }
 
-    const nameOfOwner = (lg, userId) => (userId && lg.names.get(userId)) || 'Former manager';
-    const assetText = (lg, a) => {
+    const nameOfOwner = (league, userId) => (userId && league.names.get(userId)) || 'Former manager';
+    const assetText = (league, a) => {
       if (a.pick) return `${a.pick.season} round ${a.pick.round} pick${a.pick.player ? ` → ${players.info(a.pick.player).name}` : a.pick.passed ? ' (passed on)' : ''}`;
       const p = players.info(a.pid);
       return `${p.name}${p.pos ? ` (${p.pos})` : ''}`;
     };
 
     function assetsOf(side, which) {
-      return (which === 'got' ? side.got : side.gave).map((pid) => ({ pid }))
+      return (which === 'got' ? side.got : side.gave).map((playerId) => ({ pid: playerId }))
         .concat((which === 'got' ? side.gotPicks : side.gavePicks).map((pick) => ({ pick })));
     }
 
-    function assetList(lg, assets) {
-      const lines = assets.filter((a) => !a.pick || a.pick.player || a.pick.passed).map((a) => `<li>${esc(assetText(lg, a))}</li>`);
+    function assetList(league, assets) {
+      const lines = assets.filter((a) => !a.pick || a.pick.player || a.pick.passed).map((a) => `<li>${escapeHtml(assetText(league, a))}</li>`);
       const byYear = new Map();
       for (const a of assets.filter((x) => x.pick && !x.pick.player && !x.pick.passed)) {
         if (!byYear.has(a.pick.season)) byYear.set(a.pick.season, []);
         byYear.get(a.pick.season).push(`R${a.pick.round}`);
       }
-      for (const [year, rounds] of byYear) lines.push(`<li class="picks">${esc(year)} picks · ${esc(rounds.join(' '))}</li>`);
+      for (const [year, rounds] of byYear) lines.push(`<li class="picks">${escapeHtml(year)} picks · ${escapeHtml(rounds.join(' '))}</li>`);
       return lines.join('') || '<li class="muted">nothing</li>';
     }
 
-    function tradeCard(lg, item) {
+    function tradeCard(league, item) {
       const { trade, grades, real, owners } = item;
-      const dyn = V.usesKtc(lg);
+      const isDynasty = V.usesKtc(league);
       const when = new Date(trade.at).toLocaleDateString([], { month: 'short', day: 'numeric' });
-      const sides = Object.keys(trade.sides).map((rid) => {
-        const g = grades[rid];
-        const side = trade.sides[rid];
-        const owner = owners[rid];
-        const mine = !!owner && owner === lg.mine.owner_id;
+      const sides = Object.keys(trade.sides).map((rosterId) => {
+        const g = grades[rosterId];
+        const side = trade.sides[rosterId];
+        const owner = owners[rosterId];
+        const mine = !!owner && owner === league.mine.owner_id;
         const stat = [];
-        if (dyn && g.valueNet) stat.push(`<b class="${g.valueNet > 0 ? 'up' : 'down'}">${g.valueNet > 0 ? '+' : '−'}${V.worth(Math.abs(g.valueNet))}</b>`);
-        if (real && real[rid] && real[rid].started >= 1) stat.push(`${Math.round(real[rid].started)} pts started`);
+        if (isDynasty && g.valueNet) stat.push(`<b class="${g.valueNet > 0 ? 'up' : 'down'}">${g.valueNet > 0 ? '+' : '−'}${V.worth(Math.abs(g.valueNet))}</b>`);
+        if (real && real[rosterId] && real[rosterId].started >= 1) stat.push(`${Math.round(real[rosterId].started)} pts started`);
         return `<div class="mv-hist-side${mine ? ' me' : ''}">
-          <div class="mv-hist-who"><b>${mine ? 'You' : esc(nameOfOwner(lg, owner))}</b><span class="mv-grade g-${g.tone}" title="Value now ${pct(g.valuePct)}${real ? `, started ${g.ptsNet >= 0 ? '+' : ''}${g.ptsNet} pts net` : ''}">${g.letter}</span></div>
-          <ul>${assetList(lg, assetsOf(side, 'got'))}</ul>
+          <div class="mv-hist-who"><b>${mine ? 'You' : escapeHtml(nameOfOwner(league, owner))}</b><span class="mv-grade g-${g.tone}" title="Value now ${pct(g.valuePct)}${real ? `, started ${g.ptsNet >= 0 ? '+' : ''}${g.ptsNet} pts net` : ''}">${g.letter}</span></div>
+          <ul>${assetList(league, assetsOf(side, 'got'))}</ul>
           ${stat.length ? `<small class="muted">${stat.join(' · ')}</small>` : ''}
         </div>`;
       });
       return `<article class="mv-card mv-hist">
-        <div class="mv-hist-h"><span>${esc(when)} · week ${trade.week}, ${esc(trade.season)}</span></div>
+        <div class="mv-hist-h"><span>${escapeHtml(when)} · week ${trade.week}, ${escapeHtml(trade.season)}</span></div>
         <div class="mv-hist-sides">${sides.join('')}</div>
       </article>`;
     }
 
-    function managers(lg, h) {
-      const rows = lg.raw.rosters.map((ro) => ({ ro, p: h.profiles[ro.owner_id] })).filter((r) => r.p)
+    function managers(league, h) {
+      const rows = league.raw.rosters.map((roster) => ({ ro: roster, p: h.profiles[roster.owner_id] })).filter((r) => r.p)
         .sort((a, b) => b.p.trades - a.p.trades || b.p.avgPct - a.p.avgPct);
       if (!rows.length) return '';
       return `<table class="mv-table mv-managers"><thead><tr><th>Manager</th><th title="Trades across every season of the league">Deals</th><th title="Average value won (+) or given up (−) per deal, on today's market">Avg</th><th title="Share of what they trade that is draft picks">Picks</th></tr></thead><tbody>
-        ${rows.map(({ ro, p }) => `<tr class="${ro.roster_id === lg.mine.roster_id ? 'me' : ''}"><td>${ro.roster_id === lg.mine.roster_id ? 'You' : esc(nameOfOwner(lg, ro.owner_id))}</td><td class="num">${p.trades}</td><td class="num ${p.avgPct > 0.02 ? 'up' : p.avgPct < -0.02 ? 'down' : ''}">${V.usesKtc(lg) ? pct(p.avgPct) : '–'}</td><td class="num">${Math.round(p.picksShare * 100)}%</td></tr>`).join('')}
+        ${rows.map(({ ro: roster, p }) => `<tr class="${roster.roster_id === league.mine.roster_id ? 'me' : ''}"><td>${roster.roster_id === league.mine.roster_id ? 'You' : escapeHtml(nameOfOwner(league, roster.owner_id))}</td><td class="num">${p.trades}</td><td class="num ${p.avgPct > 0.02 ? 'up' : p.avgPct < -0.02 ? 'down' : ''}">${V.usesKtc(league) ? pct(p.avgPct) : '–'}</td><td class="num">${Math.round(p.picksShare * 100)}%</td></tr>`).join('')}
       </tbody></table>`;
     }
 
-    const managersFold = (lg, h) => {
-      const table = managers(lg, h);
+    const managersFold = (league, h) => {
+      const table = managers(league, h);
       return table ? `<details class="mv-fold"><summary>Managers</summary>${table}</details>` : '';
     };
 
     function pane() {
-      const lg = league();
-      if (!lg) return '<p class="empty muted">No league with a regular season left to play.</p>';
-      const select = `<div class="mv-selects"><select id="mv-league" aria-label="League">${state.leagues.map((l) => `<option value="${esc(l.leagueId)}"${l.leagueId === lg.leagueId ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>`;
-      const h = lg.history;
+      const league = currentLeague();
+      if (!league) return '<p class="empty muted">No league with a regular season left to play.</p>';
+      const select = `<div class="mv-selects"><select id="mv-league" aria-label="League">${state.leagues.map((l) => `<option value="${escapeHtml(l.leagueId)}"${l.leagueId === league.leagueId ? ' selected' : ''}>${escapeHtml(l.name)}</option>`).join('')}</select></div>`;
+      const h = league.history;
       if (!h) {
         return `${select}<div class="skel" role="status"><i></i><i></i></div><p class="muted small mv-note">Reading this league's trades…</p>`;
       }
       if (!h.graded.length) return `${select}<p class="empty muted">No trades in this league${h.seasons.length > 1 ? ` in its ${h.seasons.length} seasons` : ' this season'}.</p>`;
-      const dyn = V.usesKtc(lg);
+      const isDynasty = V.usesKtc(league);
       const band = h.band;
-      const mine = h.graded.filter((g) => g.trade.sides[lg.mine.roster_id] && g.owners[lg.mine.roster_id] === lg.mine.owner_id);
-      const myLetters = mine.slice(0, 8).map((g) => g.grades[lg.mine.roster_id].letter).join(' ') + (mine.length > 8 ? ' …' : '');
+      const mine = h.graded.filter((g) => g.trade.sides[league.mine.roster_id] && g.owners[league.mine.roster_id] === league.mine.owner_id);
+      const myLetters = mine.slice(0, 8).map((g) => g.grades[league.mine.roster_id].letter).join(' ') + (mine.length > 8 ? ' …' : '');
       const shown = hs.all ? h.graded : h.graded.slice(0, SHOWN);
       return `${select}
-        <p class="mv-kind muted small" title="${esc(dyn ? 'Graded on today\'s KeepTradeCut values and what the players started since; older deals carry hindsight.' : 'Graded on the points the players started for their new teams.')}">${h.graded.length} trade${h.graded.length === 1 ? '' : 's'} · ${esc(h.seasons[h.seasons.length - 1])}${h.seasons.length > 1 ? `–${esc(h.seasons[0])}` : ''}${band.medianAbsPct != null && dyn ? ` · typically ${Math.round(band.medianAbsPct * 100)}% off even` : ''}${mine.length ? ` · you ${esc(myLetters)}` : ''}</p>
-        ${managersFold(lg, h)}
-        ${shown.map((g) => tradeCard(lg, g)).join('')}
+        <p class="mv-kind muted small" title="${escapeHtml(isDynasty ? 'Graded on today\'s KeepTradeCut values and what the players started since; older deals carry hindsight.' : 'Graded on the points the players started for their new teams.')}">${h.graded.length} trade${h.graded.length === 1 ? '' : 's'} · ${escapeHtml(h.seasons[h.seasons.length - 1])}${h.seasons.length > 1 ? `–${escapeHtml(h.seasons[0])}` : ''}${band.medianAbsPct != null && isDynasty ? ` · typically ${Math.round(band.medianAbsPct * 100)}% off even` : ''}${mine.length ? ` · you ${escapeHtml(myLetters)}` : ''}</p>
+        ${managersFold(league, h)}
+        ${shown.map((g) => tradeCard(league, g)).join('')}
         ${!hs.all && h.graded.length > SHOWN ? `<button type="button" class="mv-btn" data-history="more">Show all ${h.graded.length}</button>` : ''}`;
     }
 
@@ -134,8 +134,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (e.target.id !== 'mv-league') return false;
       state.finder.leagueId = e.target.value;
       hs.all = false;
-      const lg = league();
-      if (lg && !lg.history) ensure(lg).then(() => active() && render());
+      const league = currentLeague();
+      if (league && !league.history) ensure(league).then(() => active() && render());
       render();
       return true;
     }

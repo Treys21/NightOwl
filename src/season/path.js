@@ -13,9 +13,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!pair) continue;
       const oppId = pair.find((id) => id !== rosterId);
       const me = w.teams[rosterId];
-      const opp = w.teams[oppId];
-      if (!me || !opp) continue;
-      out.push({ week: w.week, oppId, p: round2(winProbability(me, opp)), mean: Math.round(me.mean * 10) / 10, oppMean: Math.round(opp.mean * 10) / 10 });
+      const opponent = w.teams[oppId];
+      if (!me || !opponent) continue;
+      out.push({ week: w.week, oppId, p: round2(winProbability(me, opponent)), mean: Math.round(me.mean * 10) / 10, oppMean: Math.round(opponent.mean * 10) / 10 });
     }
     return out;
   }
@@ -50,9 +50,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!match) break;
       const top = match.top && match.top.rosterId === rosterId;
       const me = top ? match.top : match.bottom;
-      const opp = top ? match.bottom : match.top;
-      const p = opp ? (top ? match.pTop : 1 - match.pTop) : 1;
-      out.push({ label: round.label, weeks: round.weeks, bye: !opp, seed: me.seed, opponent: opp ? { rosterId: opp.rosterId, seed: opp.seed } : null, p });
+      const opponent = top ? match.bottom : match.top;
+      const p = opponent ? (top ? match.pTop : 1 - match.pTop) : 1;
+      out.push({ label: round.label, weeks: round.weeks, bye: !opponent, seed: me.seed, opponent: opponent ? { rosterId: opponent.rosterId, seed: opponent.seed } : null, p });
       if (p < 0.5) break;
     }
     return out.length ? out : null;

@@ -125,14 +125,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const reserve = new Set(roster.reserve || []);
     const taxi = new Set(roster.taxi || []);
     const starting = new Map();
-    starters.forEach((pid, i) => { if (pid && pid !== '0') starting.set(pid, i); });
+    starters.forEach((playerId, i) => { if (playerId && playerId !== '0') starting.set(playerId, i); });
 
-    const row = (pid) => {
-      const p = info(pid);
+    const row = (playerId) => {
+      const p = info(playerId);
       const kickoff = kickoffOf(p.team);
-      const slotIndex = starting.has(pid) ? starting.get(pid) : null;
+      const slotIndex = starting.has(playerId) ? starting.get(playerId) : null;
       return {
-        pid,
+        pid: playerId,
         name: p.name,
         pos: p.pos,
         team: p.team,
@@ -141,10 +141,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         kickoff,
         locked: kickoff != null && kickoff <= now,
         bye: kickoff == null,
-        status: slotIndex != null ? 'start' : reserve.has(pid) ? 'ir' : taxi.has(pid) ? 'taxi' : 'bench',
+        status: slotIndex != null ? 'start' : reserve.has(playerId) ? 'ir' : taxi.has(playerId) ? 'taxi' : 'bench',
         slot: slotIndex != null ? league.slots[slotIndex] : null,
         slotIndex,
-        proj: projected(pid, league.scoring),
+        proj: projected(playerId, league.scoring),
         notes: []
       };
     };
@@ -217,9 +217,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         }
         r.options.sort((x, y) => y.gain - x.gain);
       } else if (r.status === 'bench' && available(r)) {
-        starters.forEach((pid, i) => {
+        starters.forEach((playerId, i) => {
           if (!open(i)) return;
-          const s = byPid.get(pid);
+          const s = byPid.get(playerId);
           const path = swapPath(r, i);
           if (!path) return;
           const value = s ? effective(s) : 0;
@@ -230,7 +230,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
 
     const empty = starters
-      .map((pid, i) => ((!pid || pid === '0') ? league.slots[i] : null))
+      .map((playerId, i) => ((!playerId || playerId === '0') ? league.slots[i] : null))
       .filter(Boolean);
     return { rows, empty, best: { gain, moves } };
   }

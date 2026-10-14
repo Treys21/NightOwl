@@ -10,7 +10,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const FADE = 0.985;
 
   const VIRTUAL = 'rep:';
-  const isVirtual = (pid) => String(pid).startsWith(VIRTUAL);
+  const isVirtual = (playerId) => String(playerId).startsWith(VIRTUAL);
 
   function playing(games) {
     const out = {};
@@ -48,14 +48,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const need = Math.min(3, weeks.length);
     const sample = (pids) => {
       const byPos = new Map();
-      for (const pid of pids) {
-        const pos = (positionsOf(pid) || [])[0];
+      for (const playerId of pids) {
+        const pos = (positionsOf(playerId) || [])[0];
         if (!positions.has(pos)) continue;
         let total = 0;
         let games = 0;
         for (const w of weeks) {
-          if (w.isOut(pid)) continue;
-          const p = w.projOf(pid);
+          if (w.isOut(playerId)) continue;
+          const p = w.projOf(playerId);
           if (p > 0) { total += p; games++; }
         }
         if (games < need || !games) continue;
@@ -92,25 +92,25 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const fits = starting.filter((s) => canPlay(s, [pos])).length;
       for (let i = 0; i < Math.min(MAX_FILL, fits); i++) stand.push(`${VIRTUAL}${pos}:${i}`);
     }
-    const posOf = (pid) => (isVirtual(pid) ? [String(pid).split(':')[1]] : positionsOf(pid));
-    const rateOf = (pid) => rates.get(isVirtual(pid) ? String(pid).split(':')[1] : (positionsOf(pid) || [])[0]) || 0;
+    const posOf = (playerId) => (isVirtual(playerId) ? [String(playerId).split(':')[1]] : positionsOf(playerId));
+    const rateOf = (playerId) => rates.get(isVirtual(playerId) ? String(playerId).split(':')[1] : (positionsOf(playerId) || [])[0]) || 0;
     const wrapped = weeks.map((w, k) => {
       const keep = Math.pow(fade, k + 1);
       return Object.assign({}, w, {
-        isOut: (pid) => !isVirtual(pid) && w.isOut(pid),
-        projOf: (pid) => {
-          if (isVirtual(pid)) return rateOf(pid);
-          const p = w.projOf(pid);
-          return p > 0 ? keep * p + (1 - keep) * rateOf(pid) : 0;
+        isOut: (playerId) => !isVirtual(playerId) && w.isOut(playerId),
+        projOf: (playerId) => {
+          if (isVirtual(playerId)) return rateOf(playerId);
+          const p = w.projOf(playerId);
+          return p > 0 ? keep * p + (1 - keep) * rateOf(playerId) : 0;
         }
       });
     });
-    const over = (pid) => {
+    const over = (playerId) => {
       let total = 0;
       for (const w of wrapped) {
-        if (w.isOut(pid)) continue;
-        const p = w.projOf(pid);
-        if (p > 0) total += (p - rateOf(pid)) * (w.weight || 1);
+        if (w.isOut(playerId)) continue;
+        const p = w.projOf(playerId);
+        if (p > 0) total += (p - rateOf(playerId)) * (w.weight || 1);
       }
       return total;
     };

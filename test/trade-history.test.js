@@ -36,14 +36,14 @@ test('realized: what each side\'s players started and sat for it, after the trad
   assert.deepEqual(r[2], { started: 12, bench: 7 });
 });
 
-const ctx = (values) => ({
+const context = (values) => ({
   assetValue: (a) => (a.pick ? values[`pick:${a.pick.round}`] || 0 : values[a.pid] || 0),
   sideValue: (vs) => vs.reduce((x, y) => x + y, 0)
 });
 
 test('grade: the side that got more on the market gets the better letter; points move the score', () => {
   const [trade] = h.parse([tx({})], 2026);
-  const g = h.grade(trade, ctx({ A: 6000, B: 4000 }), { 1: { started: 30, bench: 0 }, 2: { started: 20, bench: 0 } });
+  const g = h.grade(trade, context({ A: 6000, B: 4000 }), { 1: { started: 30, bench: 0 }, 2: { started: 20, bench: 0 } });
   assert.ok(g[1].valuePct > 0 && g[2].valuePct < 0);
   assert.equal(g[1].valueNet, 2000);
   assert.equal(g[1].ptsNet, 10);
@@ -52,9 +52,9 @@ test('grade: the side that got more on the market gets the better letter; points
 
 test('grade: an even trade is a C each, and with no market price the points decide', () => {
   const [trade] = h.parse([tx({})], 2026);
-  const even = h.grade(trade, ctx({ A: 5000, B: 5000 }), null);
+  const even = h.grade(trade, context({ A: 5000, B: 5000 }), null);
   assert.deepEqual([even[1].letter, even[2].letter], ['C', 'C']);
-  const redraft = h.grade(trade, ctx({}), { 1: { started: 60, bench: 0 }, 2: { started: 10, bench: 0 } });
+  const redraft = h.grade(trade, context({}), { 1: { started: 60, bench: 0 }, 2: { started: 10, bench: 0 } });
   assert.ok(redraft[1].ptsNet === 50 && /^[AB]/.test(redraft[1].letter) && /^[DF]/.test(redraft[2].letter));
 });
 
@@ -63,7 +63,7 @@ test('profiles and league band: how often, how fair, and what a league tolerates
     tx({ transaction_id: 'a', created: 3 }), tx({ transaction_id: 'b', created: 2 }),
     tx({ transaction_id: 'c', created: 1 }), tx({ transaction_id: 'd', created: 0 })
   ], 2026);
-  const graded = trades.map((trade) => ({ trade, grades: h.grade(trade, ctx({ A: 5500, B: 5000 }), null) }));
+  const graded = trades.map((trade) => ({ trade, grades: h.grade(trade, context({ A: 5500, B: 5000 }), null) }));
   const p = h.profiles(graded);
   assert.equal(p[1].trades, 4);
   assert.ok(p[1].avgPct > 0 && p[2].avgPct < 0);

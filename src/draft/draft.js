@@ -99,11 +99,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       show({ status: rankings.length ? 'ok' : 'no-rankings', rows, myTurn: isMyTurn(picks) }, statusText(picks));
       badges.update(rows);
       backoffMs = 0;
-    } catch (err) {
+    } catch (error) {
       if (id !== session) return;
       backoffMs = Math.min(backoffMs ? backoffMs * 2 : POLL_MS, MAX_BACKOFF_MS);
       show(Object.assign({}, board, { message: 'reconnecting…', kind: 'warn' }));
-      console.warn('[Night Owl draft] poll failed', err);
+      console.warn('[Night Owl draft] poll failed', error);
     }
     clearTimeout(timer);
     timer = setTimeout(() => tick(id), backoffMs || POLL_MS);
@@ -126,8 +126,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       [rankings, userId] = await Promise.all([storage.getRankings(), resolveUserId(), players.load()]);
       if (id !== session) return;
       index = match.buildIndex(players.list());
-    } catch (err) {
-      console.warn('[Night Owl draft] could not load the draft', err);
+    } catch (error) {
+      console.warn('[Night Owl draft] could not load the draft', error);
       if (id === session) show({ status: 'error', rows: [] }, 'load failed', 'err');
       return;
     }
@@ -150,10 +150,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     tick(id);
   });
 
-  async function mount(el) {
-    root = el;
+  async function mount(element) {
+    root = element;
     prefs = await storage.getUi();
-    if (root === el) start();
+    if (root === element) start();
   }
 
   function unmount() {

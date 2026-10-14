@@ -103,9 +103,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (kind === 'dynasty') values.picks = pickValues(rows);
       await storage.set({ [KEYS[kind]]: { at: Date.now(), values } });
       return values;
-    } catch (err) {
+    } catch (error) {
       if (cached && Date.now() - cached.at < STALE_OK_MS) return cached.values;
-      throw err;
+      throw error;
     }
   }
 

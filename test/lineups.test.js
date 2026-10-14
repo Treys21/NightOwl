@@ -41,8 +41,8 @@ const PLAYERS = {
 const PROJ = { qb: 22, rb: 14, wr: 12, flex: 4, k: 8, stud: 15, hurt: 18, irguy: 9 };
 const KICKOFF = { PHI: 2000, JAX: 2000, GB: 3000 };
 
-const info = (pid) => Object.assign({ positions: [PLAYERS[pid].pos] }, PLAYERS[pid]);
-const projected = (pid) => PROJ[pid] || 0;
+const info = (playerId) => Object.assign({ positions: [PLAYERS[playerId].pos] }, PLAYERS[playerId]);
+const projected = (playerId) => PROJ[playerId] || 0;
 const kickoffOf = (t) => (t in KICKOFF ? KICKOFF[t] : null);
 const roster = {
   starters: ['qb', 'rb', 'wr', 'flex', 'k'],
@@ -142,7 +142,7 @@ test('flex chains: a bench RB can replace the WR by sliding the FLEX RB... and a
   };
   const pr = { rb1: 15, wr1: 6, flexwr: 9, rb2: 12 };
   const out = core.lineup({ slots, scoring: {} }, { starters: ['rb1', 'wr1', 'flexwr'], players: Object.keys(P) },
-    (pid) => Object.assign({ positions: [P[pid].pos] }, P[pid]), (pid) => pr[pid], () => 3000, 1000);
+    (playerId) => Object.assign({ positions: [P[playerId].pos] }, P[playerId]), (playerId) => pr[playerId], () => 3000, 1000);
   const rows = new Map(out.rows.map((r) => [r.pid, r]));
   const viaChain = rows.get('rb2').options.find((o) => o.name === 'WR1');
   assert.deepEqual(viaChain, { pid: 'wr1', name: 'WR1', proj: 6, gain: 6, slot: 'FLEX', via: { name: 'FlexWR', slot: 'WR' } });

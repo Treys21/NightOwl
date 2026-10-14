@@ -14,15 +14,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const clampEfficiency = (e) => (e == null || !isFinite(e) ? DEFAULT_EFFICIENCY : Math.max(0.8, Math.min(1, e)));
 
   function teamWeek(slots, pool, projOf, positionsOf, isOut) {
-    const best = optimal(slots, pool, (pid) => (isOut(pid) ? 0 : projOf(pid)), positionsOf);
+    const best = optimal(slots, pool, (playerId) => (isOut(playerId) ? 0 : projOf(playerId)), positionsOf);
     const starters = best.starters.filter(Boolean);
-    const o = outlook(starters.map((pid) => ({ points: 0, proj: isOut(pid) ? 0 : projOf(pid), remaining: 1 })));
+    const o = outlook(starters.map((playerId) => ({ points: 0, proj: isOut(playerId) ? 0 : projOf(playerId), remaining: 1 })));
     return { mean: o.mean, variance: o.variance, starters };
   }
 
   function availability(injuryOf) {
-    return (weekIndex) => (pid) => {
-      const status = injuryOf(pid);
+    return (weekIndex) => (playerId) => {
+      const status = injuryOf(playerId);
       return OUT_FOR_SEASON.has(status) || (weekIndex === 0 && OUT_THIS_WEEK.has(status));
     };
   }

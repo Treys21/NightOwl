@@ -32,8 +32,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     ? `${dayOf(w)} · ${w.games.length} games`
     : `${dayOf(w)} · ${w.games.map((g) => `${g.away} @ ${g.home}`).join(', ')}`);
 
-  function errorText(err) {
-    const text = String((err && err.message) || err || '');
+  function errorText(error) {
+    const text = String((error && error.message) || error || '');
     if (/failed to fetch|networkerror|network request failed|load failed|timed out|timeout|aborted/i.test(text)) return "Couldn't load this right now. It retries on its own.";
     const status = /^(\d{3}) /.exec(text);
     if (status) {

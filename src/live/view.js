@@ -4,7 +4,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, tracker, scoring, teams, players, storage, account, dom } = NightOwl;
-  const { escape: esc, points: fmt, signed, clock: clockOf, short } = NightOwl.format;
+  const { escape: escapeHtml, points: fmt, signed, clock: clockOf, short } = NightOwl.format;
   const { isPlaying, mine, ownerNames, avatars, startingSlots, slotLabel, displayWeek, seasonType: seasonTypeOf } = NightOwl.leagues;
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
@@ -85,11 +85,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     seenEventIds: new Set()
   };
 
-  const weekKey = (ctx) => `${ctx.season}-${ctx.seasonType}-${ctx.week}`;
-  const activeLeagues = () => (state.ctx ? state.ctx.leagues.filter((lg) => !state.settings.excluded.includes(lg.leagueId)) : []);
+  const weekKey = (context) => `${context.season}-${context.seasonType}-${context.week}`;
+  const activeLeagues = () => (state.ctx ? state.ctx.leagues.filter((league) => !state.settings.excluded.includes(league.leagueId)) : []);
 
   const loadPlayers = () => players.load();
-  const info = (pid) => players.info(pid);
+  const info = (playerId) => players.info(playerId);
 
   async function loadContext() {
     const { username, userId } = await account.resolve();
@@ -99,9 +99,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const week = displayWeek(nfl);
 
     const playing = (await api.leagues(userId, season)).filter(isPlaying);
-    const leagues = (await Promise.all(playing.map(async (lg) => {
+    const leagues = (await Promise.all(playing.map(async (league) => {
       const [rosters, users, matchups] = await Promise.all([
-        api.rosters(lg.league_id), api.users(lg.league_id), api.matchups(lg.league_id, week)
+        api.rosters(league.league_id), api.users(league.league_id), api.matchups(league.league_id, week)
       ]);
       const roster = mine(rosters, userId);
       if (!roster) return null;
@@ -112,10 +112,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const avatar = (rosterId) => faces.get(ownerOf(rosterId)) || '';
       const matchup = tracker.pickMatchup(matchups || [], roster.roster_id);
       return {
-        leagueId: lg.league_id,
-        name: lg.name.trim(),
-        scoring: lg.scoring_settings || {},
-        slots: startingSlots(lg),
+        leagueId: league.league_id,
+        name: league.name.trim(),
+        scoring: league.scoring_settings || {},
+        slots: startingSlots(league),
         myName: teamName(roster.roster_id),
         myAvatar: avatar(roster.roster_id),
         oppName: matchup && matchup.opp ? teamName(matchup.opp.rosterId) : null,
@@ -129,19 +129,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   async function loadSchedule() {
-    const ctx = state.ctx;
+    const context = state.ctx;
     const before = new Map(state.schedule.games.map((g) => [g.game_id, g.status]));
-    const games = (await api.schedule(ctx.season, ctx.seasonType)).filter((g) => g.week === ctx.week);
+    const games = (await api.schedule(context.season, context.seasonType)).filter((g) => g.week === context.week);
     state.schedule = { games, loadedAt: Date.now() };
     return games.some((g) => g.status === 'in_game' && before.has(g.game_id) && before.get(g.game_id) !== 'in_game');
   }
 
-  const positionsNeeded = () => api.positionsFor(activeLeagues().map((lg) => lg.slots));
+  const positionsNeeded = () => api.positionsFor(activeLeagues().map((league) => league.slots));
 
   function trackedTeams() {
     const codes = new Set();
-    for (const pid of tracker.watchList(activeLeagues()).keys()) {
-      const t = info(pid).team;
+    for (const playerId of tracker.watchList(activeLeagues()).keys()) {
+      const t = info(playerId).team;
       if (t) codes.add(t);
     }
     return codes;
@@ -167,22 +167,22 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const PROJ_TTL_MS = 30 * 60000;
   const CLOCK_TTL_MS = 60000;
 
-  async function loadOutlook(ctx) {
+  async function loadOutlook(context) {
     const now = Date.now();
     if (now - state.projAt > PROJ_TTL_MS) {
       try {
-        const rows = await api.weekProjections(ctx.season, ctx.week, ctx.seasonType, positionsNeeded());
+        const rows = await api.weekProjections(context.season, context.week, context.seasonType, positionsNeeded());
         state.proj = Object.fromEntries(rows.map((r) => [r.player_id, r.stats || {}]));
         state.projAt = now;
-      } catch (err) {
-        console.warn('[Night Owl] projections unavailable', err);
+      } catch (error) {
+        console.warn('[Night Owl] projections unavailable', error);
       }
     }
     if (now - state.clocksAt > CLOCK_TTL_MS) {
       try {
-        state.clocks = NightOwl.lineups.parseGames(await api.kickoffs(ctx.season, ctx.week, ctx.seasonType));
+        state.clocks = NightOwl.lineups.parseGames(await api.kickoffs(context.season, context.week, context.seasonType));
       } catch {
-        state.clocks = NightOwl.lineups.gamesFromSchedule(state.schedule.games, ctx.week);
+        state.clocks = NightOwl.lineups.gamesFromSchedule(state.schedule.games, context.week);
       }
       state.clocksAt = now;
     }
@@ -193,27 +193,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return g ? g.remaining : 0;
   }
 
-  function winChance(lg) {
-    if (!lg.matchup || !lg.matchup.opp || !Object.keys(state.proj).length) return null;
-    const side = (s) => NightOwl.season.outlook(s.starters.map((pid) => ({
-      points: scoring.points(state.stats[pid], lg.scoring),
-      proj: scoring.points(state.proj[pid], lg.scoring),
-      remaining: remainingFor(info(pid).team)
+  function winChance(league) {
+    if (!league.matchup || !league.matchup.opp || !Object.keys(state.proj).length) return null;
+    const side = (s) => NightOwl.season.outlook(s.starters.map((playerId) => ({
+      points: scoring.points(state.stats[playerId], league.scoring),
+      proj: scoring.points(state.proj[playerId], league.scoring),
+      remaining: remainingFor(info(playerId).team)
     })));
-    return NightOwl.season.winProbability(side(lg.matchup.mine), side(lg.matchup.opp));
+    return NightOwl.season.winProbability(side(league.matchup.mine), side(league.matchup.opp));
   }
 
-  const stillToPlay = (side) => (side ? side.starters.filter((pid) => remainingFor(info(pid).team) > 0).length : 0);
+  const stillToPlay = (side) => (side ? side.starters.filter((playerId) => remainingFor(info(playerId).team) > 0).length : 0);
 
-  function recordTrend(ctx) {
-    const key = weekKey(ctx);
+  function recordTrend(context) {
+    const key = weekKey(context);
     if (state.trend.key !== key) state.trend = { key, series: {} };
     const now = Date.now();
     let changed = false;
-    for (const lg of activeLeagues()) {
-      const chance = winChance(lg);
+    for (const league of activeLeagues()) {
+      const chance = winChance(league);
       if (chance == null) continue;
-      const series = state.trend.series[lg.leagueId] || (state.trend.series[lg.leagueId] = []);
+      const series = state.trend.series[league.leagueId] || (state.trend.series[league.leagueId] = []);
       const last = series[series.length - 1];
       if (last && Math.abs(last[1] - chance) < 0.005 && now - last[0] < 15 * 60000) continue;
       series.push([now, Math.round(chance * 1000) / 1000]);
@@ -229,12 +229,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const h = 44;
     const t0 = series[0][0];
     const span = Math.max(1, series[series.length - 1][0] - t0);
-    const pts = series.map(([t, p]) => `${((t - t0) / span * w).toFixed(1)},${((1 - p) * h).toFixed(1)}`).join(' ');
+    const points = series.map(([t, p]) => `${((t - t0) / span * w).toFixed(1)},${((1 - p) * h).toFixed(1)}`).join(' ');
     const end = series[series.length - 1][1];
     return `<div class="trend"><span class="muted small">Win chance today</span>
       <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
         <line x1="0" y1="${h / 2}" x2="${w}" y2="${h / 2}" class="mid"/>
-        <polyline points="${pts}" class="${end >= 0.5 ? 'good' : 'bad'}"/>
+        <polyline points="${points}" class="${end >= 0.5 ? 'good' : 'bad'}"/>
       </svg></div>`;
   }
 
@@ -250,29 +250,29 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if ((await loadSchedule()) && !force) await loadContext();
       }
 
-      const ctx = state.ctx;
-      const rows = await api.weekStats(ctx.season, ctx.week, ctx.seasonType, positionsNeeded());
+      const context = state.ctx;
+      const rows = await api.weekStats(context.season, context.week, context.seasonType, positionsNeeded());
       const cur = {};
       for (const r of rows) {
         cur[r.player_id] = r.stats || {};
         if (r.player) players.remember(r.player_id, `${r.player.first_name} ${r.player.last_name}`, r.player.position, r.team);
       }
       state.stats = cur;
-      await loadOutlook(ctx);
-      recordTrend(ctx);
+      await loadOutlook(context);
+      recordTrend(context);
 
       const leagues = activeLeagues();
-      const key = weekKey(ctx);
+      const key = weekKey(context);
       let eventsChanged = false;
       if (state.snapshot && state.snapshot.key === key) {
         const fresh = tracker.diffEvents(state.snapshot.stats, cur, leagues, info, Date.now());
         const gap = Date.now() - state.snapshot.at > 3 * LIVE_POLL_MS;
-        for (const ev of fresh) if (gap) { ev.catchUp = true; ev.since = state.snapshot.at; }
+        for (const event of fresh) if (gap) { event.catchUp = true; event.since = state.snapshot.at; }
         if (fresh.length) { state.events = fresh.concat(state.events).slice(0, MAX_EVENTS); eventsChanged = true; }
         if (!gap) celebrate(fresh);
       } else {
         const fresh = tracker.diffEvents(tracker.trimSnapshot({}, leagues), cur, leagues, info, Date.now());
-        for (const ev of fresh) { ev.catchUp = true; ev.firstLook = true; ev.since = ev.ts; }
+        for (const event of fresh) { event.catchUp = true; event.firstLook = true; event.since = event.ts; }
         if (fresh.length) state.openRecaps.add(`${fresh[0].since}-${fresh[0].ts}`);
         state.events = fresh;
         eventsChanged = true;
@@ -283,9 +283,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         ? { 'live.snapshot': state.snapshot, 'live.events': { key, list: state.events } }
         : { 'live.snapshot': state.snapshot });
       render();
-    } catch (err) {
-      console.error('[Night Owl]', err);
-      showError(NightOwl.format.errorText(err));
+    } catch (error) {
+      console.error('[Night Owl]', error);
+      showError(NightOwl.format.errorText(error));
     } finally {
       state.busy = false;
       if (root) $('refresh').classList.remove('spin');
@@ -304,8 +304,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function render() {
     if (!root) return;
-    const ctx = state.ctx;
-    if (ctx) $('week-label').textContent = `Week ${ctx.week}${ctx.seasonType === 'post' ? ' playoffs' : ''}`;
+    const context = state.ctx;
+    if (context) $('week-label').textContent = `Week ${context.week}${context.seasonType === 'post' ? ' playoffs' : ''}`;
     $('updated').textContent = state.lastPoll ? `updated ${clockOf(state.lastPoll)}` : '';
     renderIdle();
     renderGames();
@@ -316,45 +316,45 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     showView();
   }
 
-  function lineup(lg, side) {
+  function lineup(league, side) {
     if (!side) return '<div class="muted small">No opponent this week</div>';
-    return side.slots.map((pid, i) => {
-      const slot = slotLabel(lg.slots[i]);
-      if (!pid || pid === '0') return `<div class="slot"><span class="pos">${esc(slot)}</span><span class="nm muted">empty</span><span></span></div>`;
-      const p = info(pid);
+    return side.slots.map((playerId, i) => {
+      const slot = slotLabel(league.slots[i]);
+      if (!playerId || playerId === '0') return `<div class="slot"><span class="pos">${escapeHtml(slot)}</span><span class="nm muted">empty</span><span></span></div>`;
+      const p = info(playerId);
       const playing = gameStatus(p.team) === 'in_game';
-      return `<div class="slot${playing ? ' playing' : ''}"><span class="pos ${esc(slot)}">${esc(slot)}</span>`
-        + `<span class="nm" title="${esc(p.name)} ${esc(p.pos)} ${esc(p.team)}">${esc(p.name)}</span>`
-        + `<span class="pt">${fmt(scoring.points(state.stats[pid], lg.scoring))}</span></div>`;
+      return `<div class="slot${playing ? ' playing' : ''}"><span class="pos ${escapeHtml(slot)}">${escapeHtml(slot)}</span>`
+        + `<span class="nm" title="${escapeHtml(p.name)} ${escapeHtml(p.pos)} ${escapeHtml(p.team)}">${escapeHtml(p.name)}</span>`
+        + `<span class="pt">${fmt(scoring.points(state.stats[playerId], league.scoring))}</span></div>`;
     }).join('');
   }
 
   function renderGames() {
     const today = todayET();
     const leagues = activeLeagues();
-    const byId = new Map(leagues.map((lg) => [lg.leagueId, lg]));
+    const byId = new Map(leagues.map((league) => [league.leagueId, league]));
     const watch = tracker.watchList(leagues);
     const games = state.schedule.games
       .filter((g) => g.status === 'in_game' || (g.status === 'pre_game' && g.date === today))
       .sort((a, b) => Number(b.status === 'in_game') - Number(a.status === 'in_game'));
 
     const html = games.map((g) => {
-      const rows = [...watch].filter(([pid]) => [g.home, g.away].includes(info(pid).team)).map(([pid, spots]) => {
-        const p = info(pid);
+      const rows = [...watch].filter(([playerId]) => [g.home, g.away].includes(info(playerId).team)).map(([playerId, spots]) => {
+        const p = info(playerId);
         const forMe = spots.filter((s) => s.side === 'me').length - spots.filter((s) => s.side === 'opp').length;
         const chips = spots.map(({ leagueId, side }) => {
-          const lg = byId.get(leagueId);
-          const pts = scoring.points(state.stats[pid], lg.scoring);
-          return `<span class="impact ${side === 'me' ? 'helps' : 'hurts'}">${esc(lg.name)} · ${side === 'me' ? 'you' : 'opp'} ${fmt(pts)}</span>`;
+          const league = byId.get(leagueId);
+          const points = scoring.points(state.stats[playerId], league.scoring);
+          return `<span class="impact ${side === 'me' ? 'helps' : 'hurts'}">${escapeHtml(league.name)} · ${side === 'me' ? 'you' : 'opp'} ${fmt(points)}</span>`;
         }).join('');
-        return { forMe, mine: spots.some((sp) => sp.side === 'me'), html: `<li class="ev" style="--tc:${teams.colors(p.team).primary}"><div class="ev-top"><span class="ev-who">${face(pid, p.team)}<span><span class="ev-name">${esc(p.name)}</span> <span class="muted small">${esc(p.pos)} · ${esc(p.team)}</span></span></span></div><div class="impacts">${chips}</div></li>` };
+        return { forMe, mine: spots.some((sp) => sp.side === 'me'), html: `<li class="ev" style="--tc:${teams.colors(p.team).primary}"><div class="ev-top"><span class="ev-who">${face(playerId, p.team)}<span><span class="ev-name">${escapeHtml(p.name)}</span> <span class="muted small">${escapeHtml(p.pos)} · ${escapeHtml(p.team)}</span></span></span></div><div class="impacts">${chips}</div></li>` };
       }).sort((a, b) => b.forMe - a.forMe);
       const status = g.status === 'in_game' ? '<span class="live-tag">LIVE</span>' : '<span class="muted small">later</span>';
       const mine = rows.filter((r) => r.mine).length;
       const id = String(g.game_id);
       const open = state.gameOpen.has(id) ? state.gameOpen.get(id) : g.status === 'in_game';
-      return `<details class="game" data-game="${esc(id)}"${open ? ' open' : ''}>
-        <summary class="game-h"><img alt="" src="${teams.logo(g.away)}">${esc(g.away)} <span class="muted">@</span> <img alt="" src="${teams.logo(g.home)}">${esc(g.home)} ${status}<span class="game-count">${rows.length} starters · ${mine} yours</span></summary>
+      return `<details class="game" data-game="${escapeHtml(id)}"${open ? ' open' : ''}>
+        <summary class="game-h"><img alt="" src="${teams.logo(g.away)}">${escapeHtml(g.away)} <span class="muted">@</span> <img alt="" src="${teams.logo(g.home)}">${escapeHtml(g.home)} ${status}<span class="game-count">${rows.length} starters · ${mine} yours</span></summary>
         ${rows.length ? `<ol class="game-list">${rows.map((r) => r.html).join('')}</ol>` : '<p class="muted small">None of your matchups have a starter in this game.</p>'}
       </details>`;
     }).join('') || `<p class="muted small empty">${gamesIdleText()}</p>`;
@@ -362,8 +362,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('lv-count-games').textContent = games.filter((g) => g.status === 'in_game').length ? `${games.filter((g) => g.status === 'in_game').length} live` : '';
   }
 
-  function face(pid, team) {
-    return `<img class="face" alt="" src="${teams.photo(pid, team)}" style="border-color:${teams.colors(team).primary}">`;
+  function face(playerId, team) {
+    return `<img class="face" alt="" src="${teams.photo(playerId, team)}" style="border-color:${teams.colors(team).primary}">`;
   }
 
   const POP_MS = 2200;
@@ -376,23 +376,23 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function celebrate(events) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const ranked = events.filter((ev) => isBig(ev) || maxImpact(ev) >= MIN_POP_PTS).sort((x, y) => (Number(isBig(y)) - Number(isBig(x))) || (maxImpact(y) - maxImpact(x)));
+    const ranked = events.filter((event) => isBig(event) || maxImpact(event) >= MIN_POP_PTS).sort((x, y) => (Number(isBig(y)) - Number(isBig(x))) || (maxImpact(y) - maxImpact(x)));
     if (!ranked.length) return;
     popQueue.length = 0;
     popQueue.push(...ranked.slice(0, MAX_POPS));
     if (!popping) nextPop();
   }
 
-  const maxImpact = (ev) => Math.max(0, ...ev.impacts.map((im) => Math.abs(im.pts)));
+  const maxImpact = (event) => Math.max(0, ...event.impacts.map((im) => Math.abs(im.pts)));
 
-  function isBig(ev) {
-    return /TD|safety|2-pt/.test(ev.text) || maxImpact(ev) >= BIG_PTS;
+  function isBig(event) {
+    return /TD|safety|2-pt/.test(event.text) || maxImpact(event) >= BIG_PTS;
   }
 
   function nextPop() {
-    const ev = popQueue.shift();
+    const event = popQueue.shift();
     const layer = root && $('stage');
-    if (!ev || !layer) {
+    if (!event || !layer) {
       popping = false;
       if (layer) layer.classList.remove('busy');
       renderIdle();
@@ -402,11 +402,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     layer.classList.add('busy');
     layer.classList.remove('dormant');
 
-    const big = isBig(ev);
-    const mood = moodOf(ev);
-    const headline = /TD/.test(ev.text) ? 'TOUCHDOWN!' : /safety/.test(ev.text) ? 'SAFETY!' : big ? 'BIG PLAY' : '';
-    const p = info(ev.pid);
-    const team = ev.team || p.team;
+    const big = isBig(event);
+    const mood = moodOf(event);
+    const headline = /TD/.test(event.text) ? 'TOUCHDOWN!' : /safety/.test(event.text) ? 'SAFETY!' : big ? 'BIG PLAY' : '';
+    const p = info(event.pid);
+    const team = event.team || p.team;
     const c = teams.colors(team);
     const pop = document.createElement('div');
     pop.className = `pop ${mood}${big ? ' major' : ''}`;
@@ -417,13 +417,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     pop.innerHTML = `
       <div class="band"></div>
       <img class="mark" alt="" src="${teams.logo(team)}">
-      <div class="fig">${figure(ev, p, team, c)}</div>
+      <div class="fig">${figure(event, p, team, c)}</div>
       <div class="copy">
         ${headline ? `<div class="headline">${headline}</div>` : ''}
-        <div class="pts">${playValue(ev)}</div>
-        <div class="who">${esc(ev.name)} <span>${esc(ev.pos)} · ${esc(team)}</span></div>
-        <div class="what">${esc(ev.text)}</div>
-        <div class="where">${impactChips(ev)}</div>
+        <div class="pts">${playValue(event)}</div>
+        <div class="who">${escapeHtml(event.name)} <span>${escapeHtml(event.pos)} · ${escapeHtml(team)}</span></div>
+        <div class="what">${escapeHtml(event.text)}</div>
+        <div class="where">${impactChips(event)}</div>
       </div>`;
     pop.querySelectorAll('img').forEach((img) => img.addEventListener('error', () => img.remove()));
     layer.append(pop);
@@ -446,24 +446,24 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function renderIdle() {
     if (!root || popping) return;
-    const last = state.events.find((ev) => !ev.catchUp);
+    const last = state.events.find((event) => !event.catchUp);
     const recap = !last && state.events[0];
     const live = state.schedule.games.find((g) => g.status === 'in_game');
     $('stage').classList.toggle('dormant', !last && !live);
     $('stage-idle').innerHTML = last
       ? `<span class="muted small">Last play · ${clockOf(last.ts)}</span>
-         <span class="idle-who"><img alt="" src="${teams.photo(last.pid, last.team)}"><b>${esc(last.name)}</b></span>
-         <span>${esc(last.text)}</span>
+         <span class="idle-who"><img alt="" src="${teams.photo(last.pid, last.team)}"><b>${escapeHtml(last.name)}</b></span>
+         <span>${escapeHtml(last.text)}</span>
          <span class="impacts idle-impacts">${impactChips(last)}</span>`
-      : `<span class="muted">${live ? `${esc(live.away)} @ ${esc(live.home)} is live. Waiting for the next play.` : 'Plays pop here the moment they happen'}</span>
+      : `<span class="muted">${live ? `${escapeHtml(live.away)} @ ${escapeHtml(live.home)} is live. Waiting for the next play.` : 'Plays pop here the moment they happen'}</span>
          ${recap && !recap.firstLook ? `<span class="muted small">Caught up on everything since ${clockOf(recap.since || recap.ts)}</span>` : ''}`;
   }
 
-  function figure(ev, p, team, c) {
-    if (ev.pos === 'DEF' || teams.isDefenseId(ev.pid)) {
+  function figure(event, p, team, c) {
+    if (event.pos === 'DEF' || teams.isDefenseId(event.pid)) {
       return `<img class="logo" alt="" src="${teams.logo(team)}">`;
     }
-    const num = esc(p.number || ev.pos || '');
+    const num = escapeHtml(p.number || event.pos || '');
     return `
       <svg class="jersey" viewBox="0 0 120 112" aria-hidden="true">
         <path d="M34 8 L50 2 Q60 12 70 2 L86 8 L116 30 L102 54 L90 47 L90 110 L30 110 L30 47 L18 54 L4 30 Z"
@@ -474,7 +474,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
               font-size="${num.length > 2 ? 26 : 38}" fill="${c.ink}" stroke="${c.secondary}" stroke-width="1.5"
               paint-order="stroke">${num}</text>
       </svg>
-      <img class="head" alt="" src="${teams.headshot(ev.pid)}">`;
+      <img class="head" alt="" src="${teams.headshot(event.pid)}">`;
   }
 
   function burst(layer, mood, c) {
@@ -501,9 +501,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const share = (a, b) => (a + b > 0 ? Math.round((a / (a + b)) * 100) : 50);
 
   function avatarImg(src, name, cls) {
-    const initial = esc((name || '?').trim().charAt(0).toUpperCase());
+    const initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase());
     return src
-      ? `<img class="av ${cls}" alt="" src="${esc(src)}">`
+      ? `<img class="av ${cls}" alt="" src="${escapeHtml(src)}">`
       : `<span class="av ${cls} blank">${initial}</span>`;
   }
 
@@ -519,15 +519,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     let withOpp = 0;
     const final = { won: 0, lost: 0, open: 0 };
 
-    const html = leagues.map((lg) => {
-      const s = board.get(lg.leagueId);
-      if (!s) return `<details class="match" data-id="${esc(lg.leagueId)}"><summary><span class="lname">${esc(lg.name)}</span><span class="muted">no matchup</span></summary></details>`;
-      state.prevScores[lg.leagueId] = s;
+    const html = leagues.map((league) => {
+      const s = board.get(league.leagueId);
+      if (!s) return `<details class="match" data-id="${escapeHtml(league.leagueId)}"><summary><span class="lname">${escapeHtml(league.name)}</span><span class="muted">no matchup</span></summary></details>`;
+      state.prevScores[league.leagueId] = s;
       if (s.margin != null) { withOpp++; if (s.margin > 0) winning++; }
-      const before = prev[lg.leagueId];
+      const before = prev[league.leagueId];
       const moved = before && (before.mine !== s.mine || before.opp !== s.opp);
-      const chance = winChance(lg);
-      const decided = s.opp != null && stillToPlay(lg.matchup.mine) === 0 && stillToPlay(lg.matchup.opp) === 0 && chance != null;
+      const chance = winChance(league);
+      const decided = s.opp != null && stillToPlay(league.matchup.mine) === 0 && stillToPlay(league.matchup.opp) === 0 && chance != null;
       if (s.opp != null) {
         if (!decided) final.open++;
         else if (s.margin > 0) final.won++;
@@ -540,28 +540,28 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         ? `<span class="winpct ${s.margin >= 0 ? 'good' : 'bad'}">${s.margin > 0 ? 'Won by' : s.margin < 0 ? 'Lost by' : 'Tied'}</span>`
         : chance == null ? '' : `<span class="winpct ${chance >= 0.5 ? 'good' : 'bad'}" title="Chance to win, from live points plus projections for the time left">Win ${pctLabel(chance)}</span>`;
       const toPlay = (side) => (chance == null || decided || !side ? '' : ` · ${stillToPlay(side)} to play`);
-      return `<details class="match ${mood}${moved ? ' flash' : ''}" data-id="${lg.leagueId}"${open.has(lg.leagueId) ? ' open' : ''}>
+      return `<details class="match ${mood}${moved ? ' flash' : ''}" data-id="${league.leagueId}"${open.has(league.leagueId) ? ' open' : ''}>
         <summary>
-          <div class="m-league"><span class="lname">${esc(lg.name)}</span>${odds}${s.margin == null ? '' : `<span class="margin${chance == null || decided ? ` ${mood}` : ''}">${decided ? score(Math.abs(s.margin)) : signed(s.margin)}</span>`}</div>
+          <div class="m-league"><span class="lname">${escapeHtml(league.name)}</span>${odds}${s.margin == null ? '' : `<span class="margin${chance == null || decided ? ` ${mood}` : ''}">${decided ? score(Math.abs(s.margin)) : signed(s.margin)}</span>`}</div>
           <div class="m-row">
-            ${avatarImg(lg.myAvatar, lg.myName, 'me')}
+            ${avatarImg(league.myAvatar, league.myName, 'me')}
             <div class="m-side me">
-              <span class="tname">${esc(lg.myName)}${toPlay(lg.matchup.mine)}</span>
+              <span class="tname">${escapeHtml(league.myName)}${toPlay(league.matchup.mine)}</span>
               <span class="big${moved && before.mine !== s.mine ? ' bump' : ''}" data-from="${before ? before.mine : s.mine}" data-to="${s.mine}">${score(s.mine)}</span>
             </div>
             <span class="vs">VS</span>
             <div class="m-side opp">
-              <span class="tname">${esc(lg.oppName || 'Bye week')}${toPlay(lg.matchup.opp)}</span>
+              <span class="tname">${escapeHtml(league.oppName || 'Bye week')}${toPlay(league.matchup.opp)}</span>
               <span class="big${moved && before.opp !== s.opp ? ' bump' : ''}" data-from="${before ? before.opp : s.opp}" data-to="${s.opp == null ? '' : s.opp}">${s.opp == null ? '' : score(s.opp)}</span>
             </div>
-            ${lg.oppName ? avatarImg(lg.oppAvatar, lg.oppName, 'opp') : ''}
+            ${league.oppName ? avatarImg(league.oppAvatar, league.oppName, 'opp') : ''}
           </div>
           ${s.opp == null || decided ? '' : `<span class="wp" role="img" aria-label="${chance == null ? `Your share of points: ${pct}%` : `Win chance: ${pct}%`}" title="${chance == null ? 'Your share of the points so far' : 'Your chance to win'}"><span style="width:${pct}%"></span><i style="left:${pct}%"></i></span>`}
         </summary>
-        ${trendSvg(state.trend.series[lg.leagueId])}
+        ${trendSvg(state.trend.series[league.leagueId])}
         <div class="lineups">
-          <div><h3>${esc(lg.myName)}</h3>${lineup(lg, lg.matchup.mine)}</div>
-          <div><h3>${esc(lg.oppName || '')}</h3>${lineup(lg, lg.matchup.opp)}</div>
+          <div><h3>${escapeHtml(league.myName)}</h3>${lineup(league, league.matchup.mine)}</div>
+          <div><h3>${escapeHtml(league.oppName || '')}</h3>${lineup(league, league.matchup.opp)}</div>
         </div>
       </details>`;
     }).join('') || '<p class="muted small">No in-season leagues found.</p>';
@@ -575,76 +575,76 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (changed) root.querySelectorAll('.match .big[data-to]').forEach(countUp);
   }
 
-  function countUp(el) {
-    const from = parseFloat(el.dataset.from);
-    const to = parseFloat(el.dataset.to);
+  function countUp(element) {
+    const from = parseFloat(element.dataset.from);
+    const to = parseFloat(element.dataset.to);
     if (!Number.isFinite(from) || !Number.isFinite(to) || from === to) return;
     const start = performance.now();
     const step = (now) => {
       const t = Math.min(1, (now - start) / 900);
       const eased = 1 - Math.pow(1 - t, 3);
-      el.textContent = score(from + (to - from) * eased);
-      if (t < 1 && el.isConnected) requestAnimationFrame(step);
+      element.textContent = score(from + (to - from) * eased);
+      if (t < 1 && element.isConnected) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
   }
 
   const forMe = (im) => (im.side === 'me' ? im.pts : -im.pts);
 
-  function shownImpacts(ev) {
-    return state.league ? ev.impacts.filter((im) => im.leagueId === state.league) : ev.impacts;
+  function shownImpacts(event) {
+    return state.league ? event.impacts.filter((im) => im.leagueId === state.league) : event.impacts;
   }
 
-  function impactChips(ev) {
-    return shownImpacts(ev).map((im) => {
+  function impactChips(event) {
+    return shownImpacts(event).map((im) => {
       const v = forMe(im);
       const cls = v > 0 ? 'helps' : v < 0 ? 'hurts' : 'zero';
-      return `<span class="impact ${cls}" title="${im.side === 'me' ? 'Your starter' : "Your opponent's starter"} in ${esc(im.leagueName)}">${esc(im.leagueName)} <b>${signed(v, short)}</b></span>`;
+      return `<span class="impact ${cls}" title="${im.side === 'me' ? 'Your starter' : "Your opponent's starter"} in ${escapeHtml(im.leagueName)}">${escapeHtml(im.leagueName)} <b>${signed(v, short)}</b></span>`;
     }).join('');
   }
 
-  function moodOf(ev) {
-    const vals = shownImpacts(ev).map(forMe).filter((v) => v !== 0);
+  function moodOf(event) {
+    const vals = shownImpacts(event).map(forMe).filter((v) => v !== 0);
     if (!vals.length) return 'even';
     if (vals.every((v) => v > 0)) return 'good';
     if (vals.every((v) => v < 0)) return 'bad';
     return 'even';
   }
 
-  function playValue(ev) {
-    const pts = [...new Set(ev.impacts.map((im) => im.pts))].sort((x, y) => x - y);
-    if (pts.length === 1) return `${signed(pts[0])}<small> pts</small>`;
-    return `${signed(pts[0])}–${fmt(pts[pts.length - 1])}<small> pts</small>`;
+  function playValue(event) {
+    const points = [...new Set(event.impacts.map((im) => im.pts))].sort((x, y) => x - y);
+    if (points.length === 1) return `${signed(points[0])}<small> pts</small>`;
+    return `${signed(points[0])}–${fmt(points[points.length - 1])}<small> pts</small>`;
   }
 
-  function matchesFilters(ev) {
-    const shown = shownImpacts(ev);
+  function matchesFilters(event) {
+    const shown = shownImpacts(event);
     if (!shown.length) return false;
-    if (state.bigOnly && !isBig(ev)) return false;
+    if (state.bigOnly && !isBig(event)) return false;
     if (state.filter === 'all') return true;
     const vals = shown.map(forMe);
     return state.filter === 'good' ? vals.some((v) => v > 0) : vals.some((v) => v < 0);
   }
 
-  function playRow(ev, isNew) {
-    const mood = moodOf(ev);
-    return `<li class="ev ${mood === 'even' ? '' : mood}${isNew ? ' new' : ''}${isBig(ev) ? ' major' : ''}" style="--tc:${teams.colors(ev.team).primary}">
+  function playRow(event, isNew) {
+    const mood = moodOf(event);
+    return `<li class="ev ${mood === 'even' ? '' : mood}${isNew ? ' new' : ''}${isBig(event) ? ' major' : ''}" style="--tc:${teams.colors(event.team).primary}">
         <div class="ev-top">
-          <span class="ev-who">${face(ev.pid, ev.team)}<span><span class="ev-name">${esc(ev.name)}</span> <span class="muted small">${esc(ev.pos)} · ${esc(ev.team)}</span></span></span>
-          <span class="ev-val">${playValue(ev)}</span>
+          <span class="ev-who">${face(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.pos)} · ${escapeHtml(event.team)}</span></span></span>
+          <span class="ev-val">${playValue(event)}</span>
         </div>
-        <div class="ev-text">${esc(ev.text || 'stat correction')}</div>
-        <div class="impacts">${impactChips(ev)}</div>
+        <div class="ev-text">${escapeHtml(event.text || 'stat correction')}</div>
+        <div class="impacts">${impactChips(event)}</div>
       </li>`;
   }
 
   function recapCard(group) {
     const since = group[0].since || group[0].ts;
     const key = `${since}-${group[0].ts}`;
-    const rows = group.map((ev) => `
+    const rows = group.map((event) => `
       <div class="recap-row">
-        <span class="ev-who">${face(ev.pid, ev.team)}<span><span class="ev-name">${esc(ev.name)}</span> <span class="muted small">${esc(ev.text || 'stat correction')}</span></span></span>
-        <div class="impacts">${impactChips(ev)}</div>
+        <span class="ev-who">${face(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.text || 'stat correction')}</span></span></span>
+        <div class="impacts">${impactChips(event)}</div>
       </div>`).join('');
     return `<li class="recap"><details data-recap="${key}"${state.openRecaps.has(key) ? ' open' : ''}>
         <summary>
@@ -666,34 +666,34 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const html = [];
     let lastTs = null;
     for (let i = 0; i < list.length; i++) {
-      const ev = list[i];
-      if (ev.catchUp) {
-        const group = [ev];
-        while (list[i + 1] && list[i + 1].catchUp && list[i + 1].ts === ev.ts) group.push(list[++i]);
+      const event = list[i];
+      if (event.catchUp) {
+        const group = [event];
+        while (list[i + 1] && list[i + 1].catchUp && list[i + 1].ts === event.ts) group.push(list[++i]);
         html.push(recapCard(group));
         lastTs = null;
         continue;
       }
-      if (ev.ts !== lastTs) {
+      if (event.ts !== lastTs) {
         let n = 1;
-        while (list[i + n] && !list[i + n].catchUp && list[i + n].ts === ev.ts) n++;
-        html.push(`<li class="ev-when"><span>${clockOf(ev.ts)}</span>${n > 1 ? `<span>${n} plays</span>` : ''}</li>`);
-        lastTs = ev.ts;
+        while (list[i + n] && !list[i + n].catchUp && list[i + n].ts === event.ts) n++;
+        html.push(`<li class="ev-when"><span>${clockOf(event.ts)}</span>${n > 1 ? `<span>${n} plays</span>` : ''}</li>`);
+        lastTs = event.ts;
       }
-      html.push(playRow(ev, !first && !state.seenEventIds.has(ev.id)));
+      html.push(playRow(event, !first && !state.seenEventIds.has(event.id)));
     }
     dom.setHtml($('feed'), html.join(''));
-    $('lv-count-feed').textContent = String(state.events.filter((ev) => !ev.catchUp).length || '');
-    for (const ev of state.events) state.seenEventIds.add(ev.id);
+    $('lv-count-feed').textContent = String(state.events.filter((event) => !event.catchUp).length || '');
+    for (const event of state.events) state.seenEventIds.add(event.id);
   }
 
   function renderLeagueSelect() {
     const sel = $('lv-league');
     if (!state.ctx) return;
     const leagues = activeLeagues();
-    if (state.league && !leagues.some((lg) => lg.leagueId === state.league)) state.league = '';
-    dom.setHtml(sel, '<option value="">All leagues</option>' + leagues.map((lg) =>
-      `<option value="${esc(lg.leagueId)}"${lg.leagueId === state.league ? ' selected' : ''}>${esc(lg.name)}</option>`).join(''));
+    if (state.league && !leagues.some((league) => league.leagueId === state.league)) state.league = '';
+    dom.setHtml(sel, '<option value="">All leagues</option>' + leagues.map((league) =>
+      `<option value="${escapeHtml(league.leagueId)}"${league.leagueId === state.league ? ' selected' : ''}>${escapeHtml(league.name)}</option>`).join(''));
   }
 
   function showView() {
@@ -705,16 +705,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function renderLeagueToggles() {
     const box = $('league-toggles');
     if (!state.ctx) { dom.setHtml(box, ''); return; }
-    dom.setHtml(box, '<p class="lv-set-h">Leagues to track</p>' + state.ctx.leagues.map((lg) =>
-      `<label><input type="checkbox" data-id="${esc(lg.leagueId)}"${state.settings.excluded.includes(lg.leagueId) ? '' : ' checked'}> ${esc(lg.name)}</label>`
+    dom.setHtml(box, '<p class="lv-set-h">Leagues to track</p>' + state.ctx.leagues.map((league) =>
+      `<label><input type="checkbox" data-id="${escapeHtml(league.leagueId)}"${state.settings.excluded.includes(league.leagueId) ? '' : ' checked'}> ${escapeHtml(league.name)}</label>`
     ).join(''));
   }
 
-  function showError(msg) {
+  function showError(message) {
     if (!root) return;
-    $('error').hidden = !msg;
-    $('error').textContent = msg || '';
-    const skel = msg && $('scoreboard').querySelector('.skel');
+    $('error').hidden = !message;
+    $('error').textContent = message || '';
+    const skel = message && $('scoreboard').querySelector('.skel');
     if (skel) skel.remove();
   }
 
@@ -746,11 +746,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (root && !document.hidden && Date.now() - state.lastPoll > LIVE_POLL_MS) poll(false);
   });
 
-  async function mount(el) {
-    if (root === el) return;
-    root = el;
+  async function mount(element) {
+    if (root === element) return;
+    root = element;
     root.classList.add('tool', 'intro');
-    setTimeout(() => el.classList.remove('intro'), 1600);
+    setTimeout(() => element.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
     root.addEventListener('error', (e) => {
       const img = e.target;
@@ -828,7 +828,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
 
     await loadSettings();
-    if (root !== el) return;
+    if (root !== element) return;
     state.ctx = await storage.get('live.ctx', null);
     if (state.ctx && state.ctx.username !== state.settings.username) state.ctx = null;
     state.snapshot = await storage.get('live.snapshot', null);

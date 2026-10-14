@@ -80,8 +80,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const line = Number((over || under || first).outcome_value);
       const overMult = over ? Number(over.payout_multiplier) : null;
       const underMult = under ? Number(under.payout_multiplier) : null;
-      const pid = String(entry.subject_id);
-      (out[pid] = out[pid] || []).push({
+      const playerId = String(entry.subject_id);
+      (out[playerId] = out[playerId] || []).push({
         type: entry.wager_type,
         label: meta.label,
         keys: meta.keys,
@@ -96,13 +96,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         updatedAt: entry.updated_at || 0
       });
     }
-    for (const pid of Object.keys(out)) {
+    for (const playerId of Object.keys(out)) {
       const best = new Map();
-      for (const m of out[pid]) {
+      for (const m of out[playerId]) {
         const cur = best.get(m.type);
         if (!cur || m.updatedAt > cur.updatedAt) best.set(m.type, m);
       }
-      out[pid] = [...best.values()].sort((a, b) => ORDER.indexOf(a.type) - ORDER.indexOf(b.type));
+      out[playerId] = [...best.values()].sort((a, b) => ORDER.indexOf(a.type) - ORDER.indexOf(b.type));
     }
     return out;
   }
@@ -123,10 +123,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function mergeLines(previous, fresh) {
     const out = Object.assign({}, previous || {});
-    for (const [pid, markets] of Object.entries(fresh || {})) {
-      const byType = new Map((out[pid] || []).map((m) => [m.type, m]));
+    for (const [playerId, markets] of Object.entries(fresh || {})) {
+      const byType = new Map((out[playerId] || []).map((m) => [m.type, m]));
       for (const m of markets) byType.set(m.type, m);
-      out[pid] = [...byType.values()].sort((a, b) => ORDER.indexOf(a.type) - ORDER.indexOf(b.type));
+      out[playerId] = [...byType.values()].sort((a, b) => ORDER.indexOf(a.type) - ORDER.indexOf(b.type));
     }
     return out;
   }

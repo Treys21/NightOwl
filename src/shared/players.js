@@ -16,12 +16,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function compact(raw) {
     const next = {};
-    for (const [pid, p] of Object.entries(raw)) {
+    for (const [playerId, p] of Object.entries(raw)) {
       if (!p) continue;
       const name = p.position === 'DEF'
         ? `${p.first_name} ${p.last_name}`
         : (p.full_name || `${p.first_name || ''} ${p.last_name || ''}`.trim());
-      next[pid] = [
+      next[playerId] = [
         name,
         p.position || '',
         p.team || '',
@@ -43,8 +43,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       try {
         map = compact(await NightOwl.api.allPlayers());
         await NightOwl.storage.set({ [KEY]: { at: Date.now(), map } });
-      } catch (err) {
-        if (!cached) throw err;
+      } catch (error) {
+        if (!cached) throw error;
         map = cached.map;
       }
     }
@@ -58,20 +58,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return loading;
   }
 
-  function remember(pid, name, pos, team) {
-    if (!map[pid]) map[pid] = [name, pos, team, '', '', pos, ''];
+  function remember(playerId, name, pos, team) {
+    if (!map[playerId]) map[playerId] = [name, pos, team, '', '', pos, ''];
   }
 
-  function info(pid) {
-    const p = map[pid];
+  function info(playerId) {
+    const p = map[playerId];
     if (p) {
       return {
         name: p[0], pos: p[1], team: p[2], number: p[3] || '',
         injury: p[4] || null, positions: p[5] ? p[5].split(',') : [p[1]]
       };
     }
-    const def = NightOwl.teams.isDefenseId(pid);
-    return { name: pid, pos: def ? 'DEF' : '', team: def ? pid : '', number: '', injury: null, positions: def ? ['DEF'] : [] };
+    const def = NightOwl.teams.isDefenseId(playerId);
+    return { name: playerId, pos: def ? 'DEF' : '', team: def ? playerId : '', number: '', injury: null, positions: def ? ['DEF'] : [] };
   }
 
   function list() {
@@ -86,12 +86,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function byEspn(espnId) {
     if (!espnIndex) {
       espnIndex = new Map();
-      for (const [pid, p] of Object.entries(map)) if (p[6]) espnIndex.set(p[6], pid);
+      for (const [playerId, p] of Object.entries(map)) if (p[6]) espnIndex.set(p[6], playerId);
     }
     return espnIndex.get(String(espnId)) || null;
   }
 
-  const espnId = (pid) => (map[pid] && map[pid][6]) || '';
+  const espnId = (playerId) => (map[playerId] && map[playerId][6]) || '';
 
   NightOwl.players = { load, info, list, remember, byEspn, espnId };
 })(globalThis.NightOwl);

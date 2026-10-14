@@ -12,8 +12,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const PLAYOFF_WEIGHT = 1.5;
   const PROJECTION_KEY = (year) => `season.projections.v2.${year}`;
 
-  function timeline(lg, rosters, nfl) {
-    const s = lg.settings || {};
+  function timeline(league, rosters, nfl) {
+    const s = league.settings || {};
     const start = s.start_week || 1;
     const playoffStart = s.playoff_week_start || 15;
     const medianGame = !!s.league_average_match;
@@ -72,9 +72,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function weeksNeeded(leagues) {
     const needed = new Set();
-    for (const lg of leagues) {
-      for (let w = lg.raw.next; w < lg.raw.playoffStart; w++) needed.add(w);
-      for (const w of projection.playoffWeeks(projection.bracketFormat(lg.playoffTeams, lg.raw.playoffStart, lg.raw.roundType))) needed.add(w);
+    for (const league of leagues) {
+      for (let w = league.raw.next; w < league.raw.playoffStart; w++) needed.add(w);
+      for (const w of projection.playoffWeeks(projection.bracketFormat(league.playoffTeams, league.raw.playoffStart, league.raw.roundType))) needed.add(w);
     }
     return [...needed].filter((w) => w <= LAST_WEEK).sort((a, b) => a - b);
   }
@@ -90,59 +90,59 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  const activePool = (ro) => {
-    const away = new Set([...(ro.reserve || []), ...(ro.taxi || [])]);
-    return (ro.players || []).filter((pid) => !away.has(pid));
+  const activePool = (roster) => {
+    const away = new Set([...(roster.reserve || []), ...(roster.taxi || [])]);
+    return (roster.players || []).filter((playerId) => !away.has(playerId));
   };
 
   const nflSchedule = (seasonYear) => NightOwl.replacement.schedule(seasonYear);
 
-  function valueWeeks(lg, stats, schedule = null) {
-    const r = lg.raw;
+  function valueWeeks(league, stats, schedule = null) {
+    const r = league.raw;
     const { onBye } = NightOwl.replacement;
-    const outIn = projection.availability((pid) => players.info(pid).injury);
+    const outIn = projection.availability((playerId) => players.info(playerId).injury);
     const first = r.inProgress ? r.next + 1 : r.next;
     const out = [];
     const published = Object.keys(stats).filter((w) => stats[w] && Object.keys(stats[w]).length);
     const average = new Map();
-    const averageOf = (pid) => {
-      if (!average.has(pid)) {
-        const rows = published.map((w) => fantasyPoints(stats[w][pid], r.scoring)).filter((p) => p > 0);
-        average.set(pid, rows.length >= published.length / 2 ? rows.reduce((a, b) => a + b, 0) / rows.length : 0);
+    const averageOf = (playerId) => {
+      if (!average.has(playerId)) {
+        const rows = published.map((w) => fantasyPoints(stats[w][playerId], r.scoring)).filter((p) => p > 0);
+        average.set(playerId, rows.length >= published.length / 2 ? rows.reduce((a, b) => a + b, 0) / rows.length : 0);
       }
-      return average.get(pid);
+      return average.get(playerId);
     };
     const add = (w, weight) => {
       if (!stats[w] || !Object.keys(stats[w]).length) return;
       const injured = outIn(out.length);
-      const bye = (pid) => onBye(schedule, players.info(pid).team, w);
+      const bye = (playerId) => onBye(schedule, players.info(playerId).team, w);
       out.push({
         week: w,
         weight,
-        projOf: (pid) => (stats[w][pid] ? fantasyPoints(stats[w][pid], r.scoring) : bye(pid) ? 0 : averageOf(pid)),
-        isOut: (pid) => injured(pid) || bye(pid),
+        projOf: (playerId) => (stats[w][playerId] ? fantasyPoints(stats[w][playerId], r.scoring) : bye(playerId) ? 0 : averageOf(playerId)),
+        isOut: (playerId) => injured(playerId) || bye(playerId),
         bye
       });
     };
     for (let w = first; w < r.playoffStart; w++) add(w, 1);
-    const format = projection.bracketFormat(lg.playoffTeams, r.playoffStart, r.roundType);
+    const format = projection.bracketFormat(league.playoffTeams, r.playoffStart, r.roundType);
     for (const w of projection.playoffWeeks(format)) if (w <= LAST_WEEK) add(w, PLAYOFF_WEIGHT);
     return out;
   }
 
-  async function forecastWeeks(lg, { remainingOf, stats, rosters = lg.raw.rosters }) {
-    const r = lg.raw;
-    const format = projection.bracketFormat(lg.playoffTeams, r.playoffStart, r.roundType);
+  async function forecastWeeks(league, { remainingOf, stats, rosters = league.raw.rosters }) {
+    const r = league.raw;
+    const format = projection.bracketFormat(league.playoffTeams, r.playoffStart, r.roundType);
     const future = [];
     for (let w = r.inProgress ? r.next + 1 : r.next; w < r.playoffStart; w++) future.push(w);
     const poWeeks = projection.playoffWeeks(format);
-    const sched = await schedule(lg.leagueId, r.inProgress ? r.next + 1 : r.next, r.playoffStart);
-    const positionsOf = (pid) => players.info(pid).positions;
-    const outIn = projection.availability((pid) => players.info(pid).injury);
-    const projOf = (week) => (pid) => fantasyPoints(stats[week] && stats[week][pid], r.scoring);
-    const pools = new Map(rosters.map((ro) => [ro.roster_id, activePool(ro)]));
-    const weekTeams = (week, index) => Object.fromEntries(rosters.map((ro) =>
-      [ro.roster_id, projection.teamWeek(r.slots, pools.get(ro.roster_id), projOf(week), positionsOf, outIn(index))]));
+    const sched = await schedule(league.leagueId, r.inProgress ? r.next + 1 : r.next, r.playoffStart);
+    const positionsOf = (playerId) => players.info(playerId).positions;
+    const outIn = projection.availability((playerId) => players.info(playerId).injury);
+    const projOf = (week) => (playerId) => fantasyPoints(stats[week] && stats[week][playerId], r.scoring);
+    const pools = new Map(rosters.map((roster) => [roster.roster_id, activePool(roster)]));
+    const weekTeams = (week, index) => Object.fromEntries(rosters.map((roster) =>
+      [roster.roster_id, projection.teamWeek(r.slots, pools.get(roster.roster_id), projOf(week), positionsOf, outIn(index))]));
 
     const weeks = [];
     let index = 0;
@@ -152,10 +152,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       for (const m of r.thisWeek) {
         if (m.matchup_id != null) pairs.set(m.matchup_id, (pairs.get(m.matchup_id) || []).concat(m.roster_id));
         const pp = m.players_points || {};
-        const o = season.outlook((m.starters || []).filter((pid) => pid && pid !== '0').map((pid) => ({
-          points: pp[pid] || 0,
-          proj: projOf(r.next)(pid),
-          remaining: remainingOf(players.info(pid).team)
+        const o = season.outlook((m.starters || []).filter((playerId) => playerId && playerId !== '0').map((playerId) => ({
+          points: pp[playerId] || 0,
+          proj: projOf(r.next)(playerId),
+          remaining: remainingOf(players.info(playerId).team)
         })));
         teams[m.roster_id] = { mean: o.mean, variance: o.variance, lineupSet: true };
       }
@@ -168,22 +168,22 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { format, weeks, playoffTeams, rosters };
   }
 
-  async function projectLeague(lg, { remainingOf, stats, rosters = lg.raw.rosters, draftMethod = 'linear', sims = SIMS, forced = null }) {
-    const f = await forecastWeeks(lg, { remainingOf, stats, rosters });
-    const teams = rosters.map((ro) => {
-      const s = ro.settings || {};
+  async function projectLeague(league, { remainingOf, stats, rosters = league.raw.rosters, draftMethod = 'linear', sims = SIMS, forced = null }) {
+    const f = await forecastWeeks(league, { remainingOf, stats, rosters });
+    const teams = rosters.map((roster) => {
+      const s = roster.settings || {};
       const pf = (s.fpts || 0) + (s.fpts_decimal || 0) / 100;
       const max = (s.ppts || 0) + (s.ppts_decimal || 0) / 100;
-      return { rosterId: ro.roster_id, wins: s.wins || 0, losses: s.losses || 0, ties: s.ties || 0, pf, max, efficiency: max ? pf / max : null };
+      return { rosterId: roster.roster_id, wins: s.wins || 0, losses: s.losses || 0, ties: s.ties || 0, pf, max, efficiency: max ? pf / max : null };
     });
     return projection.projectSeason({
       teams,
       weeks: f.weeks,
       playoff: f.format ? { format: f.format, teams: f.playoffTeams } : null,
-      medianGame: lg.medianGame,
+      medianGame: league.medianGame,
       sims,
-      seed: season.hash(`${lg.leagueId}:${lg.raw.next}:projected`),
-      draft: lg.draft ? { method: draftMethod } : null,
+      seed: season.hash(`${league.leagueId}:${league.raw.next}:projected`),
+      draft: league.draft ? { method: draftMethod } : null,
       forced
     });
   }

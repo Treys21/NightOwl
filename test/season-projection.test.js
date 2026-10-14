@@ -6,7 +6,7 @@ require('../src/season/core.js');
 const projection = require('../src/season/project.js');
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
-const close = (a, b, eps, msg) => assert.ok(Math.abs(a - b) <= eps, `${msg}: ${a} vs ${b}`);
+const close = (a, b, eps, message) => assert.ok(Math.abs(a - b) <= eps, `${message}: ${a} vs ${b}`);
 
 test('bracket formats match Sleeper: byes to the top seeds, no reseeding', () => {
   const six = projection.bracketFormat(6, 15, 0);

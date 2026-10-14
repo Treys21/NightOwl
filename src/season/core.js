@@ -9,7 +9,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function optimal(slots, pids, pointsOf, positionsOf) {
     const starting = slots.filter((s) => !NOT_STARTING_SLOTS.has(s));
-    const pool = pids.map((pid) => ({ pid, pts: pointsOf(pid) || 0, positions: positionsOf(pid) }));
+    const pool = pids.map((playerId) => ({ pid: playerId, pts: pointsOf(playerId) || 0, positions: positionsOf(playerId) }));
     const picks = assign(starting, pool, (slot, p) => (canPlay(slot, p.positions) ? p.pts : null));
     return {
       points: round2(picks.reduce((sum, p) => sum + (p ? p.pts : 0), 0)),
@@ -23,10 +23,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     starting.forEach((slot, i) => {
       const out = starters[i];
       const outPts = out ? pointsOf(out) || 0 : 0;
-      for (const pid of bench) {
-        if (!canPlay(slot, positionsOf(pid))) continue;
-        const gain = (pointsOf(pid) || 0) - outPts;
-        if (gain > 0 && (!best || gain > best.gain)) best = { in: pid, out, slot, gain: round2(gain) };
+      for (const playerId of bench) {
+        if (!canPlay(slot, positionsOf(playerId))) continue;
+        const gain = (pointsOf(playerId) || 0) - outPts;
+        if (gain > 0 && (!best || gain > best.gain)) best = { in: playerId, out, slot, gain: round2(gain) };
       }
     });
     return best;
@@ -105,10 +105,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { mean: round2(mean), variance };
   }
 
-  function winProbability(me, opp) {
-    const sd = Math.sqrt(me.variance + opp.variance);
-    if (sd === 0) return me.mean > opp.mean ? 1 : me.mean < opp.mean ? 0 : 0.5;
-    return phi((me.mean - opp.mean) / sd);
+  function winProbability(me, opponent) {
+    const sd = Math.sqrt(me.variance + opponent.variance);
+    if (sd === 0) return me.mean > opponent.mean ? 1 : me.mean < opponent.mean ? 0 : 0.5;
+    return phi((me.mean - opponent.mean) / sd);
   }
 
   function rng(seed) {

@@ -31,8 +31,8 @@ require('../src/trades/history.js');
 require('../src/trades/drafts.js');
 require('../src/trades/loader.js');
 
-const ctx = { sideValue: (vs) => vs.reduce((a, b) => a + b, 0), assetValue: (a) => ({ A: 6000, B: 4000, C: 3000 }[a.pid] || 0) };
-const lg = { leagueId: 'L26', raw: { season: '2026' } };
+const context = { sideValue: (vs) => vs.reduce((a, b) => a + b, 0), assetValue: (a) => ({ A: 6000, B: 4000, C: 3000 }[a.pid] || 0) };
+const league = { leagueId: 'L26', raw: { season: '2026' } };
 const nfl = { season: '2026', week: 5 };
 
 test('chain: the league and every season before it, back to its first', async () => {
@@ -41,7 +41,7 @@ test('chain: the league and every season before it, back to its first', async ()
 });
 
 test('load: trades from every season, graded, with the points each side started after the deal', async () => {
-  const h = await globalThis.NightOwl.tradeLoader.load(lg, nfl, ctx);
+  const h = await globalThis.NightOwl.tradeLoader.load(league, nfl, context);
   assert.deepEqual(h.seasons, ['2026', '2025', '2024', '2023']);
   assert.deepEqual(h.graded.map((g) => g.trade.id), ['now', 'old']);
   const now = h.graded[0];
@@ -54,7 +54,7 @@ test('load: trades from every season, graded, with the points each side started 
 
 test('load: finished weeks are cached, so a second load only refetches the live week', async () => {
   calls.length = 0;
-  await globalThis.NightOwl.tradeLoader.load(lg, nfl, ctx);
+  await globalThis.NightOwl.tradeLoader.load(league, nfl, context);
   const tx = calls.filter((c) => c.startsWith('tx:L26'));
   assert.ok(tx.length <= 2, `refetched ${tx.join(', ')}`);
   assert.ok(!calls.includes('tx:L26:3'));
@@ -67,7 +67,7 @@ test('rows: waiver moves are kept alongside trades for the recap', async () => {
 });
 
 test('load: a traded pick that has been spent is the player taken with it', async () => {
-  const h = await globalThis.NightOwl.tradeLoader.load(lg, nfl, ctx);
+  const h = await globalThis.NightOwl.tradeLoader.load(league, nfl, context);
   const old = h.graded.find((g) => g.trade.id === 'old');
   const pick = old.trade.sides[1].gotPicks[0];
   assert.equal(pick.player, 'X');

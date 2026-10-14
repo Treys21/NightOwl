@@ -9,7 +9,7 @@ const finder = require('../src/season/finder.js');
 const SLOTS = ['QB', 'RB', 'RB', 'WR', 'WR', 'FLEX', 'BN', 'BN', 'BN'];
 const POS = {};
 const PTS = {};
-const add = (id, pos, pts) => { POS[id] = [pos]; PTS[id] = pts; return id; };
+const add = (id, pos, points) => { POS[id] = [pos]; PTS[id] = points; return id; };
 const weeks = (n) => Array.from({ length: n }, () => ({ projOf: (p) => PTS[p] || 0, isOut: () => false }));
 
 const me = ['m_qb', 'm_rb1', 'm_rb2', 'm_rb3', 'm_rb4', 'm_wr1', 'm_wr2'];
@@ -30,10 +30,10 @@ const base = (mode) => ({
 const team = (id, pool, w, picks = []) => ({ id, pool, assets: pool.concat(picks), count: pool.length, capacity: 9, w });
 
 test('redraft: a deal that fills each side\'s hole is proposed, and both lineups gain', () => {
-  const ctx = base('redraft');
+  const context = base('redraft');
   const a = team(1, me, 0.8);
   const b = team(2, them, 0.8);
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   assert.ok(found.length > 0, 'something is proposed');
   for (const p of found) {
     assert.ok(p.me.dPts >= 1.5 && p.them.dPts >= 1, `both gain: ${p.me.dPts} / ${p.them.dPts}`);
@@ -42,64 +42,64 @@ test('redraft: a deal that fills each side\'s hole is proposed, and both lineups
 });
 
 test('redraft: never proposes a deal that makes either lineup worse', () => {
-  const ctx = base('redraft');
+  const context = base('redraft');
   const a = team(1, me, 1);
   const b = team(2, them, 1);
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   assert.ok(found.every((p) => p.me.dPts > 0 && p.them.dPts > 0));
 });
 
 test('nothing to propose when neither side has a need the other can fill', () => {
-  const ctx = base('redraft');
+  const context = base('redraft');
   const twin = ['x_qb', 'x_rb1', 'x_rb2', 'x_rb3', 'x_wr1', 'x_wr2'];
   [['x_qb', 'QB', 20], ['x_rb1', 'RB', 16], ['x_rb2', 'RB', 15], ['x_rb3', 'RB', 14], ['x_wr1', 'WR', 14], ['x_wr2', 'WR', 13]].forEach((r) => add(...r));
   const a = team(1, ['m_qb', 'm_rb1', 'm_rb2', 'm_rb3', 'm_wr1', 'm_wr2'], 1);
   const b = team(3, twin, 1);
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   assert.ok(found.every((p) => p.me.dPts >= 1.5), 'only real upgrades');
 });
 
 test('roster limits: a deal that overfills a full roster is not proposed', () => {
-  const ctx = base('redraft');
+  const context = base('redraft');
   const a = Object.assign(team(1, me, 0.8), { capacity: me.length });
   const b = Object.assign(team(2, them, 0.8), { capacity: them.length });
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   assert.ok(found.every((p) => p.give.length === p.get.length), 'only even swaps on full rosters');
 });
 
 test('shop and target: every proposal includes the player you are shopping or after', () => {
-  const ctx = Object.assign(base('redraft'), { focus: { shop: 'm_rb3' } });
+  const context = Object.assign(base('redraft'), { focus: { shop: 'm_rb3' } });
   const a = team(1, me, 0.8);
   const b = team(2, them, 0.8);
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   assert.ok(found.length > 0 && found.every((p) => p.give.includes('m_rb3')));
   const ctx2 = Object.assign(base('redraft'), { focus: { target: 't_wr2' } });
   const f2 = finder.proposeFor(ctx2, a, b, finder.dropLosses(a, ctx2));
   assert.ok(f2.every((p) => p.get.includes('t_wr2')));
-  assert.deepEqual(finder.proposeFor(Object.assign(base('redraft'), { focus: { target: 'nobody' } }), a, b, finder.dropLosses(a, ctx)), []);
+  assert.deepEqual(finder.proposeFor(Object.assign(base('redraft'), { focus: { target: 'nobody' } }), a, b, finder.dropLosses(a, context)), []);
 });
 
-const dyn = () => {
-  const ctx = base('dynasty');
+const isDynasty = () => {
+  const context = base('dynasty');
   const ktc = { m_qb: 7000, m_rb1: 6000, m_rb2: 5200, m_rb3: 3000, m_rb4: 2500, m_wr1: 5000, m_wr2: 1500, t_qb: 6500, t_rb1: 4800, t_rb2: 1200, t_wr1: 6200, t_wr2: 4000, t_wr3: 3500, t_wr4: 3000, 'pick:2027:1:2': 5000, 'pick:2027:1:1': 5200 };
   const ages = { m_rb1: 30, m_rb2: 29, t_wr1: 22, t_wr2: 23 };
-  ctx.rawOf = (id) => ktc[id] || 0;
-  ctx.valueOf = (t, id, w) => {
+  context.rawOf = (id) => ktc[id] || 0;
+  context.valueOf = (t, id, w) => {
     const age = ages[id] || 26;
     let v = ktc[id] || 0;
-    if (ctx.isPick(id)) v *= w > 0.6 ? 0.92 : w < 0.3 ? 1.12 : 1;
+    if (context.isPick(id)) v *= w > 0.6 ? 0.92 : w < 0.3 ? 1.12 : 1;
     else if (age > 27) v *= w < 0.3 ? Math.max(0.7, 1 - 0.05 * (age - 27)) : 1.03;
     return v;
   };
-  ctx.sideValue = (vs) => Math.round(Math.pow(vs.reduce((a, b) => a + Math.pow(b, 1.5), 0), 1 / 1.5));
-  return { ctx, ktc };
+  context.sideValue = (vs) => Math.round(Math.pow(vs.reduce((a, b) => a + Math.pow(b, 1.5), 0), 1 / 1.5));
+  return { ctx: context, ktc };
 };
 
 test('dynasty: never asks them to take a loss on consensus value', () => {
-  const { ctx } = dyn();
+  const { ctx: context } = isDynasty();
   const a = team(1, me, 0.9, ['pick:2027:1:1']);
   const b = team(2, them, 0.1, ['pick:2027:1:2']);
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   assert.ok(found.length > 0, 'a contender and a rebuilder find a deal');
   for (const p of found) {
     assert.ok(p.rawNetThem >= -finder.FAIR_TOLERANCE, `partner sees ${p.rawNetThem}`);
@@ -108,10 +108,10 @@ test('dynasty: never asks them to take a loss on consensus value', () => {
 });
 
 test('dynasty: the rebuilder is offered picks and youth for veterans, not the reverse', () => {
-  const { ctx } = dyn();
+  const { ctx: context } = isDynasty();
   const a = team(1, me, 0.95, ['pick:2027:1:1']);
   const b = team(2, them, 0.05, ['pick:2027:1:2']);
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   const best = found[0];
   assert.ok(best, 'a deal exists');
   const vetsToThem = best.give.filter((id) => ['m_rb1', 'm_rb2'].includes(id)).length + best.give.filter((id) => id.startsWith('pick:')).length;
@@ -121,11 +121,11 @@ test('dynasty: the rebuilder is offered picks and youth for veterans, not the re
 test('goal chips change what you are asked to accept: win now wants points, rebuild wants value', () => {
   const a = team(1, me, 0.5, ['pick:2027:1:1']);
   const b = team(2, them, 0.5, ['pick:2027:1:2']);
-  const run = (goal) => { const { ctx } = dyn(); ctx.goal = goal; return finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx)); };
+  const run = (goal) => { const { ctx: context } = isDynasty(); context.goal = goal; return finder.proposeFor(context, a, b, finder.dropLosses(a, context)); };
   assert.ok(run('now').every((p) => p.me.dPts >= 3), 'win now: every deal adds points');
-  const { ctx } = dyn();
+  const { ctx: context } = isDynasty();
   for (const p of run('future')) {
-    assert.ok(finder.valueGain(ctx, a, 0, p.give, p.get) >= 0.04 * p.size, 'rebuild: every deal adds value');
+    assert.ok(finder.valueGain(context, a, 0, p.give, p.get) >= 0.04 * p.size, 'rebuild: every deal adds value');
   }
 });
 
@@ -142,24 +142,24 @@ test('subsets: every group of one or two', () => {
 });
 
 test('kickers and defenses are never traded for, unless you ask about one', () => {
-  const ctx = base('redraft');
+  const context = base('redraft');
   const withK = ['m_qb', 'm_rb1', 'm_rb2', 'm_rb3', 'm_wr1', 'm_wr2', add('m_k', 'K', 9)];
   const theirsK = ['t_qb', 't_rb1', 't_wr1', 't_wr2', 't_wr3', add('t_k', 'K', 3), add('t_def', 'DEF', 8)];
-  ctx.slots = SLOTS.concat('K', 'DEF');
+  context.slots = SLOTS.concat('K', 'DEF');
   const a = team(1, withK, 1);
   const b = team(2, theirsK, 1);
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   assert.ok(found.every((p) => !p.give.concat(p.get).some((id) => ['m_k', 't_k', 't_def'].includes(id))));
-  const asked = Object.assign(base('redraft'), { slots: ctx.slots, focus: { target: 't_def' } });
+  const asked = Object.assign(base('redraft'), { slots: context.slots, focus: { target: 't_def' } });
   const f2 = finder.proposeFor(asked, a, b, finder.dropLosses(a, asked));
   assert.ok(f2.every((p) => p.get.includes('t_def')));
 });
 
 test('dynasty: a contender is only offered deals that add points, a rebuilder deals that add value', () => {
-  const { ctx } = dyn();
+  const { ctx: context } = isDynasty();
   const contender = team(1, me, 0.95, ['pick:2027:1:1']);
   const seller = team(2, them, 0.05, ['pick:2027:1:2']);
-  for (const p of finder.proposeFor(ctx, contender, seller, finder.dropLosses(contender, ctx))) {
+  for (const p of finder.proposeFor(context, contender, seller, finder.dropLosses(contender, context))) {
     assert.ok(p.me.dPts >= 3, `contender gains ${p.me.dPts}`);
   }
   assert.equal(finder.worthIt({ mode: 'dynasty' }, 0.95, 'balanced', 1, 500, 1000), false);
@@ -170,41 +170,41 @@ test('dynasty: a contender is only offered deals that add points, a rebuilder de
 });
 
 test('a full roster cuts a spare part to make room, and in dynasty pays for it', () => {
-  const { ctx } = dyn();
-  ctx.canCut = () => true;
+  const { ctx: context } = isDynasty();
+  context.canCut = () => true;
   const spareA = add('m_spare', 'RB', 0);
   const a = Object.assign(team(1, me.concat(spareA), 0.5), { players: me.concat(spareA), capacity: me.length + 1 });
   const b = Object.assign(team(2, them, 0.5), { players: them, capacity: them.length });
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   const uneven = found.filter((p) => p.get.length > p.give.length);
   assert.ok(uneven.every((p) => p.drops.me.includes('m_spare')), 'the 2-for-1 coming in cuts the spare');
 });
 
 test('starts count the weeks an incoming player is in the lineup', () => {
-  const ctx = base('redraft');
+  const context = base('redraft');
   const a = team(1, me, 0.8);
   const b = team(2, them, 0.8);
-  const [first] = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const [first] = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   assert.ok(first.me.starts.length > 0);
-  assert.ok(first.me.starts.every((s) => s.weeks >= 1 && s.weeks <= ctx.weeks.length));
+  assert.ok(first.me.starts.every((s) => s.weeks >= 1 && s.weeks <= context.weeks.length));
 });
 
 const redraftPriced = () => {
-  const ctx = base('redraft');
+  const context = base('redraft');
   const price = { m_qb: 7000, m_rb1: 6000, m_rb2: 5200, m_rb3: 4500, m_rb4: 3800, m_wr1: 5000, m_wr2: 1500, t_qb: 6500, t_rb1: 4800, t_rb2: 1200, t_wr1: 6200, t_wr2: 4800, t_wr3: 4200, t_wr4: 3600 };
-  ctx.consensus = true;
-  ctx.pointValue = 400;
-  ctx.rawOf = (id) => price[id] || 0;
-  ctx.valueOf = (t, id) => price[id] || 0;
-  ctx.sideValue = (vs) => Math.round(Math.pow(vs.reduce((a, b) => a + Math.pow(b, 2), 0), 1 / 2));
-  return { ctx, price };
+  context.consensus = true;
+  context.pointValue = 400;
+  context.rawOf = (id) => price[id] || 0;
+  context.valueOf = (t, id) => price[id] || 0;
+  context.sideValue = (vs) => Math.round(Math.pow(vs.reduce((a, b) => a + Math.pow(b, 2), 0), 1 / 2));
+  return { ctx: context, price };
 };
 
 test('redraft consensus: the other side never loses more than a tenth on price, and you do not overpay by more than a few percent', () => {
-  const { ctx } = redraftPriced();
+  const { ctx: context } = redraftPriced();
   const a = team(1, me, 0.8);
   const b = team(2, them, 0.8);
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
   assert.ok(found.length > 0);
   for (const p of found) {
     assert.ok(p.rawNetThem >= -finder.FAIR_TOLERANCE_REDRAFT, `they see ${p.rawNetThem}`);
@@ -213,14 +213,14 @@ test('redraft consensus: the other side never loses more than a tenth on price, 
 });
 
 test('redraft consensus: a team out of the race takes a deal on price, not on points', () => {
-  const { ctx } = redraftPriced();
+  const { ctx: context } = redraftPriced();
   const a = team(1, me, 0.9);
   const eliminated = team(2, them, 0.02);
-  const found = finder.proposeFor(ctx, a, eliminated, finder.dropLosses(a, ctx));
+  const found = finder.proposeFor(context, a, eliminated, finder.dropLosses(a, context));
   assert.ok(found.length > 0, 'an eliminated team still deals');
   assert.ok(found.every((p) => p.rawNetThem >= 0.03 - 1e-9 || p.them.dPts >= 2), 'it wins on consensus value or gains points');
   const contender = team(3, them, 0.95);
-  assert.ok(finder.proposeFor(ctx, a, contender, finder.dropLosses(a, ctx)).every((p) => p.them.dPts >= 2));
+  assert.ok(finder.proposeFor(context, a, contender, finder.dropLosses(a, context)).every((p) => p.them.dPts >= 2));
   assert.equal(finder.worthIt({ mode: 'redraft', consensus: true }, 0.02, 'balanced', -10, 400, 5000, 'them'), true);
   assert.equal(finder.worthIt({ mode: 'redraft', consensus: true }, 0.02, 'balanced', 10, 20, 5000, 'them'), false);
   assert.equal(finder.worthIt({ mode: 'redraft', consensus: true }, 0.9, 'balanced', 1, 900, 5000, 'me'), false);
@@ -235,44 +235,44 @@ test('playoff weeks count extra when a lineup is priced', () => {
 });
 
 test('judge: a deal someone made goes through the same gates the search applies', () => {
-  const ctx = base('redraft');
+  const context = base('redraft');
   const a = team(1, me, 0.8);
   const b = team(2, them, 0.8);
-  const good = finder.judge(ctx, a, b, ['m_rb3'], ['t_wr2']);
+  const good = finder.judge(context, a, b, ['m_rb3'], ['t_wr2']);
   assert.equal(good.ok, true);
   assert.ok(good.impact.a.delta >= 3 && good.impact.b.delta >= 2);
-  const bad = finder.judge(ctx, a, b, ['m_qb'], ['t_rb2']);
+  const bad = finder.judge(context, a, b, ['m_qb'], ['t_rb2']);
   assert.equal(bad.ok, false);
   assert.ok(['noUpgrade', 'youOverpay'].includes(bad.reason), bad.reason);
-  const { ctx: dctx } = dyn();
+  const { ctx: dctx } = isDynasty();
   const rip = finder.judge(dctx, team(1, me, 0.9), team(2, them, 0.1), ['m_rb4'], ['t_wr1']);
   assert.equal(rip.ok, false);
   assert.ok(rip.rawNetThem < 0);
 });
 
 test('parameters can be overridden, which is how the backtest tries other ones', () => {
-  const ctx = base('redraft');
+  const context = base('redraft');
   const a = team(1, me, 0.8);
   const b = team(2, them, 0.8);
-  assert.equal(finder.judge(ctx, a, b, ['m_rb3'], ['t_wr2']).ok, true);
-  const strict = Object.assign({}, ctx, { params: { minPoints: { me: 500, them: 500 } } });
+  assert.equal(finder.judge(context, a, b, ['m_rb3'], ['t_wr2']).ok, true);
+  const strict = Object.assign({}, context, { params: { minPoints: { me: 500, them: 500 } } });
   assert.equal(finder.judge(strict, a, b, ['m_rb3'], ['t_wr2']).ok, false);
-  assert.equal(finder.paramsOf(ctx).fairTolerance, finder.DEFAULTS.fairTolerance);
+  assert.equal(finder.paramsOf(context).fairTolerance, finder.DEFAULTS.fairTolerance);
 });
 
 test('picks never crowd players out of the shortlist: players alone still get proposed', () => {
-  const ctx = Object.assign(base('dynasty'), { pointValue: 50, valueOf: (t, id) => (id.startsWith('pick:') ? 1500 : (PTS[id] || 0) * 100), rawOf: (id) => (id.startsWith('pick:') ? 1500 : (PTS[id] || 0) * 100) });
+  const context = Object.assign(base('dynasty'), { pointValue: 50, valueOf: (t, id) => (id.startsWith('pick:') ? 1500 : (PTS[id] || 0) * 100), rawOf: (id) => (id.startsWith('pick:') ? 1500 : (PTS[id] || 0) * 100) });
   const picks = ['pick:2027:1:1', 'pick:2028:1:1', 'pick:2029:1:1', 'pick:2027:2:1', 'pick:2028:2:1'];
   const a = Object.assign(team(1, me, 0.8, picks), { count: me.length });
   const b = team(2, them, 0.3);
-  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
-  assert.ok(found.some((p) => !p.give.concat(p.get).some(ctx.isPick)), 'a players-only deal is among them');
+  const found = finder.proposeFor(context, a, b, finder.dropLosses(a, context));
+  assert.ok(found.some((p) => !p.give.concat(p.get).some(context.isPick)), 'a players-only deal is among them');
 });
 
 test('a throw-in who starts for nobody and is worth little is not padded into a deal', () => {
-  const ctx = base('redraft');
+  const context = base('redraft');
   add('m_scrub', 'RB', 1);
   const a = team(1, me.concat('m_scrub'), 0.8);
   const b = team(2, them, 0.8);
-  for (const p of finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx))) assert.ok(!p.give.includes('m_scrub'));
+  for (const p of finder.proposeFor(context, a, b, finder.dropLosses(a, context))) assert.ok(!p.give.includes('m_scrub'));
 });

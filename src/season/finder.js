@@ -25,7 +25,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     mixedFloor: 0.03,
     outOfIt: 0.25
   };
-  const paramsOf = (ctx) => Object.assign({}, DEFAULTS, ctx.params || {});
+  const paramsOf = (context) => Object.assign({}, DEFAULTS, context.params || {});
   const FAIR_TOLERANCE = DEFAULTS.fairTolerance;
   const FAIR_TOLERANCE_REDRAFT = DEFAULTS.fairToleranceRedraft;
 
@@ -46,43 +46,43 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  function dropLosses(team, ctx) {
-    const base = lineupPoints(ctx.slots, team.pool, ctx.weeks, ctx.positionsOf).total;
+  function dropLosses(team, context) {
+    const base = lineupPoints(context.slots, team.pool, context.weeks, context.positionsOf).total;
     const out = new Map();
     for (const id of team.pool) {
-      if (ctx.isVirtual && ctx.isVirtual(id)) continue;
-      out.set(id, Math.max(0, base - lineupPoints(ctx.slots, team.pool.filter((p) => p !== id), ctx.weeks, ctx.positionsOf).total));
+      if (context.isVirtual && context.isVirtual(id)) continue;
+      out.set(id, Math.max(0, base - lineupPoints(context.slots, team.pool.filter((p) => p !== id), context.weeks, context.positionsOf).total));
     }
     return { base, out };
   }
 
-  function addGains(team, base, ids, ctx) {
+  function addGains(team, base, ids, context) {
     const out = new Map();
     for (const id of ids) {
-      out.set(id, Math.max(0, lineupPoints(ctx.slots, team.pool.concat(id), ctx.weeks, ctx.positionsOf).total - base));
+      out.set(id, Math.max(0, lineupPoints(context.slots, team.pool.concat(id), context.weeks, context.positionsOf).total - base));
     }
     return out;
   }
 
   const valueWeight = (w) => 0.1 + 0.5 * (1 - w);
 
-  function valueGain(ctx, team, w, give, get) {
-    const v = (id) => ctx.valueOf(team, id, w);
-    return ctx.sideValue(get.map(v), get.map(ctx.isPick)) - ctx.sideValue(give.map(v), give.map(ctx.isPick));
+  function valueGain(context, team, w, give, get) {
+    const v = (id) => context.valueOf(team, id, w);
+    return context.sideValue(get.map(v), get.map(context.isPick)) - context.sideValue(give.map(v), give.map(context.isPick));
   }
 
-  function utility(ctx, team, w, give, get, dPts) {
-    if (ctx.mode === 'redraft') {
-      const gain = ctx.consensus ? valueGain(ctx, team, w, give, get) / ctx.pointValue : 0;
+  function utility(context, team, w, give, get, dPts) {
+    if (context.mode === 'redraft') {
+      const gain = context.consensus ? valueGain(context, team, w, give, get) / context.pointValue : 0;
       return dPts * motivationOf(w) + valueWeight(w) * gain;
     }
-    return valueGain(ctx, team, w, give, get) + lambdaOf(w) * ctx.pointValue * dPts;
+    return valueGain(context, team, w, give, get) + lambdaOf(w) * context.pointValue * dPts;
   }
 
-  function worthIt(ctx, w, goal, dPts, dValue, size, side) {
-    const P = paramsOf(ctx);
-    if (ctx.mode === 'redraft') {
-      if (!ctx.consensus) return dPts >= (side === 'me' ? P.minPoints.me : P.minPoints.them);
+  function worthIt(context, w, goal, dPts, dValue, size, side) {
+    const P = paramsOf(context);
+    if (context.mode === 'redraft') {
+      if (!context.consensus) return dPts >= (side === 'me' ? P.minPoints.me : P.minPoints.them);
       if (w < P.outOfIt) return dValue >= P.minValue.rebuild * size;
       return dPts >= (side === 'me' ? P.minPoints.me : P.minPoints.them);
     }
@@ -92,13 +92,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return (dPts >= P.minPoints.me && dValue >= -P.mixedFloor * size) || dValue >= P.minValue.mixed * size;
   }
 
-  function startsAmong(ctx, pool, ids) {
-    const starting = ctx.slots.filter((s) => !NOT_STARTING.has(s));
+  function startsAmong(context, pool, ids) {
+    const starting = context.slots.filter((s) => !NOT_STARTING.has(s));
     const seen = new Map(ids.map((id) => [id, new Map()]));
-    for (const w of ctx.weeks) {
-      const best = optimal(ctx.slots, pool, (pid) => (w.isOut(pid) ? 0 : w.projOf(pid)), ctx.positionsOf);
-      best.starters.forEach((pid, i) => {
-        if (pid && seen.has(pid)) seen.get(pid).set(starting[i], (seen.get(pid).get(starting[i]) || 0) + 1);
+    for (const w of context.weeks) {
+      const best = optimal(context.slots, pool, (playerId) => (w.isOut(playerId) ? 0 : w.projOf(playerId)), context.positionsOf);
+      best.starters.forEach((playerId, i) => {
+        if (playerId && seen.has(playerId)) seen.get(playerId).set(starting[i], (seen.get(playerId).get(starting[i]) || 0) + 1);
       });
     }
     const out = [];
@@ -111,63 +111,63 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out.sort((x, y) => y.weeks - x.weeks);
   }
 
-  function priceGate(ctx, P, goal, rawGive, rawGet) {
+  function priceGate(context, P, goal, rawGive, rawGet) {
     const size = Math.max(rawGive, rawGet, 1);
-    if ((rawGive - rawGet) / size < -(ctx.mode === 'redraft' ? P.fairToleranceRedraft : ctx.fairTolerance || P.fairTolerance)) return 'theyLose';
-    if ((rawGet - rawGive) / size < -(ctx.mode === 'redraft' ? P.overpayRedraft : P.overpay)[goal]) return 'youOverpay';
+    if ((rawGive - rawGet) / size < -(context.mode === 'redraft' ? P.fairToleranceRedraft : context.fairTolerance || P.fairTolerance)) return 'theyLose';
+    if ((rawGet - rawGive) / size < -(context.mode === 'redraft' ? P.overpayRedraft : P.overpay)[goal]) return 'youOverpay';
     return null;
   }
 
-  function exactGate(ctx, P, goal, sides) {
+  function exactGate(context, P, goal, sides) {
     const { wMe, wThem, size, uMe, uThem, dMe, dThem, vMe, vThem } = sides;
-    if (ctx.mode === 'redraft' && !ctx.consensus) {
+    if (context.mode === 'redraft' && !context.consensus) {
       if (dMe < P.minPoints.me || dThem < P.minPoints.them) return 'noUpgrade';
       return null;
     }
-    const scale = ctx.mode === 'redraft' ? 0 : 1;
+    const scale = context.mode === 'redraft' ? 0 : 1;
     if (uMe < P.minUtility.me * size * scale || uThem < P.minUtility.them * size * scale) return 'exactUtility';
-    if (!worthIt(ctx, wMe, goal, dMe, vMe, size, 'me')) return 'notWorthMe';
-    if (!worthIt(ctx, wThem, 'balanced', dThem, vThem, size, 'them')) return 'notWorthThem';
+    if (!worthIt(context, wMe, goal, dMe, vMe, size, 'me')) return 'notWorthMe';
+    if (!worthIt(context, wThem, 'balanced', dThem, vThem, size, 'them')) return 'notWorthThem';
     return null;
   }
 
-  function judge(ctx, me, other, give, get) {
-    const P = paramsOf(ctx);
-    const goal = ctx.goal || 'balanced';
+  function judge(context, me, other, give, get) {
+    const P = paramsOf(context);
+    const goal = context.goal || 'balanced';
     const wMe = goal === 'now' ? 1 : goal === 'future' ? 0 : me.w;
     const wThem = other.w;
-    const players = (ids) => ids.filter((id) => !ctx.isPick(id));
-    const raw = (ids) => ctx.sideValue(ids.map((id) => ctx.rawOf(id)), ids.map(ctx.isPick));
+    const players = (ids) => ids.filter((id) => !context.isPick(id));
+    const raw = (ids) => context.sideValue(ids.map((id) => context.rawOf(id)), ids.map(context.isPick));
     const rawGive = raw(give);
     const rawGet = raw(get);
     const size = Math.max(rawGive, rawGet, 1);
     const rawNetThem = (rawGive - rawGet) / size;
     const impact = tradeImpact({
-      slots: ctx.slots, weeks: ctx.weeks, positionsOf: ctx.positionsOf,
+      slots: context.slots, weeks: context.weeks, positionsOf: context.positionsOf,
       a: { pool: me.pool }, b: { pool: other.pool }, aGives: players(give), bGives: players(get)
     });
-    const uMe = utility(ctx, me, wMe, give, get, impact.a.delta);
-    const uThem = utility(ctx, other, wThem, get, give, impact.b.delta);
-    const reason = priceGate(ctx, P, goal, rawGive, rawGet) || exactGate(ctx, P, goal, {
+    const uMe = utility(context, me, wMe, give, get, impact.a.delta);
+    const uThem = utility(context, other, wThem, get, give, impact.b.delta);
+    const reason = priceGate(context, P, goal, rawGive, rawGet) || exactGate(context, P, goal, {
       wMe, wThem, size, uMe, uThem, dMe: impact.a.delta, dThem: impact.b.delta,
-      vMe: ctx.mode === 'redraft' && !ctx.consensus ? 0 : valueGain(ctx, me, wMe, give, get),
-      vThem: ctx.mode === 'redraft' && !ctx.consensus ? 0 : valueGain(ctx, other, wThem, get, give)
+      vMe: context.mode === 'redraft' && !context.consensus ? 0 : valueGain(context, me, wMe, give, get),
+      vThem: context.mode === 'redraft' && !context.consensus ? 0 : valueGain(context, other, wThem, get, give)
     });
     return { ok: !reason, reason, impact, rawNetThem, size, uMe, uThem };
   }
 
-  function proposeFor(ctx, me, other, mine) {
-    const P = paramsOf(ctx);
-    const goal = ctx.goal || 'balanced';
+  function proposeFor(context, me, other, mine) {
+    const P = paramsOf(context);
+    const goal = context.goal || 'balanced';
     const wMe = goal === 'now' ? 1 : goal === 'future' ? 0 : me.w;
     const wThem = other.w;
-    const lamMe = ctx.mode === 'redraft' ? motivationOf(wMe) : lambdaOf(wMe) * ctx.pointValue;
-    const lamThem = ctx.mode === 'redraft' ? motivationOf(wThem) : lambdaOf(wThem) * ctx.pointValue;
-    const val = (team, w, id) => (ctx.mode !== 'redraft' ? ctx.valueOf(team, id, w) : ctx.consensus ? (valueWeight(w) * ctx.valueOf(team, id, w)) / ctx.pointValue : 0);
+    const lamMe = context.mode === 'redraft' ? motivationOf(wMe) : lambdaOf(wMe) * context.pointValue;
+    const lamThem = context.mode === 'redraft' ? motivationOf(wThem) : lambdaOf(wThem) * context.pointValue;
+    const val = (team, w, id) => (context.mode !== 'redraft' ? context.valueOf(team, id, w) : context.consensus ? (valueWeight(w) * context.valueOf(team, id, w)) / context.pointValue : 0);
 
-    const theirs = dropLosses(other, ctx);
-    const myGain = addGains(me, mine.base, other.assets.filter((id) => !ctx.isPick(id)), ctx);
-    const theirGain = addGains(other, theirs.base, me.assets.filter((id) => !ctx.isPick(id)), ctx);
+    const theirs = dropLosses(other, context);
+    const myGain = addGains(me, mine.base, other.assets.filter((id) => !context.isPick(id)), context);
+    const theirGain = addGains(other, theirs.base, me.assets.filter((id) => !context.isPick(id)), context);
     const dropMe = (id) => mine.out.get(id) || 0;
     const dropThem = (id) => theirs.out.get(id) || 0;
 
@@ -177,26 +177,26 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const room = SIDE_SHOWN - (must ? 1 : 0);
       const best = (list) => list.slice().sort((a, b) => score(b) - score(a));
       const rest = ids.filter((id) => id !== must);
-      const picks = best(rest.filter(ctx.isPick));
-      const moving = best(rest.filter((id) => !ctx.isPick(id)));
+      const picks = best(rest.filter(context.isPick));
+      const moving = best(rest.filter((id) => !context.isPick(id)));
       const takePicks = Math.min(picks.length, Math.max(PICKS_SHOWN, room - moving.length));
       const ranked = moving.slice(0, room - takePicks).concat(picks.slice(0, takePicks));
       return must ? [must].concat(ranked) : ranked;
     };
-    const focus = ctx.focus || {};
+    const focus = context.focus || {};
     const shop = focus.shop && me.assets.includes(focus.shop) ? focus.shop : null;
     const target = focus.target && other.assets.includes(focus.target) ? focus.target : null;
     if ((focus.shop && !shop) || (focus.target && !target)) return [];
-    const chip = (id) => ctx.isPick(id) || id === shop || id === target || !NOT_TRADE_CHIPS.has((ctx.positionsOf(id) || [])[0]);
+    const chip = (id) => context.isPick(id) || id === shop || id === target || !NOT_TRADE_CHIPS.has((context.positionsOf(id) || [])[0]);
     const gives = top(me.assets.filter(chip), giveScore, shop);
     const asks = top(other.assets.filter(chip), askScore, target);
 
-    const players = (ids) => ids.filter((id) => !ctx.isPick(id));
-    const spare = (team, loss) => (team.players || []).filter((id) => !loss(id) && ctx.canCut(id)).sort((a, b) => ctx.rawOf(a) - ctx.rawOf(b));
+    const players = (ids) => ids.filter((id) => !context.isPick(id));
+    const spare = (team, loss) => (team.players || []).filter((id) => !loss(id) && context.canCut(id)).sort((a, b) => context.rawOf(a) - context.rawOf(b));
     const dustMe = spare(me, dropMe);
     const dustThem = spare(other, dropThem);
-    const cutCost = (team, w, ids) => (ctx.mode === 'dynasty' ? ids.reduce((acc, id) => acc + ctx.valueOf(team, id, w), 0) : 0);
-    const raw = (ids) => ctx.sideValue(ids.map((id) => ctx.rawOf(id)), ids.map(ctx.isPick));
+    const cutCost = (team, w, ids) => (context.mode === 'dynasty' ? ids.reduce((acc, id) => acc + context.valueOf(team, id, w), 0) : 0);
+    const raw = (ids) => context.sideValue(ids.map((id) => context.rawOf(id)), ids.map(context.isPick));
     const approx = [];
     for (const give of subsets(gives, 2)) {
       if (shop && !give.includes(shop)) continue;
@@ -214,16 +214,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const rawGive = raw(give);
         const rawGet = raw(get);
         const size = Math.max(rawGive, rawGet, 1);
-        const priceFail = priceGate(ctx, P, goal, rawGive, rawGet);
+        const priceFail = priceGate(context, P, goal, rawGive, rawGet);
         if (priceFail) continue;
-        if (get.some((id) => !ctx.isPick(id) && id !== target && !(myGain.get(id) > 0) && ctx.rawOf(id) < DEAD_WEIGHT * size)) continue;
-        if (give.some((id) => !ctx.isPick(id) && id !== shop && !(theirGain.get(id) > 0) && ctx.rawOf(id) < DEAD_WEIGHT * size)) continue;
+        if (get.some((id) => !context.isPick(id) && id !== target && !(myGain.get(id) > 0) && context.rawOf(id) < DEAD_WEIGHT * size)) continue;
+        if (give.some((id) => !context.isPick(id) && id !== shop && !(theirGain.get(id) > 0) && context.rawOf(id) < DEAD_WEIGHT * size)) continue;
         const dMe = sum(players(get).map((id) => myGain.get(id) || 0)) - sum(players(give).map(dropMe));
         const dThem = sum(players(give).map((id) => theirGain.get(id) || 0)) - sum(players(get).map(dropThem));
-        const uMe = utility(ctx, me, wMe, give, get, dMe) - cutMe;
-        const uThem = utility(ctx, other, wThem, get, give, dThem) - cutThem;
+        const uMe = utility(context, me, wMe, give, get, dMe) - cutMe;
+        const uThem = utility(context, other, wThem, get, give, dThem) - cutThem;
         if (uMe <= 0 || uThem <= 0) continue;
-        approx.push({ give, get, size, drops: { me: dropsMe, them: dropsThem }, score: Math.sqrt(uMe * uThem) / (ctx.mode === 'redraft' ? 1 : size) });
+        approx.push({ give, get, size, drops: { me: dropsMe, them: dropsThem }, score: Math.sqrt(uMe * uThem) / (context.mode === 'redraft' ? 1 : size) });
       }
     }
     approx.sort((a, b) => b.score - a.score);
@@ -233,34 +233,34 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const gp = players(c.give);
       const ap = players(c.get);
       const impact = tradeImpact({
-        slots: ctx.slots, weeks: ctx.weeks, positionsOf: ctx.positionsOf,
+        slots: context.slots, weeks: context.weeks, positionsOf: context.positionsOf,
         a: { pool: me.pool }, b: { pool: other.pool }, aGives: gp, bGives: ap
       });
-      const uMe = utility(ctx, me, wMe, c.give, c.get, impact.a.delta) - cutCost(me, wMe, c.drops.me);
-      const uThem = utility(ctx, other, wThem, c.get, c.give, impact.b.delta) - cutCost(other, wThem, c.drops.them);
-      const unfit = exactGate(ctx, P, goal, {
+      const uMe = utility(context, me, wMe, c.give, c.get, impact.a.delta) - cutCost(me, wMe, c.drops.me);
+      const uThem = utility(context, other, wThem, c.get, c.give, impact.b.delta) - cutCost(other, wThem, c.drops.them);
+      const unfit = exactGate(context, P, goal, {
         wMe, wThem, size: c.size, uMe, uThem, dMe: impact.a.delta, dThem: impact.b.delta,
-        vMe: valueGain(ctx, me, wMe, c.give, c.get), vThem: valueGain(ctx, other, wThem, c.get, c.give)
+        vMe: valueGain(context, me, wMe, c.give, c.get), vThem: valueGain(context, other, wThem, c.get, c.give)
       });
       if (unfit) continue;
       const rawNetThem = (raw(c.give) - raw(c.get)) / c.size;
-      const share = ctx.mode === 'redraft' ? Math.min(Math.max(uThem, 0) / 10, 1) : Math.min(uThem / c.size / 0.12, 1);
-      const fair = ctx.mode === 'redraft' && !ctx.consensus ? 0.5 : Math.max(0, Math.min(1, 0.5 + rawNetThem / 0.2));
-      const care = ctx.mode === 'redraft' ? (motivationOf(wThem) - 0.45) / 0.55 : 0.5 + 0.5 * Math.abs(wThem - 0.5) * 2 * 0.5;
+      const share = context.mode === 'redraft' ? Math.min(Math.max(uThem, 0) / 10, 1) : Math.min(uThem / c.size / 0.12, 1);
+      const fair = context.mode === 'redraft' && !context.consensus ? 0.5 : Math.max(0, Math.min(1, 0.5 + rawNetThem / 0.2));
+      const care = context.mode === 'redraft' ? (motivationOf(wThem) - 0.45) / 0.55 : 0.5 + 0.5 * Math.abs(wThem - 0.5) * 2 * 0.5;
       const appetite = 0.8 + 0.4 * (other.appetite == null ? 0.5 : other.appetite);
       const likelihood = Math.max(0.05, Math.min(0.95, (0.15 + 0.35 * share + 0.3 * fair + 0.2 * care) * appetite));
-      const priced = ctx.mode === 'dynasty' || ctx.consensus;
+      const priced = context.mode === 'dynasty' || context.consensus;
       const fairness = priced ? 1 - 2.5 * Math.max(0, rawNetThem - 0.04) - 1.5 * Math.max(0, -rawNetThem - 0.04) : 1;
-      const quality = Math.max(0.1, fairness) * (ctx.mode === 'redraft' ? Math.sqrt(uMe * uThem) : Math.sqrt(uMe * uThem) / c.size);
+      const quality = Math.max(0.1, fairness) * (context.mode === 'redraft' ? Math.sqrt(uMe * uThem) : Math.sqrt(uMe * uThem) / c.size);
       const entry = {
         partnerId: other.id, give: c.give, get: c.get, size: c.size, drops: c.drops,
-        me: { dPts: impact.a.delta, utility: uMe, wMe, starts: startsAmong(ctx, me.pool.filter((id) => !gp.includes(id)).concat(ap), ap) },
-        them: { dPts: impact.b.delta, utility: uThem, starts: startsAmong(ctx, other.pool.filter((id) => !ap.includes(id)).concat(gp), gp) },
+        me: { dPts: impact.a.delta, utility: uMe, wMe, starts: startsAmong(context, me.pool.filter((id) => !gp.includes(id)).concat(ap), ap) },
+        them: { dPts: impact.b.delta, utility: uThem, starts: startsAmong(context, other.pool.filter((id) => !ap.includes(id)).concat(gp), gp) },
         rawNetThem, likelihood, score: quality * (0.6 + 0.4 * likelihood)
       };
       exact.push(entry);
       const lastItem = entry;
-      const regular = lastItem.me.starts.length ? lastItem.me.starts[0].weeks / ctx.weeks.length : 0;
+      const regular = lastItem.me.starts.length ? lastItem.me.starts[0].weeks / context.weeks.length : 0;
       lastItem.score *= 0.7 + 0.3 * Math.min(1, regular / 0.6);
     }
     exact.sort((a, b) => b.score - a.score);
@@ -268,7 +268,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const out = [];
     const asked = new Set();
     const offered = new Set();
-    const withPicks = (p) => p.give.concat(p.get).some(ctx.isPick);
+    const withPicks = (p) => p.give.concat(p.get).some(context.isPick);
     const take = (list, limit) => {
       let n = 0;
       for (const p of list) {

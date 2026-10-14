@@ -18,11 +18,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   async function chain(leagueId, season) {
     const out = [{ leagueId, season: String(season) }];
-    let lg = await api.league(leagueId);
-    while (out.length < MAX_SEASONS && lg && lg.previous_league_id && lg.previous_league_id !== '0') {
-      lg = await api.league(lg.previous_league_id);
-      if (!lg) break;
-      out.push({ leagueId: lg.league_id, season: String(lg.season) });
+    let league = await api.league(leagueId);
+    while (out.length < MAX_SEASONS && league && league.previous_league_id && league.previous_league_id !== '0') {
+      league = await api.league(league.previous_league_id);
+      if (!league) break;
+      out.push({ leagueId: league.league_id, season: String(league.season) });
     }
     return out;
   }
@@ -88,15 +88,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  async function load(lg, nfl, ctx) {
-    const seasons = await chain(lg.leagueId, lg.raw.season);
+  async function load(league, nfl, context) {
+    const seasons = await chain(league.leagueId, league.raw.season);
     const all = [];
     const drafts = [];
     for (const s of seasons) {
       const current = s.season === String(nfl.season);
       const lastWeek = current ? Math.max(1, nfl.week) : LAST_WEEK;
       const [{ trades: tradeTx }, rosters] = await Promise.all([rows(s.leagueId, lastWeek), api.rosters(s.leagueId).catch(() => [])]);
-      const owners = Object.fromEntries((rosters || []).map((ro) => [ro.roster_id, ro.owner_id]));
+      const owners = Object.fromEntries((rosters || []).map((roster) => [roster.roster_id, roster.owner_id]));
       const trades = tradeHistory.parse(tradeTx, s.season);
       drafts.push(...await draftsOf(s.leagueId).catch(() => []));
       const earliest = trades.length ? Math.min(...trades.map((t) => t.week)) : null;
@@ -107,12 +107,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
     }
     tradeDrafts.settle(all.map((g) => g.trade), tradeDrafts.index(drafts));
-    for (const g of all) g.grades = tradeHistory.grade(g.trade, ctx, g.real);
+    for (const g of all) g.grades = tradeHistory.grade(g.trade, context, g.real);
     all.sort((a, b) => b.trade.at - a.trade.at);
     const recentSeasons = new Set(seasons.slice(0, RECENT).map((x) => x.season));
     const recent = all.filter((g) => recentSeasons.has(String(g.trade.season)));
     const ownersOf = new Map(all.map((g) => [g.trade, g.owners]));
-    const profiles = tradeHistory.profiles(all, (trade, rid) => (ownersOf.get(trade) || {})[rid] || `${trade.season}:${rid}`);
+    const profiles = tradeHistory.profiles(all, (trade, rosterId) => (ownersOf.get(trade) || {})[rosterId] || `${trade.season}:${rosterId}`);
     return { graded: all, drafts, profiles, band: tradeHistory.league(recent, Math.min(seasons.length, RECENT)), seasons: seasons.map((s) => s.season) };
   }
 

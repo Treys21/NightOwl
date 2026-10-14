@@ -4,7 +4,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, scoring, teams, players, storage, account, dom } = NightOwl;
-  const { escape: esc, tenths: fmt, windowTitle, countdown } = NightOwl.format;
+  const { escape: escapeHtml, tenths: fmt, windowTitle, countdown } = NightOwl.format;
   const { isPlaying, mine, startingSlots, slotLabel, lookaheadWeek, seasonType: seasonTypeOf, teamUrl } = NightOwl.leagues;
   const core = NightOwl.lineups;
   let root = null;
@@ -53,8 +53,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const seasonType = seasonTypeOf(state.nfl);
 
     const playing = (await api.leagues(userId, season)).filter(isPlaying);
-    state.leagues = (await Promise.all(playing.map(async (lg) => {
-      const [rosters, matchups] = await Promise.all([api.rosters(lg.league_id), api.matchups(lg.league_id, week)]);
+    state.leagues = (await Promise.all(playing.map(async (league) => {
+      const [rosters, matchups] = await Promise.all([api.rosters(league.league_id), api.matchups(league.league_id, week)]);
       const own = mine(rosters, userId);
       if (!own) return null;
       const set = (matchups || []).find((m) => m.roster_id === own.roster_id);
@@ -62,10 +62,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         ? Object.assign({}, own, { starters: set.starters || own.starters, players: set.players || own.players })
         : own;
       return {
-        leagueId: lg.league_id,
-        name: lg.name.trim(),
-        slots: startingSlots(lg),
-        scoring: lg.scoring_settings || {},
+        leagueId: league.league_id,
+        name: league.name.trim(),
+        slots: startingSlots(league),
+        scoring: league.scoring_settings || {},
         roster
       };
     }))).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
@@ -73,14 +73,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (force || Date.now() - state.gamesAt > KICKOFF_TTL_MS) {
       try {
         state.games = core.parseGames(await api.kickoffs(season, week, seasonType));
-      } catch (err) {
-        console.warn('[Night Owl lineups] ESPN kickoffs unavailable, using Sleeper dates', err);
+      } catch (error) {
+        console.warn('[Night Owl lineups] ESPN kickoffs unavailable, using Sleeper dates', error);
         state.games = core.gamesFromSchedule(await api.schedule(season, seasonType), week);
       }
       state.gamesAt = Date.now();
     }
     if (force || Date.now() - state.projAt > PROJ_TTL_MS) {
-      const rows = await api.weekProjections(season, week, seasonType, api.positionsFor(state.leagues.map((lg) => lg.slots)));
+      const rows = await api.weekProjections(season, week, seasonType, api.positionsFor(state.leagues.map((league) => league.slots)));
       state.proj = {};
       for (const r of rows) state.proj[r.player_id] = r.stats || {};
       state.projAt = Date.now();
@@ -95,9 +95,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     try {
       await load(force);
       state.error = null;
-    } catch (err) {
-      console.error('[Night Owl lineups]', err);
-      state.error = NightOwl.format.errorText(err);
+    } catch (error) {
+      console.error('[Night Owl lineups]', error);
+      state.error = NightOwl.format.errorText(error);
     } finally {
       state.busy = false;
       if (root) $('lu-refresh').classList.remove('spin');
@@ -127,10 +127,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const kickoffByTeam = new Map();
     for (const g of state.games) { kickoffByTeam.set(g.home, g.kickoff); kickoffByTeam.set(g.away, g.kickoff); }
     const kickoffOf = (t) => (kickoffByTeam.has(t) ? kickoffByTeam.get(t) : null);
-    const projected = (pid, sc) => scoring.points(state.proj[pid], sc);
+    const projected = (playerId, sc) => scoring.points(state.proj[playerId], sc);
     const leagues = state.leagues
-      .filter((lg) => !state.excluded.has(lg.leagueId))
-      .map((lg) => Object.assign({}, lg, core.lineup(lg, lg.roster, players.info, projected, kickoffOf, now)));
+      .filter((league) => !state.excluded.has(league.leagueId))
+      .map((league) => Object.assign({}, league, core.lineup(league, league.roster, players.info, projected, kickoffOf, now)));
     return { leagues, wins: core.windows(state.games).filter((w) => !w.started && w.kickoff > now) };
   }
 
@@ -143,13 +143,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const cls = o.gain > 0 ? 'up' : o.gain < 0 ? 'down' : '';
       const effect = o.gain > 0 ? `gains ${fmt(o.gain)}` : o.gain < 0 ? `loses ${fmt(-o.gain)}` : 'is a wash';
       const where = o.via
-        ? `${esc(slotLabel(o.slot))} (${esc(o.via.name)} moves to ${esc(slotLabel(o.via.slot))})`
-        : esc(slotLabel(o.slot));
+        ? `${escapeHtml(slotLabel(o.slot))} (${escapeHtml(o.via.name)} moves to ${escapeHtml(slotLabel(o.via.slot))})`
+        : escapeHtml(slotLabel(o.slot));
       const title = r.status === 'start'
         ? `Benching ${r.name} for ${o.name} (${fmt(o.proj)} proj) ${effect}`
         : `Starting ${r.name} over ${o.name} (${fmt(o.proj)} proj) ${effect}`;
-      return `<span class="lu-opt ${cls}" title="${esc(title)}${o.via ? ` (${esc(o.via.name)} slides to ${esc(slotLabel(o.via.slot))})` : ''}">
-        <b>${esc(o.name)}</b><span class="lu-opt-slot">${where}</span>${!anyGain && r.status === 'start'
+      return `<span class="lu-opt ${cls}" title="${escapeHtml(title)}${o.via ? ` (${escapeHtml(o.via.name)} slides to ${escapeHtml(slotLabel(o.via.slot))})` : ''}">
+        <b>${escapeHtml(o.name)}</b><span class="lu-opt-slot">${where}</span>${!anyGain && r.status === 'start'
     ? `<span class="lu-gain">${fmt(o.proj)}</span>`
     : `<span class="lu-gain ${cls}">${o.gain > 0 ? '+' : o.gain < 0 ? '−' : '±'}${fmt(Math.abs(o.gain))}</span>`}</span>`;
     };
@@ -160,43 +160,43 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       ? `<details class="lu-more"><summary>+${rest.length} more</summary>${rest.map(chip).join('')}</details>` : ''}</div>`;
   }
 
-  function bestBanner(lg) {
-    if (!lg.best || !lg.best.moves.length) return '';
+  function bestBanner(league) {
+    if (!league.best || !league.best.moves.length) return '';
     const verb = { start: 'Start', move: 'Slide', bench: 'Bench' };
     return `<div class="lu-best">
-      <div class="lu-best-head"><span>Optimal lineup</span><span class="lu-best-gain">+${fmt(lg.best.gain)} proj</span></div>
-      <div class="lu-best-moves">${lg.best.moves.map((m) => `<span class="lu-move ${m.type}">${verb[m.type]} <b>${esc(m.name)}</b>${m.slot ? ` → ${esc(slotLabel(m.slot))}` : ''}</span>`).join('')}</div>
+      <div class="lu-best-head"><span>Optimal lineup</span><span class="lu-best-gain">+${fmt(league.best.gain)} proj</span></div>
+      <div class="lu-best-moves">${league.best.moves.map((m) => `<span class="lu-move ${m.type}">${verb[m.type]} <b>${escapeHtml(m.name)}</b>${m.slot ? ` → ${escapeHtml(slotLabel(m.slot))}` : ''}</span>`).join('')}</div>
     </div>`;
   }
 
-  function playerRow(lg, r) {
+  function playerRow(league, r) {
     const tag = r.status === 'start'
-      ? `<span class="lu-pill start">${esc(slotLabel(r.slot))}</span>`
+      ? `<span class="lu-pill start">${escapeHtml(slotLabel(r.slot))}</span>`
       : `<span class="lu-pill ${r.status}">${r.status === 'ir' ? 'IR' : r.status === 'taxi' ? 'TAXI' : 'BENCH'}</span>`;
-    const inj = r.injury ? `<span class="lu-inj ${core.OUT.has(r.injury) ? 'out' : ''}">${esc(r.injury === 'Questionable' ? 'Q' : r.injury)}</span>` : '';
+    const inj = r.injury ? `<span class="lu-inj ${core.OUT.has(r.injury) ? 'out' : ''}">${escapeHtml(r.injury === 'Questionable' ? 'Q' : r.injury)}</span>` : '';
     const head = teams.photo(r.pid, r.team);
-    const notes = r.notes.map((n) => `<div class="lu-note ${n.kind}">${n.kind === 'swap' ? '⇄' : '⚠'} ${esc(n.text)}</div>`).join('');
+    const notes = r.notes.map((n) => `<div class="lu-note ${n.kind}">${n.kind === 'swap' ? '⇄' : '⚠'} ${escapeHtml(n.text)}</div>`).join('');
     const opts = optionsList(r);
     return `<li class="lu-row ${r.status}${r.notes.some((n) => n.kind !== 'info') ? ' flagged' : ''}" style="--tc:${teams.colors(r.team).primary}">
       <img class="lu-head" alt="" src="${head}" style="border-color:${teams.colors(r.team).primary}">
       <div class="lu-main">
-        <div><span class="lu-name">${esc(r.name)}</span> <span class="muted small">${esc(r.pos)} · ${esc(r.team)}</span> ${inj}</div>
+        <div><span class="lu-name">${escapeHtml(r.name)}</span> <span class="muted small">${escapeHtml(r.pos)} · ${escapeHtml(r.team)}</span> ${inj}</div>
       </div>
-      <div class="lu-side">${tag}<span class="lu-proj">${fmt(r.proj)}</span>${r.inBest && lg.best && lg.best.moves.length ? '<span class="lu-inbest" title="In the optimal lineup">★ best</span>' : ''}</div>
+      <div class="lu-side">${tag}<span class="lu-proj">${fmt(r.proj)}</span>${r.inBest && league.best && league.best.moves.length ? '<span class="lu-inbest" title="In the optimal lineup">★ best</span>' : ''}</div>
       <div class="lu-extra">${notes}${opts}</div>
     </li>`;
   }
 
-  function leagueBlock(lg, rows, showBest) {
+  function leagueBlock(league, rows, showBest) {
     const flags = rows.filter((r) => r.notes.some((n) => n.kind !== 'info')).length;
     return `<div class="lu-league">
       <div class="lu-league-head">
-        <span class="lname">${esc(lg.name)}</span>
+        <span class="lname">${escapeHtml(league.name)}</span>
         ${flags ? `<span class="lu-flagcount">${flags} to fix</span>` : ''}
-        <a class="lu-edit" href="${teamUrl(lg.leagueId)}">Edit lineup ↗</a>
+        <a class="lu-edit" href="${teamUrl(league.leagueId)}">Edit lineup ↗</a>
       </div>
-      ${showBest ? bestBanner(lg) : ''}
-      <ol class="lu-list">${rows.map((r) => playerRow(lg, r)).join('')}</ol>
+      ${showBest ? bestBanner(league) : ''}
+      <ol class="lu-list">${rows.map((r) => playerRow(league, r)).join('')}</ol>
     </div>`;
   }
 
@@ -219,13 +219,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const { leagues, wins } = computed();
     const html = [];
 
-    const byes = leagues.flatMap((lg) => lg.rows.filter((r) => r.status === 'start' && r.bye).map((r) => ({ lg, r })));
-    const empties = leagues.filter((lg) => lg.empty.length);
+    const byes = leagues.flatMap((league) => league.rows.filter((r) => r.status === 'start' && r.bye).map((r) => ({ lg: league, r })));
+    const empties = leagues.filter((league) => league.empty.length);
     if (byes.length || empties.length) {
       html.push(`<div class="lu-alert">
         <strong>Fix before kickoff</strong>
-        ${byes.map(({ lg, r }) => `<div>${esc(r.name)} is on bye but starting in <a href="${teamUrl(lg.leagueId)}">${esc(lg.name)}</a></div>`).join('')}
-        ${empties.map((lg) => `<div>Empty ${esc(lg.empty.join(', '))} slot${lg.empty.length > 1 ? 's' : ''} in <a href="${teamUrl(lg.leagueId)}">${esc(lg.name)}</a></div>`).join('')}
+        ${byes.map(({ lg: league, r }) => `<div>${escapeHtml(r.name)} is on bye but starting in <a href="${teamUrl(league.leagueId)}">${escapeHtml(league.name)}</a></div>`).join('')}
+        ${empties.map((league) => `<div>Empty ${escapeHtml(league.empty.join(', '))} slot${league.empty.length > 1 ? 's' : ''} in <a href="${teamUrl(league.leagueId)}">${escapeHtml(league.name)}</a></div>`).join('')}
       </div>`);
     }
 
@@ -240,15 +240,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       let benched = 0;
       let flags = 0;
       let better = 0;
-      for (const lg of leagues) {
-        const rows = sortRows(lg.rows.filter((r) => w.teams.has(r.team)));
+      for (const league of leagues) {
+        const rows = sortRows(league.rows.filter((r) => w.teams.has(r.team)));
         if (!rows.length) continue;
         starting += rows.filter((r) => r.status === 'start').length;
         benched += rows.filter((r) => r.status === 'bench').length;
         flags += rows.filter((r) => r.notes.some((n) => n.kind !== 'info')).length;
-        if (!bannered.has(lg.leagueId) && lg.best && lg.best.moves.length) better++;
-        blocks.push(leagueBlock(lg, rows, !bannered.has(lg.leagueId)));
-        bannered.add(lg.leagueId);
+        if (!bannered.has(league.leagueId) && league.best && league.best.moves.length) better++;
+        blocks.push(leagueBlock(league, rows, !bannered.has(league.leagueId)));
+        bannered.add(league.leagueId);
       }
       const open = i === 0 || state.open.has(w.kickoff);
       const soon = w.kickoff - Date.now() < 3600000;
@@ -259,7 +259,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <summary>
           ${i === 0 ? '<span class="lu-eyebrow">Next lock</span>' : ''}
           <div class="lu-when">
-            <span class="lu-label">${esc(windowLabel(w))}</span>
+            <span class="lu-label">${escapeHtml(windowLabel(w))}</span>
             ${w.approx ? '' : `<span class="lu-lock${soon ? ' soon' : ''}">${w.kickoff - Date.now() < 12 * 3600000 ? ring(w.kickoff, soon) : ''}locks in ${countdown(w.kickoff)}</span>`}
           </div>
           <div class="lu-meta">
@@ -274,11 +274,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     dom.setHtml($('lu-body'), html.join(''));
   }
 
-  function mount(el) {
-    if (root === el) return;
-    root = el;
+  function mount(element) {
+    if (root === element) return;
+    root = element;
     root.classList.add('tool', 'intro');
-    setTimeout(() => el.classList.remove('intro'), 1600);
+    setTimeout(() => element.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
     $('lu-refresh').addEventListener('click', () => refresh(true));
     $('lu-body').addEventListener('toggle', (e) => {

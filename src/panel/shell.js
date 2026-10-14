@@ -109,7 +109,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     setTimeout(slideIndicator, 400);
     if (typeof ResizeObserver !== 'undefined') {
       const watcher = new ResizeObserver(slideIndicator);
-      panel.querySelectorAll('.switch, .switch button').forEach((el) => watcher.observe(el));
+      panel.querySelectorAll('.switch, .switch button').forEach((element) => watcher.observe(element));
     }
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(slideIndicator);
   }
@@ -333,24 +333,24 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function wireSetup() {
     const form = panel.querySelector('.setup');
-    const msg = form.querySelector('.setup-msg');
+    const message = form.querySelector('.setup-msg');
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const username = form.username.value.trim();
       if (!username) return;
       const button = form.querySelector('button');
       button.disabled = true;
-      msg.textContent = 'Looking you up…';
+      message.textContent = 'Looking you up…';
       try {
         const user = await NightOwl.api.user(username);
         if (user && user.user_id) {
-          msg.textContent = '';
+          message.textContent = '';
           await storage.saveSettings({ username, userId: user.user_id });
         } else {
-          msg.textContent = `No Sleeper user named "${username}". Check the spelling.`;
+          message.textContent = `No Sleeper user named "${username}". Check the spelling.`;
         }
       } catch {
-        msg.textContent = "Couldn't reach Sleeper. Try again in a moment.";
+        message.textContent = "Couldn't reach Sleeper. Try again in a moment.";
       } finally {
         button.disabled = false;
       }

@@ -38,11 +38,11 @@ test('standings rank by wins then points, with luck and efficiency', () => {
 
 test('best lineup on actual points respects slot eligibility and flex', () => {
   const pos = { qb: ['QB'], rb1: ['RB'], rb2: ['RB'], wr1: ['WR'], te: ['TE'] };
-  const pts = { qb: 20, rb1: 5, rb2: 18, wr1: 12, te: 9 };
-  const best = season.optimal(['QB', 'RB', 'WR', 'FLEX', 'BN'], Object.keys(pos), (p) => pts[p], (p) => pos[p]);
+  const points = { qb: 20, rb1: 5, rb2: 18, wr1: 12, te: 9 };
+  const best = season.optimal(['QB', 'RB', 'WR', 'FLEX', 'BN'], Object.keys(pos), (p) => points[p], (p) => pos[p]);
   assert.equal(best.points, 20 + 18 + 12 + 9);
   assert.deepEqual(best.starters, ['qb', 'rb2', 'wr1', 'te']);
-  const miss = season.biggestMiss(['QB', 'RB', 'WR', 'FLEX'], ['qb', 'rb1', 'wr1', 'te'], ['rb2'], (p) => pts[p], (p) => pos[p]);
+  const miss = season.biggestMiss(['QB', 'RB', 'WR', 'FLEX'], ['qb', 'rb1', 'wr1', 'te'], ['rb2'], (p) => points[p], (p) => pos[p]);
   assert.deepEqual(miss, { in: 'rb2', out: 'rb1', slot: 'RB', gain: 13 });
 });
 
