@@ -8,21 +8,6 @@ so you don't have to click through them one by one.
 
 [**Download the latest version**](https://github.com/Treys21/NightOwl/releases/latest/download/night-owl.zip)
 
-## What's in it
-
-- **Live**: every scoring play by your players and your opponents', with what it did
-  in each league (scoring settings differ), plus your win odds for the week.
-- **Lineups**: the best lineup you can set before each kickoff, and a warning if a
-  starter is on bye or a slot is empty.
-- **Season**: standings, luck, and points left on the bench for every league. It can
-  also play out the rest of the season and your playoff path.
-- **Bets**: lines and hit rates for the players you're starting.
-- **Moves**: waiver pickups, a trade analyzer, a trade finder, trade history with
-  grades, and draft boards. Dynasty values come from KeepTradeCut.
-- **Draft**: your own rankings, shown on the board in a Sleeper draft room.
-
-Everything is read-only. Night Owl never changes anything in your leagues.
-
 ## Install
 
 Night Owl isn't in the Chrome Web Store, so you load it yourself. It takes a couple of minutes.
