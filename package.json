@@ -17,7 +17,8 @@
     "check": "node scripts/check.mjs",
     "package": "node scripts/package.mjs",
     "verify": "npm run lint && npm run typecheck && npm run check && npm test",
-    "preview": "node tools/preview/shoot.mjs"
+    "preview": "node tools/preview/shoot.mjs",
+    "backtest": "node tools/backtest/run.mjs"
   },
   "license": "MIT",
   "devDependencies": {

@@ -123,7 +123,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
    * options: { medianGame, sims, seed, draft: { method, winWeight } | null }
    * -> { teams: { rosterId: {...} }, order: [rosterId by projected finish], bracket }
    */
-  function projectSeason({ teams, weeks, playoff = null, medianGame = false, sims = 2000, seed = 1, draft = null }) {
+  function projectSeason({ teams, weeks, playoff = null, medianGame = false, sims = 2000, seed = 1, draft = null, forced = null }) {
     const ids = teams.map((t) => t.rosterId);
     const byId = new Map(teams.map((t) => [t.rosterId, t]));
     const eff = new Map(teams.map((t) => [t.rosterId, clampEfficiency(t.efficiency)]));
@@ -144,6 +144,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const acc = new Map(ids.map((id) => [id, {
       wins: 0, losses: 0, ties: 0, pf: 0, max: 0, rank: 0,
       playoffs: 0, bye: 0, final: 0, title: 0,
+      winHist: new Map(), madeByWins: new Map(),
       seeds: new Array(ids.length + 1).fill(0), picks: new Array(ids.length + 1).fill(0), pick: 0
     }]));
 
@@ -153,7 +154,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const pf = new Map(teams.map((t) => [t.rosterId, t.pf || 0]));
       const max = new Map(teams.map((t) => [t.rosterId, t.max || 0]));
 
-      for (const wk of weeks) {
+      for (let wi = 0; wi < weeks.length; wi++) {
+        const wk = weeks[wi];
         const score = new Map();
         for (const id of ids) {
           const o = wk.teams[id];
@@ -166,7 +168,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         }
         for (const [a, b] of wk.pairs) {
           if (!byId.has(a) || !byId.has(b)) continue;
-          const [w, l] = score.get(a) >= score.get(b) ? [a, b] : [b, a];
+          // A game can be forced (what if you win it? lose it?) to see how much it matters.
+          const force = forced && wi === forced.weekIndex && (a === forced.winner || b === forced.winner);
+          const [w, l] = force ? (a === forced.winner ? [a, b] : [b, a]) : score.get(a) >= score.get(b) ? [a, b] : [b, a];
           wins.set(w, wins.get(w) + 1);
           losses.set(l, losses.get(l) + 1);
         }
@@ -184,7 +188,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const a = acc.get(id);
         a.rank += i + 1;
         a.seeds[i + 1]++;
-        if (i < playoffTeams) a.playoffs++;
+        const total = wins.get(id);
+        a.winHist.set(total, (a.winHist.get(total) || 0) + 1);
+        if (i < playoffTeams) { a.playoffs++; a.madeByWins.set(total, (a.madeByWins.get(total) || 0) + 1); }
       });
 
       if (format && playoffTeams >= 2) {
@@ -243,6 +249,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         max: round2(a.max / sims),
         avgRank: round2(a.rank / sims),
         seedOdds: a.seeds.slice(1).map((n) => n / sims),
+        // Final win totals and the chance of making the playoffs at each: what you need.
+        winOdds: [...a.winHist.entries()].sort((x, y) => x[0] - y[0]).map(([w, n]) => ({ wins: w, p: n / sims, make: (a.madeByWins.get(w) || 0) / n })),
         playoffOdds: a.playoffs / sims,
         byeOdds: a.bye / sims,
         finalOdds: a.final / sims,

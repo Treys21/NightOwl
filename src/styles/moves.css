@@ -98,3 +98,21 @@
 .mv-btn { flex: 1; padding: 7px 10px; border-radius: 8px; font: 600 12px Poppins, sans-serif; color: var(--text); background: var(--raised); border: 1px solid var(--line); cursor: pointer; }
 .mv-btn:hover { background: rgba(163, 187, 211, .14); }
 @media (max-width: 360px) { .mv-swap { grid-template-columns: 1fr; } .mv-arrow { display: none; } }
+
+/* Trade history */
+.mv-hist { padding: 9px 12px; }
+.mv-hist-h { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.mv-hist-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mv-hist-side { min-width: 0; padding: 8px 10px; border-radius: 10px; background: rgba(163, 187, 211, .05); }
+.mv-hist-side.me { background: var(--teal-soft); }
+.mv-hist-who { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+.mv-hist-who b { font: 700 12px Poppins, sans-serif; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-hist-side ul { list-style: none; margin: 0 0 4px; padding: 0; display: grid; gap: 2px; font-size: 12px; color: var(--sub); }
+.mv-grade { flex: none; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 7px; font: 700 12px Poppins, sans-serif; background: var(--raised); color: var(--sub); }
+.mv-grade.g-A { color: #0e1018; background: var(--teal); }
+.mv-grade.g-B { color: var(--teal); background: var(--teal-soft); }
+.mv-grade.g-D { color: #feae58; background: rgba(254, 174, 88, .14); }
+.mv-grade.g-F { color: var(--pink); background: var(--pink-soft); }
+.mv-managers { margin-bottom: 10px; }
+.mv-managers tr.me td { background: var(--teal-soft); }
+@media (max-width: 360px) { .mv-hist-sides { grid-template-columns: 1fr; } }

@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+**Trade history, season path and recap, and a backtest for the trade logic.**
+- **Moves → History.** Every trade in a league (this season and last, following
+  the league's history) with an A–F grade for each side: today's KeepTradeCut
+  value in dynasty, plus what the players actually started for their new teams
+  (redraft is graded on points alone). A table shows how each manager trades:
+  deals, average value won or given up, and how much of it is picks.
+- **The finder learns from the league.** A manager who trades often is likelier
+  to say yes, and one who never has is flagged as a long shot; the other side's
+  price tolerance follows what this league's trades have actually looked like;
+  cards add a History line ("has made 4 trades in 2 seasons and usually comes out
+  ahead: expect them to push on price").
+- **Season → Path.** Each remaining opponent with your chance in the game, what
+  finishing with each win total does to your playoff odds, how much your next game
+  swings them ("win → 78%, lose → 31%"), and your route through the projected
+  bracket. The simulation can now force a game's result to measure that.
+- **Season → Recap.** What the bench cost you (and the costliest weeks), your MVP,
+  the best player you added, the one you dropped who got away, and what your
+  trades produced.
+- **Backtest** (`npm run backtest -- --user <name>`). Rebuilds both rosters just
+  before each real trade in your leagues and puts it through the finder's own
+  gates, next to random swaps as a baseline, trying many parameter sets. It found
+  that real dynasty deals look most even when packages are discounted much more
+  steeply than assumed (power-mean exponent 2.5, was 1.5: the median gap between
+  the sides fell from 23% to 12%), so that is now the default, and the price
+  tolerances were widened to match (the other side may lose 12%, you may overpay
+  20%). It also showed real trades are far lumpier than fair deals: in these
+  leagues every trade had one side losing lineup points, so the finder's "both
+  sides improve" proposals are deliberately cleaner than what people usually do.
+
 ## 3.9.0
 **Trade finder** (Moves → Finder). For one league, it searches every team for
 trades they would plausibly accept and you would actually want, and says why.

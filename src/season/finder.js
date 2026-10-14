@@ -29,14 +29,25 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const SIDE_SHOWN = 7; // assets per side considered when building deals
   const KEEP_PER_PARTNER = 3;
   const EXACT_PER_PARTNER = 18; // deals scored exactly per partner
-  const FAIR_TOLERANCE = 0.08; // the other side may lose this much of the deal's size on consensus value (dynasty)
-  const FAIR_TOLERANCE_REDRAFT = 0.1; // redraft consensus is noisier
-  const OVERPAY_TOLERANCE = { balanced: 0.15, now: 0.25, future: 0.12 }; // and you this much (dynasty)
-  const OVERPAY_TOLERANCE_REDRAFT = { balanced: 0.07, now: 0.12, future: 0.07 }; // redraft prices are for fair deals: the edge is production and fit, not a premium
-  const MIN_UTILITY = { me: 0.03, them: 0.02 }; // as a share of the deal's size
-  const MIN_POINTS = { me: 3, them: 2 }; // lineup points a side must gain to call a deal an upgrade
-  const MIN_VALUE = { rebuild: 0.04, mixed: 0.05 }; // dynasty: value a side must gain, as a share of the deal's size
   const NOT_TRADE_CHIPS = new Set(['K', 'DEF']); // streamable: nobody trades for them
+
+  // The numbers that decide what counts as a deal both sides would take. They
+  // were tuned against real trades (tools/backtest); ctx.params overrides them
+  // so the backtest can try others.
+  const DEFAULTS = {
+    fairTolerance: 0.12, // the other side may lose this much of the deal's size on consensus value (dynasty): real deals in the backtest sit a median 12% off even
+    fairToleranceRedraft: 0.1, // redraft consensus is noisier
+    overpay: { balanced: 0.2, now: 0.3, future: 0.15 }, // and you this much (dynasty)
+    overpayRedraft: { balanced: 0.07, now: 0.12, future: 0.07 }, // redraft prices are for fair deals: the edge is production and fit, not a premium
+    minUtility: { me: 0.03, them: 0.02 }, // as a share of the deal's size
+    minPoints: { me: 3, them: 2 }, // lineup points a side must gain to call a deal an upgrade
+    minValue: { rebuild: 0.04, mixed: 0.05 }, // dynasty: value a side must gain, as a share of the deal's size
+    mixedFloor: 0.03, // dynasty, a team between contending and rebuilding that gains points may give up this much of the deal's size in value
+    outOfIt: 0.25 // redraft: below this window a team is out of the race
+  };
+  const paramsOf = (ctx) => Object.assign({}, DEFAULTS, ctx.params || {});
+  const FAIR_TOLERANCE = DEFAULTS.fairTolerance;
+  const FAIR_TOLERANCE_REDRAFT = DEFAULTS.fairToleranceRedraft;
 
   /** 0 (out of it) to 1 (contender) from playoff odds. */
   const contention = (playoffOdds) => Math.max(0, Math.min(1, ((playoffOdds || 0) - 0.1) / 0.5));
@@ -79,7 +90,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   /** In redraft, how much a team's view of a deal comes from consensus value rather than its lineup: eliminated teams care about the former. */
   const valueWeight = (w) => 0.1 + 0.5 * (1 - w);
-  const OUT_OF_IT = 0.25; // redraft: below this window a team is out of the race
 
   /** The value a team gains in its own eyes, window and all (dynasty). */
   function valueGain(ctx, team, w, give, get) {
@@ -104,16 +114,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
    * calculator reads 2% their way.
    */
   function worthIt(ctx, w, goal, dPts, dValue, size, side) {
+    const P = paramsOf(ctx);
     if (ctx.mode === 'redraft') {
-      if (!ctx.consensus) return dPts >= (side === 'me' ? MIN_POINTS.me : MIN_POINTS.them);
+      if (!ctx.consensus) return dPts >= (side === 'me' ? P.minPoints.me : P.minPoints.them);
       // Out of the race, a deal has to read as a win on consensus value; otherwise it has to add points.
-      if (w < OUT_OF_IT) return dValue >= MIN_VALUE.rebuild * size;
-      return dPts >= (side === 'me' ? MIN_POINTS.me : MIN_POINTS.them);
+      if (w < P.outOfIt) return dValue >= P.minValue.rebuild * size;
+      return dPts >= (side === 'me' ? P.minPoints.me : P.minPoints.them);
     }
     const stance = goal === 'now' ? 'now' : goal === 'future' ? 'rebuild' : w >= 0.6 ? 'now' : w < 0.3 ? 'rebuild' : 'mixed';
-    if (stance === 'now') return dPts >= MIN_POINTS.me;
-    if (stance === 'rebuild') return dValue >= MIN_VALUE.rebuild * size;
-    return (dPts >= MIN_POINTS.me && dValue >= -0.03 * size) || dValue >= MIN_VALUE.mixed * size;
+    if (stance === 'now') return dPts >= P.minPoints.me;
+    if (stance === 'rebuild') return dValue >= P.minValue.rebuild * size;
+    return (dPts >= P.minPoints.me && dValue >= -P.mixedFloor * size) || dValue >= P.minValue.mixed * size;
   }
 
   /**
@@ -140,14 +151,67 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out.sort((x, y) => y.weeks - x.weeks);
   }
 
+  /** Is the price one the other side would take, and one you would pay? -> the rule it breaks, or null. */
+  function priceGate(ctx, P, goal, rawGive, rawGet) {
+    const size = Math.max(rawGive, rawGet, 1);
+    if ((rawGive - rawGet) / size < -(ctx.mode === 'redraft' ? P.fairToleranceRedraft : ctx.fairTolerance || P.fairTolerance)) return 'theyLose'; // they would see a rip-off
+    if ((rawGet - rawGive) / size < -(ctx.mode === 'redraft' ? P.overpayRedraft : P.overpay)[goal]) return 'youOverpay'; // and you are overpaying
+    return null;
+  }
+
+  /** With the lineups re-set: does each side come out ahead in its own terms? -> the rule it breaks, or null. */
+  function exactGate(ctx, P, goal, sides) {
+    const { wMe, wThem, size, uMe, uThem, dMe, dThem, vMe, vThem } = sides;
+    if (ctx.mode === 'redraft' && !ctx.consensus) {
+      if (dMe < P.minPoints.me || dThem < P.minPoints.them) return 'noUpgrade';
+      return null;
+    }
+    const scale = ctx.mode === 'redraft' ? 0 : 1;
+    if (uMe < P.minUtility.me * size * scale || uThem < P.minUtility.them * size * scale) return 'exactUtility';
+    if (!worthIt(ctx, wMe, goal, dMe, vMe, size, 'me')) return 'notWorthMe';
+    if (!worthIt(ctx, wThem, 'balanced', dThem, vThem, size, 'them')) return 'notWorthThem';
+    return null;
+  }
+
+  /**
+   * Would the finder have accepted this specific deal? The same gates the
+   * search applies, for a deal someone actually made (the backtest asks this of
+   * real trades). -> { ok, reason, impact, rawNetThem, size, uMe, uThem }
+   */
+  function judge(ctx, me, other, give, get) {
+    const P = paramsOf(ctx);
+    const goal = ctx.goal || 'balanced';
+    const wMe = goal === 'now' ? 1 : goal === 'future' ? 0 : me.w;
+    const wThem = other.w;
+    const players = (ids) => ids.filter((id) => !ctx.isPick(id));
+    const raw = (ids) => ctx.sideValue(ids.map((id) => ctx.rawOf(id)));
+    const rawGive = raw(give);
+    const rawGet = raw(get);
+    const size = Math.max(rawGive, rawGet, 1);
+    const rawNetThem = (rawGive - rawGet) / size;
+    const impact = tradeImpact({
+      slots: ctx.slots, weeks: ctx.weeks, positionsOf: ctx.positionsOf,
+      a: { pool: me.pool }, b: { pool: other.pool }, aGives: players(give), bGives: players(get)
+    });
+    const uMe = utility(ctx, me, wMe, give, get, impact.a.delta);
+    const uThem = utility(ctx, other, wThem, get, give, impact.b.delta);
+    const reason = priceGate(ctx, P, goal, rawGive, rawGet) || exactGate(ctx, P, goal, {
+      wMe, wThem, size, uMe, uThem, dMe: impact.a.delta, dThem: impact.b.delta,
+      vMe: ctx.mode === 'redraft' && !ctx.consensus ? 0 : valueGain(ctx, me, wMe, give, get),
+      vThem: ctx.mode === 'redraft' && !ctx.consensus ? 0 : valueGain(ctx, other, wThem, get, give)
+    });
+    return { ok: !reason, reason, impact, rawNetThem, size, uMe, uThem };
+  }
+
   /**
    * Plausible deals with one partner, best first.
    *   ctx    { mode, slots, weeks, positionsOf, valueOf(team, id, w), rawOf(id), sideValue(values),
-   *            pointValue, isPick(id), canCut(id), goal, focus: { shop, target } }
-   *   me, other   { id, pool, assets, players, count, capacity, w }
+   *            pointValue, isPick(id), canCut(id), goal, focus: { shop, target }, fairTolerance? }
+   *   me, other   { id, pool, assets, players, count, capacity, w, appetite? }
    *   mine   dropLosses() of my team, computed once per search
    */
   function proposeFor(ctx, me, other, mine) {
+    const P = paramsOf(ctx);
     const goal = ctx.goal || 'balanced';
     const wMe = goal === 'now' ? 1 : goal === 'future' ? 0 : me.w;
     const wThem = other.w;
@@ -206,8 +270,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const rawGive = raw(give);
         const rawGet = raw(get);
         const size = Math.max(rawGive, rawGet, 1);
-        if ((rawGive - rawGet) / size < -(ctx.mode === 'redraft' ? FAIR_TOLERANCE_REDRAFT : FAIR_TOLERANCE)) { bump('theyLose'); continue; } // they would see a rip-off
-        if ((rawGet - rawGive) / size < -(ctx.mode === 'redraft' ? OVERPAY_TOLERANCE_REDRAFT : OVERPAY_TOLERANCE)[goal]) { bump('youOverpay'); continue; } // and you are overpaying
+        const priceFail = priceGate(ctx, P, goal, rawGive, rawGet);
+        if (priceFail) { bump(priceFail); continue; }
         const dMe = sum(players(get).map((id) => myGain.get(id) || 0)) - sum(players(give).map(dropMe));
         const dThem = sum(players(give).map((id) => theirGain.get(id) || 0)) - sum(players(get).map(dropThem));
         const uMe = utility(ctx, me, wMe, give, get, dMe) - cutMe;
@@ -229,35 +293,37 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       });
       const uMe = utility(ctx, me, wMe, c.give, c.get, impact.a.delta) - cutCost(me, wMe, c.drops.me);
       const uThem = utility(ctx, other, wThem, c.get, c.give, impact.b.delta) - cutCost(other, wThem, c.drops.them);
-      if (ctx.mode === 'redraft' && !ctx.consensus) {
-        if (impact.a.delta < MIN_POINTS.me || impact.b.delta < MIN_POINTS.them) continue;
-      } else {
-        if (uMe < MIN_UTILITY.me * c.size * (ctx.mode === 'redraft' ? 0 : 1) || uThem < MIN_UTILITY.them * c.size * (ctx.mode === 'redraft' ? 0 : 1)) { bump('exactUtility'); continue; }
-        if (!worthIt(ctx, wMe, goal, impact.a.delta, valueGain(ctx, me, wMe, c.give, c.get), c.size, 'me')) { bump('notWorthMe'); continue; }
-        if (!worthIt(ctx, wThem, 'balanced', impact.b.delta, valueGain(ctx, other, wThem, c.get, c.give), c.size, 'them')) { bump('notWorthThem'); continue; }
-      }
+      const unfit = exactGate(ctx, P, goal, {
+        wMe, wThem, size: c.size, uMe, uThem, dMe: impact.a.delta, dThem: impact.b.delta,
+        vMe: valueGain(ctx, me, wMe, c.give, c.get), vThem: valueGain(ctx, other, wThem, c.get, c.give)
+      });
+      if (unfit) { bump(unfit); continue; }
       const rawNetThem = (raw(c.give) - raw(c.get)) / c.size;
       // How likely a yes is: how much they gain, how they see the price, how much they care.
       const share = ctx.mode === 'redraft' ? Math.min(Math.max(uThem, 0) / 10, 1) : Math.min(uThem / c.size / 0.12, 1);
       const fair = ctx.mode === 'redraft' && !ctx.consensus ? 0.5 : Math.max(0, Math.min(1, 0.5 + rawNetThem / 0.2));
       const care = ctx.mode === 'redraft' ? (motivationOf(wThem) - 0.45) / 0.55 : 0.5 + 0.5 * Math.abs(wThem - 0.5) * 2 * 0.5;
-      const likelihood = Math.max(0.05, Math.min(0.95, 0.15 + 0.35 * share + 0.3 * fair + 0.2 * care));
+      // Managers who trade a lot say yes more; one who never has is a long shot whatever the deal.
+      const appetite = 0.8 + 0.4 * (other.appetite == null ? 0.5 : other.appetite);
+      const likelihood = Math.max(0.05, Math.min(0.95, (0.15 + 0.35 * share + 0.3 * fair + 0.2 * care) * appetite));
       // A fair price wins: little is lost for being a few percent off, a lot for a lopsided deal in either direction.
       const priced = ctx.mode === 'dynasty' || ctx.consensus;
       const fairness = priced ? 1 - 2.5 * Math.max(0, rawNetThem - 0.04) - 1.5 * Math.max(0, -rawNetThem - 0.04) : 1;
       const quality = Math.max(0.1, fairness) * (ctx.mode === 'redraft' ? Math.sqrt(uMe * uThem) : Math.sqrt(uMe * uThem) / c.size);
-      exact.push({
+      const entry = {
         partnerId: other.id, give: c.give, get: c.get, size: c.size, drops: c.drops,
         me: { dPts: impact.a.delta, utility: uMe, wMe, starts: startsAmong(ctx, me.pool.filter((id) => !gp.includes(id)).concat(ap), ap) },
         them: { dPts: impact.b.delta, utility: uThem, starts: startsAmong(ctx, other.pool.filter((id) => !ap.includes(id)).concat(gp), gp) },
         rawNetThem, likelihood, score: quality * (0.6 + 0.4 * likelihood)
-      });
+      };
+      exact.push(entry);
       // Deals that bring in a real starter beat ones that only add a bench body.
-      const lastItem = exact[exact.length - 1];
+      const lastItem = entry;
       const regular = lastItem.me.starts.length ? lastItem.me.starts[0].weeks / ctx.weeks.length : 0;
       lastItem.score *= 0.7 + 0.3 * Math.min(1, regular / 0.6);
     }
     exact.sort((a, b) => b.score - a.score);
+    if (ctx.trace) ctx.trace.push(...exact);
 
     // Variety: one deal per distinct thing asked for, and per distinct thing given.
     const out = [];
@@ -274,7 +340,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  NightOwl.finder = { proposeFor, dropLosses, contention, lambdaOf, motivationOf, subsets, worthIt, valueGain, FAIR_TOLERANCE, FAIR_TOLERANCE_REDRAFT };
+  NightOwl.finder = { proposeFor, judge, dropLosses, contention, lambdaOf, motivationOf, subsets, worthIt, valueGain, DEFAULTS, paramsOf, FAIR_TOLERANCE, FAIR_TOLERANCE_REDRAFT };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.finder;

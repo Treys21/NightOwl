@@ -137,14 +137,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   /**
-   * Simulate the rest of the league's season.
-   *   lg        { leagueId, playoffTeams, medianGame, draft, raw }
-   *   remainingOf / stats   from remainingByTeam and projections
-   *   rosters   play the season with these rosters instead of the real ones
-   *             (a trade, say)
-   *   draftMethod   for #1-pick odds, when the league has a draft to project
+   * Every remaining week as the simulation sees it: who plays whom and each
+   * team's projected score (mean and variance), regular season then playoffs.
+   * -> { format, weeks: [{ week, pairs, teams }], playoffTeams: { week: teams }, rosters }
    */
-  async function projectLeague(lg, { remainingOf, stats, rosters = lg.raw.rosters, draftMethod = 'linear', sims = SIMS }) {
+  async function forecastWeeks(lg, { remainingOf, stats, rosters = lg.raw.rosters }) {
     const r = lg.raw;
     const format = projection.bracketFormat(lg.playoffTeams, r.playoffStart, r.roundType);
     const future = [];
@@ -180,7 +177,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     future.forEach((w, i) => weeks.push({ week: w, pairs: sched[i] || [], teams: weekTeams(w, index + i) }));
     const playoffTeams = {};
     poWeeks.forEach((w, i) => { playoffTeams[w] = weekTeams(w, index + future.length + i); });
+    return { format, weeks, playoffTeams, rosters };
+  }
 
+  /**
+   * Simulate the rest of the league's season.
+   *   lg        { leagueId, playoffTeams, medianGame, draft, raw }
+   *   remainingOf / stats   from remainingByTeam and projections
+   *   rosters   play the season with these rosters instead of the real ones
+   *             (a trade, say)
+   *   draftMethod   for #1-pick odds, when the league has a draft to project
+   *   forced    { weekIndex, winner }: decide one game, to see what it is worth
+   */
+  async function projectLeague(lg, { remainingOf, stats, rosters = lg.raw.rosters, draftMethod = 'linear', sims = SIMS, forced = null }) {
+    const f = await forecastWeeks(lg, { remainingOf, stats, rosters });
     const teams = rosters.map((ro) => {
       const s = ro.settings || {};
       const pf = (s.fpts || 0) + (s.fpts_decimal || 0) / 100;
@@ -189,14 +199,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
     return projection.projectSeason({
       teams,
-      weeks,
-      playoff: format ? { format, teams: playoffTeams } : null,
+      weeks: f.weeks,
+      playoff: f.format ? { format: f.format, teams: f.playoffTeams } : null,
       medianGame: lg.medianGame,
       sims,
-      seed: season.hash(`${lg.leagueId}:${r.next}:projected`),
-      draft: lg.draft ? { method: draftMethod } : null
+      seed: season.hash(`${lg.leagueId}:${lg.raw.next}:projected`),
+      draft: lg.draft ? { method: draftMethod } : null,
+      forced
     });
   }
 
-  NightOwl.model = { SIMS, timeline, schedule, projections, positionsFor, weeksNeeded, remainingByTeam, activePool, valueWeeks, projectLeague };
+  NightOwl.model = { SIMS, timeline, schedule, projections, positionsFor, weeksNeeded, remainingByTeam, activePool, valueWeeks, forecastWeeks, projectLeague };
 })(globalThis.NightOwl);

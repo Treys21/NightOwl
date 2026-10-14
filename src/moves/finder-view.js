@@ -19,6 +19,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     { id: 'now', label: 'Win now', title: 'Pay in picks and youth for production this season' },
     { id: 'future', label: 'Rebuild', title: 'Sell production for picks and youth' }
   ];
+  const HISTORY_WAIT_MS = 8000;
   const tick = () => new Promise((resolve) => setTimeout(resolve));
   const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 
@@ -27,7 +28,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
    *         render(), openTrade(item), positionsOf }
    */
   function create(deps) {
-    const { state, V, nameOf, league, render, openTrade, positionsOf, active } = deps;
+    const { state, V, nameOf, league, render, openTrade, positionsOf, active, ensureHistory } = deps;
     const fs = state.finder;
 
     // ---- windows ---------------------------------------------------------
@@ -75,6 +76,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         valueOf: dyn ? (team, id, w) => V.valueFor(lg, id, w) : (team, id) => V.redraftValue(lg, id),
         sideValue: dyn ? ktc.sideValue : cons ? (values) => ktc.sideValue(values, ktc.EXPONENT_REDRAFT) : sum,
         pointValue: dyn || cons ? V.pointValue(lg) : 1,
+        // What this league's own trades say other managers will accept (dynasty prices only).
+        fairTolerance: dyn && lg.trade ? lg.trade.band.tolerance : null,
         stats: (fs.stats = {}),
         goal: fs.goal,
         focus: { shop: fs.shop, target: fs.target }
@@ -86,7 +89,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const pool = model.activePool(ro);
       const priced = (id) => (dyn ? V.dynastyValue(lg, id) > 0 : V.rosPoints(lg, id) > 0);
       const assets = (dyn ? (ro.players || []) : pool).filter(priced).concat(dyn ? (lg.picks.get(ro.roster_id) || []).filter(priced) : []);
-      return { id: ro.roster_id, pool, assets, players: ro.players || [], count: (ro.players || []).length, capacity: lg.capacity, w };
+      const appetite = lg.trade ? lg.trade.appetite.get(ro.roster_id) : null;
+      return { id: ro.roster_id, pool, assets, players: ro.players || [], count: (ro.players || []).length, capacity: lg.capacity, w, appetite };
     }
 
     async function run() {
@@ -100,6 +104,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       fs.progress = 'Reading the league…';
       render();
       try {
+        // The league's own trades say who deals and how far off an even price they go. Don't hold the search up for them long.
+        if (!lg.history) {
+          fs.progress = 'Reading the league\'s trades…';
+          render();
+          await Promise.race([ensureHistory(lg), new Promise((resolve) => setTimeout(resolve, HISTORY_WAIT_MS))]);
+          if (token !== fs.token || !active()) return;
+        }
         const base = await ensureBase(lg).catch((err) => { console.warn('[Night Owl finder] no projection, using standings', err); return null; });
         if (token !== fs.token || !active()) return;
         const win = windows(lg, base);
@@ -237,9 +248,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (buy && buy[1] >= 0.15) out.push(`<b>Edge:</b> ${esc(players.info(buy[0]).name)} projects ${Math.round(Math.min(buy[1], 0.6) * 100)}%${buy[1] > 0.6 ? '+' : ''} more points than his price suggests.`);
         else if (sell && sell[1] <= -0.15) out.push(`<b>Edge:</b> you are selling ${esc(players.info(sell[0]).name)} above what he projects (${Math.round(Math.min(-sell[1], 0.6) * 100)}% less production than his price).`);
       }
+      const rec = lg.trade && lg.trade.record.get(partner.roster_id);
+      if (rec && rec.trades >= 2) {
+        const seasons = lg.trade.seasons;
+        const base = `${them} has made ${rec.trades} trade${rec.trades === 1 ? '' : 's'} in ${seasons} season${seasons === 1 ? '' : 's'}`;
+        if (dyn && rec.avgPct > 0.05) out.push(`<b>History:</b> ${esc(base)} and usually comes out ahead (${Math.round(rec.avgPct * 100)}% on average): expect them to push on price.`);
+        else if (dyn && rec.avgPct < -0.05) out.push(`<b>History:</b> ${esc(base)} and has tended to give value away (${Math.round(-rec.avgPct * 100)}% on average).`);
+        else out.push(`<b>History:</b> ${esc(base)}, usually close to even.`);
+      } else if (lg.trade && lg.trade.appetite.get(partner.roster_id) <= 0.3) {
+        out.push(`<b>History:</b> ${esc(them)} has rarely traded here, so a yes is harder to get.`);
+      }
       if (item.drops.me.length) out.push(`<b>Roster:</b> you would cut ${esc(item.drops.me.map((id) => players.info(id).name).join(', '))}.`);
       if (item.drops.them.length) out.push(`<b>Roster:</b> ${esc(them)} would cut ${esc(item.drops.them.map((id) => players.info(id).name).join(', '))}.`);
-      return out.slice(0, 5);
+      return out.slice(0, 6);
     }
     const avg = (xs) => (xs.length ? sum(xs) / xs.length : null);
 

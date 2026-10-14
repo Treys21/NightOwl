@@ -13,11 +13,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const KEYS = { dynasty: 'ktc.values.v3', redraft: 'ktc.redraft.v1' };
   const TTL_MS = 20 * 3600000;
   const STALE_OK_MS = 7 * 24 * 3600000; // an old table beats none when KTC is down
-  // Consolidation: two 4,000s are worth less than one 6,500. A power mean of
-  // the pieces reproduces that (close to KTC's own value adjustment).
-  const EXPONENT = 1.5;
-  // In redraft the waiver wire replaces depth for free, so consolidation is worth even more.
-  const EXPONENT_REDRAFT = 2;
+  // Consolidation: two 4,000s are worth far less than one 8,000. A power mean of
+  // the pieces reproduces that. The exponent was fitted to real trades (tools/backtest
+  // finds the one under which real dynasty deals look most even: 2.5, against a
+  // median 23% gap at 1.5). Redraft has too few trades to fit, and the waiver wire
+  // replaces depth for free, so it is priced a little harder still.
+  const EXPONENT = 2.5;
+  const EXPONENT_REDRAFT = 3;
 
   const tiers = (v) => [v.value, (v.tep || v).value, (v.tepp || v).value, (v.teppp || v).value];
 

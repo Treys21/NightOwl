@@ -66,11 +66,13 @@ src/
                        move is worth in lineup points), model.js (calendar,
                        schedule, projections, shared by Season and Moves),
                        finder.js (trade proposals: how each side judges a deal)
+  trades/              history.js (parse, grade, manager profiles), loader.js (fetch and cache)
   moves/               view.js (waivers, trade analyzer), finder-view.js (trade
                        finder), values.js (picks, KTC values, windows)
   styles/              panel, draft, common, live, bets, lineups, season, moves (.css)
   shared/ktc.js        KeepTradeCut dynasty values (page parsed in the background worker)
   popup/               username, rankings editor, Ringer sync
+tools/backtest/        run.mjs: replays real trades through the finder's gates (npm run backtest -- --user <name>)
 test/                  node --test, with real captured fixtures
 ```
 

@@ -30,7 +30,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     leagues: [],
     open: new Set(), // league ids expanded
     draftMethod: 'linear', // or 'inverse'; see season.draftOrder
-    mode: 'now', // or 'projected'
+    mode: 'now', // or 'projected', 'path' or 'recap'
+    stats: {}, // weekly projections behind the simulations, kept for the path view
+    remainingOf: null,
     projections: new Map(), // league id -> projectSeason result, or { error }
     projecting: false,
     live: false, // some league counts a week still being played
@@ -47,6 +49,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <div class="tabs se-mode" role="group" aria-label="Season view">
           <button type="button" class="tab" data-mode="now" title="Standings and draft order as things stand">Now</button>
           <button type="button" class="tab" data-mode="projected" title="Play out the rest of the season and the playoffs from projected lineups">Projected</button>
+          <button type="button" class="tab" data-mode="path" title="Your remaining opponents, what you need, and how much the next game matters">Path</button>
+          <button type="button" class="tab" data-mode="recap" title="What the bench cost you, your MVP, your best add and trades">Recap</button>
         </div>
         <button id="se-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button>
       </div>
@@ -216,6 +220,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         model.projections(nfl.season, model.weeksNeeded(pending), model.positionsFor(pending.map((lg) => lg.raw.slots))),
         pending.some((lg) => lg.raw.inProgress) ? model.remainingByTeam(nfl.season, nfl.week) : Promise.resolve(() => 1)
       ]);
+      state.stats = stats;
+      state.remainingOf = remainingOf;
       for (const lg of pending) {
         try {
           // 2,000 simulated seasons take ~60 ms a league: give the page a
@@ -233,6 +239,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     } finally {
       state.projecting = false;
       render();
+      if (state.mode === 'path') extras().runPaths();
     }
   }
 
@@ -251,8 +258,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (root) {
         $('se-refresh').classList.remove('spin');
         state.projections.clear();
+        extras().clear();
         render();
-        if (state.mode === 'projected') runProjections();
+        if (state.mode === 'projected' || state.mode === 'path') runProjections();
+        if (state.mode === 'recap') extras().runRecaps();
       }
     }
   }
@@ -537,8 +546,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       <div class="${sum.luck > 0.05 ? 'up' : sum.luck < -0.05 ? 'down' : ''}"><b>${signedTenth(sum.luck)}</b><span>wins of luck</span></div>
       <div><b>${sum.in} of ${state.leagues.length}</b><span>in playoff spots</span></div>
     </div>`);
-    dom.setHtml($('se-body'), state.leagues.map(leagueBlock).join(''));
+    const block = state.mode === 'path' ? extras().pathBlock : state.mode === 'recap' ? extras().recapBlock : leagueBlock;
+    dom.setHtml($('se-body'), state.leagues.map(block).join(''));
   }
+
+  let extrasPane = null;
+  const extras = () => {
+    extrasPane = extrasPane || NightOwl.seasonExtras.create({ state, render, nameOf, active: () => !!root });
+    return extrasPane;
+  };
 
   // ---- lifecycle --------------------------------------------------------
 
@@ -559,7 +575,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       state.mode = btn.dataset.mode;
       storage.set({ 'season.settings': { draftMethod: state.draftMethod, mode: state.mode } });
       render();
-      if (state.mode === 'projected') runProjections();
+      if (state.mode === 'projected' || state.mode === 'path') runProjections().then(() => state.mode === 'path' && extras().runPaths());
+      if (state.mode === 'recap') extras().runRecaps();
     });
     $('se-body').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-method]');
@@ -577,7 +594,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }, true);
     render();
     if (Date.now() - state.loadedAt > REFRESH_MS / 2) refresh();
-    else if (state.mode === 'projected') runProjections();
+    else if (state.mode === 'projected' || state.mode === 'path') runProjections().then(() => state.mode === 'path' && extras().runPaths());
+    else if (state.mode === 'recap') extras().runRecaps();
     // Every 2 minutes while a week is being played, otherwise every 10.
     state.timer = setInterval(() => {
       if (Date.now() - state.loadedAt >= (state.live ? LIVE_REFRESH_MS : REFRESH_MS) - 1000) refresh();

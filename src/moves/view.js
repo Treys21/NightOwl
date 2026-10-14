@@ -25,7 +25,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const $ = (id) => root.querySelector(`#${id}`);
 
   const state = {
-    mode: 'waivers', // or 'trade' or 'finder'
+    mode: 'waivers', // or 'trade', 'finder' or 'history'
     draftMethod: 'linear', // how the league sorts its draft order (see season.draftOrder); the Season tab's setting
     nfl: null,
     stats: {},
@@ -36,6 +36,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     leagues: [], // see load()
     targets: new Map(), // league id -> waiver targets
     open: new Set(), // league ids expanded
+    history: { all: false }, // the trade history pane: whether the whole list is open
     finder: { leagueId: null, goal: 'balanced', shop: null, target: null, results: null, running: false, progress: '', error: null, token: 0 },
     trade: { leagueId: null, partner: null, give: new Set(), get: new Set(), result: null, token: 0 },
     base: new Map(), // league id -> projection with today's rosters
@@ -59,6 +60,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <button type="button" class="tab" data-mode="waivers" title="Free agents who would improve your lineups">Waivers</button>
           <button type="button" class="tab" data-mode="trade" title="What a trade does to both teams">Trade</button>
           <button type="button" class="tab" data-mode="finder" title="Trades the other manager would accept and you would want">Finder</button>
+          <button type="button" class="tab" data-mode="history" title="Every trade in the league, graded">History</button>
         </div>
         <button id="mv-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button>
       </div>
@@ -222,7 +224,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         $('mv-refresh').classList.remove('spin');
         keepTradeValid();
         render();
-        analyze().then(projectPicks).then(() => state.mode === 'trade' && analyzeTrade());
+        analyze().then(projectPicks).then(() => state.mode === 'trade' && analyzeTrade()).then(loadHistories);
         // Whatever search was under way used the old data: drop it, so the tab can start a fresh one.
         state.finder.token++;
         state.finder.running = false;
@@ -466,6 +468,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function finder() {
     finderPane = finderPane || NightOwl.movesFinder.create({
       state, V, label, pickLabel, nameOf, positionsOf, render, active: () => !!root,
+      ensureHistory: (lg) => history().ensure(lg),
       league: () => { const lg = finderLeague(); state.finder.leagueId = lg && lg.leagueId; return lg; },
       openTrade
     });
@@ -487,6 +490,30 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     analyzeTrade();
   }
 
+  // ---- history ----
+
+  let historyPane = null;
+  function history() {
+    historyPane = historyPane || NightOwl.movesHistory.create({
+      state, V, render, active: () => !!root,
+      league: () => { const lg = finderLeague(); state.finder.leagueId = lg && lg.leagueId; return lg; }
+    });
+    return historyPane;
+  }
+
+  // Trade history for every league, one at a time and in the background: the
+  // finder uses it to judge who deals and how far off an even price they go.
+  async function loadHistories() {
+    const generation = state.generation;
+    for (const lg of state.leagues) {
+      if (lg.history || lg.historyPromise) continue;
+      await tick();
+      if (!root || generation !== state.generation) return;
+      await history().ensure(lg);
+      if (root && generation === state.generation && state.mode === 'history') render();
+    }
+  }
+
   // ---- view -------------------------------------------------------------
 
   function render() {
@@ -499,6 +526,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     if (!state.leagues.length) {
       dom.setHtml($('mv-body'), '<p class="empty muted">No league with a regular season left to play.</p>');
+    } else if (state.mode === 'history') {
+      dom.setHtml($('mv-body'), history().pane());
     } else if (state.mode === 'finder') {
       dom.setHtml($('mv-body'), finder().pane());
     } else if (state.mode === 'waivers') {
@@ -523,15 +552,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       render();
       if (state.mode === 'trade') analyzeTrade();
       if (state.mode === 'finder' && !state.finder.results && !state.finder.running) finder().run();
+      if (state.mode === 'history') { const lg = finderLeague(); if (lg && !lg.history) history().ensure(lg).then(() => root && render()); }
     });
     body.addEventListener('toggle', (e) => {
       const id = e.target.dataset && e.target.dataset.id;
       if (!id) return;
       if (e.target.open) state.open.add(id); else state.open.delete(id);
     }, true);
-    body.addEventListener('click', (e) => { if (state.mode === 'finder') finder().click(e); });
+    body.addEventListener('click', (e) => {
+      if (state.mode === 'finder') finder().click(e);
+      else if (state.mode === 'history') history().click(e);
+    });
     body.addEventListener('change', (e) => {
       if (state.mode === 'finder') { finder().change(e); return; }
+      if (state.mode === 'history') { history().change(e); return; }
       const t = state.trade;
       const el = e.target;
       if (el.id === 'mv-league') {
@@ -561,7 +595,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
     render();
     if (Date.now() - state.loadedAt > REFRESH_MS / 2) refresh();
-    else { render(); analyze().then(projectPicks); }
+    else { render(); analyze().then(projectPicks).then(loadHistories); }
     state.timer = setInterval(() => {
       if (Date.now() - state.loadedAt >= REFRESH_MS - 1000) refresh();
     }, 60000);
