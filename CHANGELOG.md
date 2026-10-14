@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.12.3
+**Manager names instead of team names.** Moves, Live and Season now show each manager's
+Sleeper display name, which is easier to recognise than a team name (the team name is
+the fallback when a manager has no display name).
+
 ## 3.12.2
 **Draft grades on total value, and picks followed through every trade.**
 - **Pick ownership.** A pick that changes hands before its draft is now followed through

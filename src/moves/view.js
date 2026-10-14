@@ -13,7 +13,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, teams, players, storage, account, dom, projection, value, model, ktc, replacement } = NightOwl;
-  const { isPlaying, mine: rosterOf, teamNames, teamUrl } = NightOwl.leagues;
+  const { isPlaying, mine: rosterOf, ownerNames, teamUrl } = NightOwl.leagues;
   const { escape: esc, percent } = NightOwl.format;
 
   const REFRESH_MS = 15 * 60000;
@@ -118,7 +118,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         tradeDeadline: (lg.settings && lg.settings.trade_deadline) || 0,
         kind: KIND[(lg.settings && lg.settings.type) || 0] || 'redraft',
         mine,
-        names: teamNames(users),
+        names: ownerNames(users),
         raw: {
           season: lg.season,
           rosters,

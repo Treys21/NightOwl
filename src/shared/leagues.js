@@ -17,8 +17,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const mine = (rosters, userId) =>
     (rosters || []).find((r) => r.owner_id === userId || (r.co_owners || []).includes(userId)) || null;
 
-  /** user id -> the name people go by in this league: team name, else display name. */
-  const teamNames = (users) => new Map((users || []).map((u) => [u.user_id, (u.metadata && u.metadata.team_name) || u.display_name]));
+  /** user id -> the manager's own name (their Sleeper display name), which is what people recognise; the team name only when there is no display name. */
+  const ownerNames = (users) => new Map((users || []).map((u) => [u.user_id, u.display_name || (u.metadata && u.metadata.team_name) || u.username || 'Manager']));
 
   /** user id -> avatar URL ('' when there is none). */
   const avatars = (users) => new Map((users || []).map((u) => [
@@ -54,7 +54,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const teamUrl = (leagueId) => `https://sleeper.com/leagues/${leagueId}/team`;
 
   NightOwl.leagues = {
-    isPlaying, mine, teamNames, avatars, startingSlots, usesIdp, slotLabel,
+    isPlaying, mine, ownerNames, avatars, startingSlots, usesIdp, slotLabel,
     displayWeek, lookaheadWeek, seasonType, teamUrl
   };
 })(globalThis.NightOwl);

@@ -31,6 +31,10 @@ function load(files, extra = {}) {
   return { context, store, NightOwl: context.NightOwl };
 }
 
+function ownerNamesFallback() {
+  return leagues.ownerNames([{ user_id: 'z', display_name: '', metadata: { team_name: 'Aces' } }]).get('z');
+}
+
 test('league helpers: which leagues count, which roster is yours, names', () => {
   assert.equal(leagues.isPlaying({ status: 'in_season' }), true);
   assert.equal(leagues.isPlaying({ status: 'post_season' }), true);
@@ -48,8 +52,9 @@ test('league helpers: which leagues count, which roster is yours, names', () => 
     { user_id: 'b', display_name: 'Bob', avatar: null, metadata: {} },
     { user_id: 'c', display_name: 'Cy', avatar: 'xyz', metadata: { avatar: 'https://cdn/custom.png' } }
   ];
-  const names = leagues.teamNames(users);
-  assert.equal(names.get('a'), "Ann's Aces");
+  const names = leagues.ownerNames(users);
+  assert.equal(names.get('a'), 'Ann', 'the manager, not the team name');
+  assert.equal(ownerNamesFallback(), 'Aces');
   assert.equal(names.get('b'), 'Bob');
   const faces = leagues.avatars(users);
   assert.equal(faces.get('a'), 'https://sleepercdn.com/avatars/thumbs/abc');

@@ -13,7 +13,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, players, storage, account, dom, season, projection, model } = NightOwl;
-  const { isPlaying, mine: rosterOf, teamNames, displayWeek } = NightOwl.leagues;
+  const { isPlaying, mine: rosterOf, ownerNames, displayWeek } = NightOwl.leagues;
   const { escape: esc, short: num, tenths, percent } = NightOwl.format;
   const { NOT_STARTING_SLOTS } = NightOwl.lineups;
 
@@ -129,7 +129,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         inProgress ? api.matchups(lg.league_id, next) : Promise.resolve([])
       ]);
       const weeks = await weekScores(lg.league_id, finished);
-      const names = teamNames(users);
+      const names = ownerNames(users);
       const live = liveWeek(lg, rosters, thisWeek || [], { medianGame });
       const counted = live ? live.rosters : rosters;
       const allWeeks = live ? weeks.concat([live.scores]) : weeks;

@@ -9,7 +9,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const { api, tracker, scoring, teams, players, storage, account, dom } = NightOwl;
   const { escape: esc, points: fmt, signed, clock: clockOf, short } = NightOwl.format;
-  const { isPlaying, mine, teamNames, avatars, startingSlots, slotLabel, displayWeek, seasonType: seasonTypeOf } = NightOwl.leagues;
+  const { isPlaying, mine, ownerNames, avatars, startingSlots, slotLabel, displayWeek, seasonType: seasonTypeOf } = NightOwl.leagues;
   let root = null; // the element we render into, inside the panel's shadow root
   const $ = (id) => root.querySelector(`#${id}`);
 
@@ -110,7 +110,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       ]);
       const roster = mine(rosters, userId);
       if (!roster) return null;
-      const names = teamNames(users);
+      const names = ownerNames(users);
       const faces = avatars(users);
       const ownerOf = (rosterId) => (rosters.find((x) => x.roster_id === rosterId) || {}).owner_id;
       const teamName = (rosterId) => names.get(ownerOf(rosterId)) || `Team ${rosterId}`;
