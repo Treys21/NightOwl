@@ -189,3 +189,14 @@ test('the draft board redraws only when something changed, and keeps its scroll'
   assert.equal(typeof listeners.click, 'function');
   assert.equal(typeof listeners.change, 'function');
 });
+
+test('ringer: a board is the Ringer\'s to refresh only while it is empty or exactly what the last sync made', () => {
+  const ringer = require('../src/draft/ringer.js');
+  const board = [{ name: 'A', position: 'RB' }, { name: 'B', position: 'WR' }];
+  const synced = ringer.fingerprint(board);
+  assert.ok(ringer.isUntouched([], null), 'an empty board');
+  assert.ok(ringer.isUntouched(board, synced), 'as the last sync left it');
+  assert.ok(!ringer.isUntouched(board.slice().reverse(), synced), 'reordered');
+  assert.ok(!ringer.isUntouched(board.concat({ name: 'C', position: 'TE' }), synced), 'added to');
+  assert.ok(!ringer.isUntouched(board, null), 'never from a sync: it is the user\'s');
+});

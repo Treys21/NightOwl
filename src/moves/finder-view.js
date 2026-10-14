@@ -171,7 +171,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         render();
       } catch (err) {
         console.error('[Night Owl finder]', err);
-        fs.error = err.message || String(err);
+        fs.error = NightOwl.format.errorText(err);
         fs.running = false;
         render();
       }
@@ -230,8 +230,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const them = nameOf(lg, partner);
       const out = [];
       const n = lg.weeks.length;
-      const starts = (side) => side.starts.slice(0, 2).map((s) => `${players.info(s.id).name} at ${slotText(s.slot)} (${s.weeks} of ${n} weeks${s.weeks <= 0.3 * n ? ', bye and injury cover' : ''})`).join(', ');
-      if (item.me.starts.length) out.push(`<b>You:</b> ${esc(starts(item.me))} (${signed(item.me.dPts)} pts rest of season).`);
+      const starts = (side) => side.starts.slice(0, 2).map((s) => `${players.info(s.id).name} at ${slotText(s.slot)} (${s.weeks} of ${n} wks${s.weeks <= 0.3 * n ? ', cover' : ''})`).join(', ');
+      if (item.me.starts.length) out.push(`<b>You:</b> ${esc(starts(item.me))}.`);
       else if (item.me.dPts > 0.5) out.push(`<b>You:</b> ${signed(item.me.dPts)} pts of depth and injury cover.`);
       else if (dyn) out.push(`<b>You:</b> little change this season (${signed(item.me.dPts)} pts), more long-term value.`);
       if (item.them.starts.length) out.push(`<b>${esc(them)}:</b> ${esc(starts(item.them))} (${signed(item.them.dPts)} pts).`);
@@ -302,6 +302,26 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return `<li>${who}${age}<span class="mv-ros" title="${title}">${v}</span></li>`;
     }
 
+    // Your title odds (or playoff odds in a league with no bracket) before and after, as one tile.
+    function kpiOdds(o, lg, partner) {
+      if (!o) return '';
+      const key = o.after.bracket ? 'titleOdds' : lg.playoffTeams ? 'playoffOdds' : null;
+      if (!key) return '';
+      const b = o.base.teams[lg.mine.roster_id][key];
+      const a = o.after.teams[lg.mine.roster_id][key];
+      const up = a - b > 0.002;
+      const down = a - b < -0.002;
+      const theirs = o.after.teams[partner.roster_id];
+      return `<div class="kpi ${up ? 'up' : down ? 'down' : ''}" title="Your ${key === 'titleOdds' ? 'title' : 'playoff'} odds with the trade done; their ${key === 'titleOdds' ? 'title' : 'playoff'} odds: ${oddsLabel(o.base.teams[partner.roster_id][key])} → ${oddsLabel(theirs[key])}"><b>${oddsLabel(b)}<i>→</i>${oddsLabel(a)}</b><span>${key === 'titleOdds' ? 'title odds' : 'playoff odds'}</span></div>`;
+    }
+
+    // The one reason that matters up front; the rest behind a click.
+    function why(lg, item, partner, win) {
+      const [first, ...rest] = reasons(lg, item, partner, win);
+      if (!first) return '';
+      return `<p class="mv-why1">${first}</p>${rest.length ? `<details class="mv-more"><summary>Why it works</summary><ul class="mv-why">${rest.map((r) => `<li>${r}</li>`).join('')}</ul></details>` : ''}`;
+    }
+
     function card(lg, item, index, win) {
       const dyn = fs.results.mode === 'dynasty';
       const partner = lg.raw.rosters.find((ro) => ro.roster_id === item.partnerId);
@@ -310,18 +330,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const label = item.likelihood >= 0.62 ? 'Likely' : item.likelihood >= 0.42 ? 'Fair shot' : 'Long shot';
       const tone = item.likelihood >= 0.62 ? 'high' : item.likelihood >= 0.42 ? 'mid' : 'low';
       const o = item.odds;
-      const oddsLine = (id, who) => {
-        if (!o) return '';
-        const b = o.base.teams[id];
-        const a = o.after.teams[id];
-        const part = (key, name) => `${name} ${oddsLabel(b[key])} → <b>${oddsLabel(a[key])}</b>`;
-        return `<span>${who}: ${lg.playoffTeams ? part('playoffOdds', 'playoffs') : ''}${o.after.bracket ? ` · ${part('titleOdds', 'title')}` : ''}</span>`;
-      };
       const marketOf = dyn ? V.blendedValue : V.redraftValue;
       const price = packageOf(dyn);
       const rawGive = price(item.give.map((id) => marketOf(lg, id)), item.give.map(isPick));
       const rawGet = price(item.get.map((id) => marketOf(lg, id)), item.get.map(isPick));
-      return `<article class="mv-card">
+      return `<article class="mv-card ${tone}">
         <div class="mv-card-h">
           <div><b>${esc(them)}</b> <span class="mv-win ${w.w >= 0.7 ? 'hot' : w.w < 0.3 ? 'cold' : ''}">${outlook(w.w)}${w.odds != null ? ` · ${oddsLabel(w.odds)}` : ''}</span></div>
           <span class="mv-likely ${tone}" title="How likely they are to say yes: they come out ahead in their own terms and the value is not lopsided against them">${label}</span>
@@ -331,16 +344,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <div class="mv-arrow" aria-hidden="true">⇄</div>
           <div><h5>You get</h5><ul>${item.get.map((id) => assetRow(lg, id, partner, dyn)).join('')}</ul></div>
         </div>
-        <div class="mv-stats">
-          <span>You: <b class="${item.me.dPts >= 0 ? 'up' : 'down'}">${signed(item.me.dPts)}</b> pts</span>
-          <span>${esc(them)}: <b class="${item.them.dPts >= 0 ? 'up' : 'down'}">${signed(item.them.dPts)}</b> pts</span>
-          ${dyn || fs.results.consensus ? `<span title="KeepTradeCut ${dyn ? '' : 'redraft '}value, packages adjusted">Value: give ${V.worth(rawGive)} · get ${V.worth(rawGet)}</span>` : ''}
+        <div class="mv-kpis">
+          <div class="kpi ${item.me.dPts >= 0 ? 'up' : 'down'}" title="Lineup points over replacement for the rest of the season; ${esc(them)}: ${signed(item.them.dPts)}"><b>${signed(item.me.dPts)}</b><span>pts for you</span></div>
+          ${kpiOdds(o, lg, partner)}
+          ${dyn || fs.results.consensus ? `<div class="kpi" title="Blended value, packages adjusted: you give ${V.worth(rawGive)}, you get ${V.worth(rawGet)}"><b>${V.worth(rawGive)}<i>⇄</i>${V.worth(rawGet)}</b><span>value</span></div>` : ''}
         </div>
-        ${o ? `<div class="mv-stats mv-odds">${oddsLine(lg.mine.roster_id, 'You')}${oddsLine(partner.roster_id, esc(them))}</div>` : ''}
-        <ul class="mv-why">${reasons(lg, item, partner, win).map((r) => `<li>${r}</li>`).join('')}</ul>
+        ${why(lg, item, partner, win)}
         <div class="mv-actions">
+          <button type="button" class="mv-btn ghost" data-finder="copy" data-i="${index}">Copy offer</button>
           <button type="button" class="mv-btn" data-finder="open" data-i="${index}">Open in analyzer</button>
-          <button type="button" class="mv-btn" data-finder="copy" data-i="${index}">Copy offer</button>
         </div>
       </article>`;
     }
@@ -369,6 +381,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const lg = league();
       if (!lg) return '<p class="empty muted">No league with a regular season left to play.</p>';
       const dyn = dynasty(lg);
+      const noValues = lg.kind !== 'redraft' && !V.usesKtc(lg)
+        ? '<p class="mv-warn small">KeepTradeCut isn\'t loading, so deals are priced on this season\'s points only.</p>' : '';
       const deadline = lg.tradeDeadline && state.nfl && state.nfl.week > lg.tradeDeadline
         ? `<p class="mv-warn small">This league's trade deadline (week ${lg.tradeDeadline}) has passed.</p>` : '';
       const kind = dyn ? 'Dynasty: priced on KeepTradeCut and each team\'s window.' : V.consensus(lg) ? 'Redraft: lineup points for the rest of the season (playoffs weighted), with KeepTradeCut\'s redraft values as the price.' : 'Redraft: priced on lineup points for the rest of the season.';
@@ -377,12 +391,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       else if (fs.error) body = `<p class="error">${esc(fs.error)}</p>`;
       else if (!fs.results) body = '<p class="muted small mv-note">Searching…</p>';
       else if (!fs.results.items.length) {
-        body = `<p class="empty muted">No deal where both sides come out ahead.</p>
-          <p class="muted small mv-note">${fs.shop || fs.target ? 'Try a different player, or clear the filters.' : 'Shop one of your players or go after a specific one to widen the search.'}${dyn ? ' "Win now" and "Rebuild" change what you are willing to pay.' : ''}</p>`;
+        body = `<p class="empty muted">No deal where both sides come out ahead.${fs.shop || fs.target ? ' Try another player.' : ' Shop a player or go after one.'}</p>`;
       } else {
         body = fs.results.items.map((item, i) => card(lg, item, i, fs.results.windows)).join('');
       }
-      return `<div class="mv-finder">${controls(lg)}${deadline}<p class="muted small mv-note mv-kind">${kind}</p>${body}</div>`;
+      return `<div class="mv-finder" title="${esc(kind)}">${controls(lg)}${noValues}${deadline}${body}</div>`;
     }
 
     // ---- events ----------------------------------------------------------

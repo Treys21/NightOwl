@@ -7,6 +7,9 @@
 // 2. Lineup alerts. Every 15 minutes, check your starters in every league
 //    against ESPN's injury report and notify once when one is out, on injured
 //    reserve, or on bye before his game locks.
+// 3. Scheduled refresh of what has no API. KeepTradeCut's values and The Ringer's rankings
+//    are web pages the extension reads, so twice a day this worker fetches them and keeps the
+//    result, and a tab opens on today's numbers. (Sleeper and ESPN have APIs and stay live.)
 importScripts(
   'shared/storage.js',
   'shared/leagues.js',
@@ -15,6 +18,8 @@ importScripts(
   'shared/account.js',
   'shared/teams.js',
   'shared/players.js',
+  'draft/match-names.js',
+  'draft/ringer.js',
   'lineups/core.js',
   'bets/core.js',
   'alerts/core.js'
@@ -56,15 +61,49 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 const ALARM = 'night-owl-lineups';
 const SENT_KEY = 'alerts.sent';
 const { api, storage, players, lineups, alerts, bets, leagues, account } = globalThis.NightOwl;
+const ktcValues = globalThis.NightOwl.ktc;
 const LINES_KEY = 'bets.lines';
 const LINES_WINDOW_MS = 75 * 60000; // save closing lines in the hour before kickoff
 
 const schedule = () => chrome.alarms.create(ALARM, { periodInMinutes: 15, delayInMinutes: 1 });
-chrome.runtime.onInstalled.addListener(schedule);
-chrome.runtime.onStartup.addListener(schedule);
+const REFRESH_ALARM = 'night-owl-refresh';
+const REFRESH_KEY = 'refresh.status';
+const scheduleRefresh = () => chrome.alarms.create(REFRESH_ALARM, { periodInMinutes: 12 * 60, delayInMinutes: 2 });
+chrome.runtime.onInstalled.addListener(() => { schedule(); scheduleRefresh(); });
+chrome.runtime.onStartup.addListener(() => { schedule(); scheduleRefresh(); });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) checkLineups().catch((err) => console.warn('[Night Owl alerts]', err));
+  if (alarm.name === REFRESH_ALARM) refreshData().catch((err) => console.warn('[Night Owl refresh]', err));
 });
+
+// KeepTradeCut's page is 2.7 MB; only the trimmed table is kept.
+async function fetchKtc(kind) {
+  const res = await fetch(globalThis.NightOwl.ktc.URLS[kind], { credentials: 'omit', signal: AbortSignal.timeout(30000) });
+  if (!res.ok) throw new Error(`KeepTradeCut ${res.status}`);
+  return globalThis.NightOwl.ktc.parse(await res.text());
+}
+
+// Runs every 12 hours. Each loader keeps its own cache (KeepTradeCut's is good for 20 hours), so this only
+// fetches what has gone stale; what it learns is saved for the popup to show.
+async function refreshData() {
+  const settings = await storage.getSettings();
+  if (!settings.username) return; // nothing to warm for until someone has set up
+  const status = { at: Date.now(), ok: [], failed: {} };
+  const attempt = async (name, work) => {
+    try { await work(); status.ok.push(name); } catch (err) { status.failed[name] = String((err && err.message) || err); }
+  };
+  await attempt('players', () => players.load()); // KeepTradeCut rows are matched to these
+  for (const kind of ['dynasty', 'redraft']) await attempt(`ktc-${kind}`, () => ktcValues.load(kind, players.list(), fetchKtc));
+  // The Ringer's draft rankings: only a board nobody has edited is replaced (see ringer.isUntouched).
+  await attempt('ringer', async () => {
+    const [current, synced] = await Promise.all([storage.getRankings(), storage.get('ringer.synced', null)]);
+    if (!globalThis.NightOwl.ringer.isUntouched(current, synced)) return;
+    const result = await globalThis.NightOwl.ringer.fetchRankings(settings.format);
+    if (!result.ok) throw new Error(result.reason);
+    await storage.saveRankings(result.rankings, { markSynced: true });
+  });
+  await storage.set({ [REFRESH_KEY]: status });
+}
 
 // Runs every 15 minutes: keep closing lines, then check lineups.
 async function checkLineups() {

@@ -121,11 +121,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const html = `
       ${state.myTurn ? `<div class="turn">You're on the clock${state.message ? ` · ${esc(state.message)}` : ''}</div>` : ''}
-      <div class="controls">
+      ${state.status !== 'ok' ? '' : `<div class="controls">
         ${POSITIONS.map((p) => `<button class="chip ${prefs.position === p ? 'active' : ''}" data-pos="${p}">${p === 'ALL' ? 'All' : p}</button>`).join('')}
         <label class="toggle"><input type="checkbox" data-act="hide-drafted" ${prefs.hideDrafted ? 'checked' : ''}/> Hide drafted</label>
         <span class="status ${state.kind || ''}">${state.myTurn ? '' : esc(state.message || '')}</span>
-      </div>
+      </div>`}
       ${unmatched > 0 && state.status === 'ok'
         ? `<div class="warnbar">${unmatched} ranked player${unmatched === 1 ? '' : 's'} didn't match a Sleeper player. Check the spelling in the popup.</div>`
         : ''}

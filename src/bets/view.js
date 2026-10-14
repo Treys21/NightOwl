@@ -88,6 +88,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // ---- data -------------------------------------------------------------
   async function loadPeople(userId, season, week) {
     const playing = (await api.leagues(userId, season)).filter(isPlaying);
+    state.leagueCount = playing.length;
     const people = new Map();
     const add = (pid, leagueName, side) => {
       if (!pid || pid === '0') return;
@@ -208,7 +209,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       state.error = null;
     } catch (err) {
       console.error('[Night Owl bets]', err);
-      state.error = err.message || String(err);
+      state.error = NightOwl.format.errorText(err);
     } finally {
       state.busy = false;
       if (root) $('bt-refresh').classList.remove('spin');
@@ -340,7 +341,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         : `<span class="bt-key-lbl">${esc(key.label)}</span> <b>${num(key.line)}</b>${keyHr ? ` <span class="bt-key-hr${keyHr.over * 2 > keyHr.games ? ' good' : ''}">${keyHr.over}/${keyHr.games}</span>` : ''}${keyLean != null && Math.abs(keyLean) >= 0.5 ? ` <span class="bt-key-lean ${keyLean > 0 ? 'up' : 'down'}">${keyLean > 0 ? '▲' : '▼'}</span>` : ''}`}</span>`
       : `<span class="muted small">${inPlay ? esc(core.liveLine(p.pos, state.live[pid]) || 'No line for this game') : 'No lines yet'}</span>`;
     const justCashed = markets.some((m) => state.fresh.has(`${pid}:${m.type}`));
-    return `<details class="bt-item${mine ? ' mine' : ' theirs'}${state.showOpp ? ' mixed' : ''}${justCashed ? ' cashing' : ''}${state.justOpened.has(pid) ? ' opening' : ''}" data-key="p:${esc(pid)}" data-pid="${esc(pid)}" style="--tc:${teams.colors(p.team).primary}"${open ? ' open' : ''}>
+    return `<details class="bt-item${mine ? ' mine' : ' theirs'}${state.showOpp ? ' mixed' : ''}${justCashed ? ' cashing' : ''}${!key && !inPlay ? ' nolines' : ''}${state.justOpened.has(pid) ? ' opening' : ''}" data-key="p:${esc(pid)}" data-pid="${esc(pid)}" style="--tc:${teams.colors(p.team).primary}"${open ? ' open' : ''}>
       <summary>
         ${face(pid, p.team)}
         <span class="bt-sum">
@@ -363,7 +364,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const option = (id, label) => `<option value="${id}"${ui.win === id ? ' selected' : ''}>${label}</option>`;
     dom.setHtml($('bt-win'), [option('all', 'All games')]
       .concat(wins.some((w) => w.games.some((g) => g.state === 'in')) ? [option('live', 'Live now')] : [])
-      .concat(wins.filter((w) => !w.games.every((g) => g.state === 'post')).map((w) => option(String(w.kickoff), dayTimeShort(w.kickoff))))
+      .concat(wins.filter((w) => !w.games.every((g) => g.state === 'post')).map((w) => option(String(w.kickoff), w.approx ? new Date(w.kickoff).toLocaleDateString([], { weekday: 'short' }) : dayTimeShort(w.kickoff))))
       .join(''));
     for (const b of $('bt-pos').children) b.classList.toggle('on', b.dataset.pos === ui.pos);
     $('bt-sort').value = ui.sort;
@@ -433,7 +434,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const body = $('bt-body');
     const keys = blocks.map((b) => b.key).join('|');
     if (!blocks.length) {
-      body.innerHTML = `<p class="muted small empty">${filtered ? 'No players match these filters.' : 'None of your starters have games left this week.'}</p>`;
+      body.innerHTML = `<p class="muted small empty">${filtered ? 'No players match these filters.' : (state.leagueCount === 0 ? 'No in-season leagues right now.' : 'None of your starters have games left this week.')}</p>`;
       state.rendered = new Map();
       state.renderedKeys = '';
       return;

@@ -157,3 +157,7 @@
   #bt-q { flex-basis: 100%; }
   #bt-win, #bt-sort { flex: 1; max-width: none; }
 }
+
+/* Players with no lines yet: present, but out of the way. */
+.bt-item.nolines { opacity: .5; }
+.bt-item.nolines .bt-key { display: none; }

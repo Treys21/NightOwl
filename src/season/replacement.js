@@ -42,6 +42,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return Object.fromEntries(Object.entries(out).map(([w, teams]) => [w, [...teams]]));
   }
 
+  const SCHEDULE_TTL_MS = 24 * 3600000;
+
+  /**
+   * The season's NFL schedule as { week: [teams playing] }, cached for a day (it is fixed once published).
+   * Shared by the tools and the background refresh, so a warm cache is a warm cache for both.
+   */
+  async function schedule(seasonYear) {
+    const { api, storage } = NightOwl;
+    const key = `season.nflschedule.${seasonYear}`;
+    const cached = await storage.get(key, null);
+    if (cached && Date.now() - cached.at < SCHEDULE_TTL_MS) return cached.weeks;
+    try {
+      const weeks = playing(await api.schedule(seasonYear, 'regular'));
+      if (Object.keys(weeks).length) {
+        await storage.set({ [key]: { at: Date.now(), weeks } });
+        return weeks;
+      }
+    } catch { /* fall through to whatever is cached */ }
+    return (cached && cached.weeks) || null; // without it, byes show up as missing projections: still zero, just less exact
+  }
+
   /**
    * Is this team off that week? Only when the week's schedule is known and the
    * team has no game in it: an unknown team (a free agent, a typo) is never "on bye".
@@ -151,7 +172,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { weeks: wrapped, positionsOf: posOf, pool: (pids) => pids.concat(stand), isVirtual, rate: rateOf, over, stand };
   }
 
-  NightOwl.replacement = { levels, wrap, playing, onBye, startingPositions, isVirtual, FADE, LEVEL_RANKS, MAX_FILL };
+  NightOwl.replacement = { levels, wrap, playing, schedule, onBye, startingPositions, isVirtual, FADE, LEVEL_RANKS, MAX_FILL };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.replacement;

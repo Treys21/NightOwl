@@ -55,7 +55,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const MARKUP = `
     <header class="bar">
-      <div class="title"><strong>Moves</strong></div>
+      <div class="title quiet"><strong>Moves</strong></div>
       <div class="actions">
         <div class="tabs mv-mode" role="group" aria-label="Moves">
           <button type="button" class="tab" data-mode="waivers" title="Free agents who would improve your lineups">Waivers</button>
@@ -244,7 +244,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       state.error = null;
     } catch (err) {
       console.error('[Night Owl moves]', err);
-      state.error = err.message || String(err);
+      state.error = NightOwl.format.errorText(err);
     } finally {
       state.busy = false;
       if (root) {
@@ -299,7 +299,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       head = '<span class="mv-best muted">Checking…</span>';
     } else if (!targets.length) {
       head = '<span class="mv-best muted">No upgrades</span>';
-      body = '<p class="muted small mv-note">No free agent would start for you, even after cutting your least useful player.</p>';
+      body = '';
     } else {
       const best = targets[0];
       head = `<span class="mv-best up">${signed(best.gain)} pts · ${esc(players.info(best.pid).name)}</span>`;
@@ -361,15 +361,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const delta = (n) => `<b class="${n > 0 ? 'up' : n < 0 ? 'down' : ''}">${signed(n)}</b>`;
 
   function sideCard(lg, who, ro, impact, base, after) {
-    const odds = (key, text) => (base && after
-      ? `<span title="${text}">${text.split(' ')[0]} ${oddsLabel(base.teams[ro.roster_id][key])} → <b>${oddsLabel(after.teams[ro.roster_id][key])}</b></span>` : '');
+    const odds = (key, text) => `${text} ${oddsLabel(base.teams[ro.roster_id][key])} → <b>${oddsLabel(after.teams[ro.roster_id][key])}</b>`;
     const hasPlayoffs = lg.playoffTeams > 0;
-    const full = (ro.players || []).length;
+    const line = base && after && hasPlayoffs
+      ? `<div class="mv-side-o">${odds('playoffOdds', 'Playoffs')}${after.bracket ? ` · ${odds('titleOdds', 'Title')}` : ''}</div>`
+      : (state.thinking && hasPlayoffs ? '<div class="mv-side-o muted">Updating odds…</div>' : '');
     return `<div class="mv-side">
       <div class="mv-side-h">${esc(who)}</div>
-      <div class="mv-side-n">${delta(impact.delta)}<span class="muted"> pts rest of season</span></div>
-      ${base && after && hasPlayoffs ? `<div class="mv-side-o">${odds('playoffOdds', 'Playoffs')}${after.bracket ? odds('titleOdds', 'Title') : ''}</div>` : (state.thinking && hasPlayoffs ? '<div class="mv-side-o muted">Updating odds…</div>' : '')}
-      <small class="muted">${full} players</small>
+      <div class="mv-side-n">${delta(impact.delta)}<span class="muted"> pts</span></div>
+      ${line}
     </div>`;
   }
 
@@ -385,11 +385,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const format = `${lg.superflex ? 'Superflex' : '1QB'}${lg.tep ? ` TE${'+'.repeat(lg.tep)}` : ''}`;
     let call = redraft ? 'Even on consensus value.' : 'Even by blended value.';
     if (Math.abs(net) / big >= 0.05) call = net > 0 ? `Favors you by ${worth(net)} (${Math.round(Math.abs(net) / big * 100)}%).` : `Favors ${esc(them)} by ${worth(-net)} (${Math.round(Math.abs(net) / big * 100)}%).`;
-    return { net, html: `<div class="mv-dyn">
-      <div class="mv-dyn-h">${redraft ? 'Consensus value' : 'Dynasty value'} <small class="muted">KeepTradeCut ${redraft ? 'redraft' : 'mixed with projected points'} · ${format} · this league's scoring · extra players count over a free agent</small></div>
+    return { net, html: `<div class="mv-dyn" title="${redraft ? 'Consensus value (KeepTradeCut redraft)' : 'KeepTradeCut mixed with projected points'} · ${format} · this league's scoring · extra players count over a free agent${unpriced ? ` · ${unpriced} unpriced player${unpriced === 1 ? '' : 's'} counted as zero` : ''}">
       <div class="mv-dyn-n"><span>You send <b>${worth(send)}</b></span><span>You get <b>${worth(get)}</b></span>${delta2(net)}</div>
       <p class="mv-verdict">${call}</p>
-      ${unpriced ? `<p class="muted small">${unpriced} player${unpriced === 1 ? ' has' : 's have'} no KeepTradeCut value (counted as zero).</p>` : ''}
     </div>` };
   }
   const sideValueOf = (lg, pids) => V.packageValue(lg, pids);
@@ -407,7 +405,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function tradeResult(lg, partner) {
     const t = state.trade;
     const r = t.result;
-    if (!r) return '<p class="muted small mv-note">Pick what you would give and what you would get.</p>';
+    if (!r) return '';
     const them = nameOf(lg, partner);
     const slots = lg.capacity;
     const give = [...t.give].filter((pid) => !isPick(pid)).length;
@@ -417,13 +415,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const warn = [];
     if (myCount > slots) warn.push(`You would need to drop ${myCount - slots}.`);
     if (theirCount > slots) warn.push(`${esc(them)} would need to drop ${theirCount - slots}.`);
-    return `<div class="mv-result">
+    return `<div class="mv-result" title="Each lineup is re-set every remaining week on Sleeper's projections${lg.kind !== 'redraft' ? ' (age is not counted in the lineup points)' : ''}. Odds replay the season ${model.SIMS.toLocaleString()} times with the trade done.">
       <div class="mv-sides">${sideCard(lg, 'You', lg.mine, r.impact.a, r.base, r.after)}${sideCard(lg, them, partner, r.impact.b, r.base, r.after)}</div>
       ${usesKtc(lg) || V.consensus(lg) ? marketLine(lg, partner, them).html : ''}
-      <p class="mv-verdict">${usesKtc(lg) || V.consensus(lg) ? 'Lineups: ' : 'For this season: '}${verdict(r.impact.a, r.impact.b, them)}</p>
+      <p class="mv-verdict mv-sub">${usesKtc(lg) || V.consensus(lg) ? 'Lineups: ' : 'For this season: '}${verdict(r.impact.a, r.impact.b, them)}</p>
       ${lg.kind !== 'redraft' && state.ktcError ? '<p class="muted small">Dynasty values unavailable right now (KeepTradeCut could not be reached).</p>' : ''}
       ${warn.length ? `<p class="mv-warn small">${warn.join(' ')}</p>` : ''}
-      <p class="muted small mv-note">Each lineup is re-set every remaining week on Sleeper's projections${lg.kind !== 'redraft' ? '; age is not counted here' : ''}. Odds replay the season ${model.SIMS.toLocaleString()} times with the trade done.</p>
     </div>`;
   }
 
@@ -558,7 +555,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const err = $('mv-error');
     err.hidden = !state.error;
     err.textContent = state.error || '';
-    if (!state.loadedAt) return;
+    if (!state.loadedAt) {
+      if (state.error) dom.setHtml($('mv-body'), ''); // the error says it; placeholders would wait for nothing
+      return;
+    }
 
     if (!state.leagues.length) {
       dom.setHtml($('mv-body'), '<p class="empty muted">No league with a regular season left to play.</p>');

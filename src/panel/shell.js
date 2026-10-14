@@ -119,6 +119,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     apply();
     enableResize();
     setTimeout(slideIndicator, 400); // again once webfonts settle
+    // The pill follows the buttons whenever they change size: webfonts arriving, the panel resized, a narrow window.
+    if (typeof ResizeObserver !== 'undefined') {
+      const watcher = new ResizeObserver(slideIndicator);
+      panel.querySelectorAll('.switch, .switch button').forEach((el) => watcher.observe(el));
+    }
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(slideIndicator);
   }
 
   // Registered once, not per build: Sleeper can tear the host out and the shell

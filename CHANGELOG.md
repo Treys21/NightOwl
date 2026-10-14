@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.13.0
+**A cleaner, calmer widget, a scheduled refresh, and a sweep of every state.**
+- **Moves is simpler to read.** Finder cards show three stat tiles (points for you, your title
+  odds before and after, value given against value received), one line of reasoning and a
+  "Why it works" fold-out; the Trade analyzer, History and Drafts lose their long captions
+  (they are tooltips now); History groups unused picks by year and folds the managers table.
+- **Lineups, Season and Bets say less.** A backup is one line when there is nothing to gain,
+  the Season review is one short sentence, and players with no lines fade back.
+- **Scheduled refresh for what has no API.** Twice a day the background worker re-reads
+  KeepTradeCut (dynasty and redraft) and The Ringer's rankings, so a tab opens on today's
+  numbers. A Ringer refresh only replaces a board nobody has edited. Sleeper and ESPN stay live.
+- **Every state, checked.** Unknown username (with a hint where to fix it), no leagues,
+  offseason, leagues finished or in their draft, Sleeper, ESPN, KeepTradeCut or projections
+  down, and a 340px-wide panel. Fixes: errors are a sentence rather than "Failed to fetch";
+  Lineups with no league in season says so instead of showing empty windows; with ESPN down
+  kickoffs show the day, not an invented 1:00 PM or a lock countdown; a dynasty league warns
+  when KeepTradeCut is down; the Draft tab hides its filters until there is a board; Moves,
+  Season and the nav keep their buttons visible on a narrow panel.
+
 ## 3.12.4
 **Draft grades weigh the early picks; the board is colour only.**
 - **Late busts count for less.** A pick that falls short is counted in proportion to what its

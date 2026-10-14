@@ -141,3 +141,12 @@ select option { background: var(--panel); color: var(--text); }
 /* An icon button whose panel is open reads as pressed. */
 button.icon[aria-expanded="true"] { color: var(--text); background: var(--raised); }
 .lv-set-h { margin: 0 0 6px; font: 600 11px Inter, sans-serif; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+
+/* A narrow panel: the title never wraps, and the bar's tabs scroll sideways before they push the refresh button out. */
+.bar > .title { flex: none; white-space: nowrap; }
+.bar > .actions { min-width: 0; flex: 0 1 auto; }
+.bar .actions .tabs { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.bar .actions .tabs::-webkit-scrollbar { display: none; }
+.bar .actions .tabs .tab { flex: none; }
+.bar .actions .icon { flex: none; }
+@container panel (max-width: 480px) { .bar .title.quiet { display: none; } }

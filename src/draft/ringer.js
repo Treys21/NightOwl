@@ -148,7 +148,21 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return parseHtml(html, format);
   }
 
-  const api = { RINGER_URL, FORMATS, TEAM_ABBR, readPayload, extractPlayers, toRankings, parseHtml, fetchRankings };
+  /** The board's identity for "is this still what the last sync produced": name and position in order. */
+  const fingerprint = (rankings) => (rankings || []).map((r) => `${r.name}|${r.position}`);
+
+  /**
+   * Has the board been left as the last Ringer sync made it (or is it empty)? Only then may a background
+   * refresh replace it; a board someone has reordered, added to or trimmed is theirs.
+   *   synced   the fingerprint saved by the last sync, or null when the board never came from one
+   */
+  function isUntouched(current, synced) {
+    if (!current || !current.length) return true;
+    const now = fingerprint(current);
+    return Array.isArray(synced) && synced.length === now.length && synced.every((k, i) => k === now[i]);
+  }
+
+  const api = { RINGER_URL, fingerprint, isUntouched, FORMATS, TEAM_ABBR, readPayload, extractPlayers, toRankings, parseHtml, fetchRankings };
   NightOwl.ringer = api;
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

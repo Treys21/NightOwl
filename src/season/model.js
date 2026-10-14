@@ -118,21 +118,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return (ro.players || []).filter((pid) => !away.has(pid));
   };
 
-  // The NFL schedule as { week: [teams playing] }, which is how a bye is told
-  // from an absence: a healthy player whose team plays that week has a game.
-  // Cached for a day; the schedule is fixed once published.
-  async function nflSchedule(seasonYear) {
-    const key = `season.nflschedule.${seasonYear}`;
-    const cached = await storage.get(key, null);
-    if (cached && Date.now() - cached.at < 24 * 3600000) return cached.weeks;
-    try {
-      const weeks = NightOwl.replacement.playing(await api.schedule(seasonYear, 'regular'));
-      if (Object.keys(weeks).length) await storage.set({ [key]: { at: Date.now(), weeks } });
-      return Object.keys(weeks).length ? weeks : (cached && cached.weeks) || null;
-    } catch {
-      return (cached && cached.weeks) || null; // without it, byes show up as missing projections: still zero, just less exact
-    }
-  }
+  // The NFL schedule as { week: [teams playing] }, which is how a bye is told from an absence:
+  // a healthy player whose team plays that week has a game (see season/replacement.js).
+  const nflSchedule = (seasonYear) => NightOwl.replacement.schedule(seasonYear);
 
   /**
    * One entry per remaining week for the value engine (season/value.js): the

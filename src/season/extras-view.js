@@ -57,7 +57,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           paths.set(lg.leagueId, found ? { status: 'ready', ...found } : { status: 'error', error: 'the projection for this league is unavailable' });
         } catch (err) {
           console.warn('[Night Owl season] path unavailable', lg.name, err);
-          paths.set(lg.leagueId, { status: 'error', error: err.message || String(err) });
+          paths.set(lg.leagueId, { status: 'error', error: NightOwl.format.errorText(err) });
         }
         if (active()) render();
       }
@@ -134,7 +134,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           recaps.set(lg.leagueId, { status: 'ready', ...(await computeRecap(lg)) });
         } catch (err) {
           console.warn('[Night Owl season] recap unavailable', lg.name, err);
-          recaps.set(lg.leagueId, { status: 'error', error: err.message || String(err) });
+          recaps.set(lg.leagueId, { status: 'error', error: NightOwl.format.errorText(err) });
         }
         if (active()) render();
       }

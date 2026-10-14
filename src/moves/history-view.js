@@ -72,6 +72,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         .concat((which === 'got' ? side.gotPicks : side.gavePicks).map((pick) => ({ pick })));
     }
 
+    // Players one to a line; picks nobody has used yet gathered by year ("2027 picks · R1 R2 R3").
+    function assetList(lg, assets) {
+      const lines = assets.filter((a) => !a.pick || a.pick.player || a.pick.passed).map((a) => `<li>${esc(assetText(lg, a))}</li>`);
+      const byYear = new Map();
+      for (const a of assets.filter((x) => x.pick && !x.pick.player && !x.pick.passed)) {
+        if (!byYear.has(a.pick.season)) byYear.set(a.pick.season, []);
+        byYear.get(a.pick.season).push(`R${a.pick.round}`);
+      }
+      for (const [year, rounds] of byYear) lines.push(`<li class="picks">${esc(year)} picks · ${esc(rounds.join(' '))}</li>`);
+      return lines.join('') || '<li class="muted">nothing</li>';
+    }
+
     function tradeCard(lg, item) {
       const { trade, grades, real, owners } = item;
       const dyn = V.usesKtc(lg);
@@ -82,11 +94,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const owner = owners[rid];
         const mine = !!owner && owner === lg.mine.owner_id;
         const stat = [];
-        if (dyn && g.valueNet) stat.push(`${g.valueNet > 0 ? '+' : '−'}${V.worth(Math.abs(g.valueNet))} value now`);
-        if (real && real[rid]) stat.push(`${Math.round(real[rid].started)} pts started`);
+        if (dyn && g.valueNet) stat.push(`<b class="${g.valueNet > 0 ? 'up' : 'down'}">${g.valueNet > 0 ? '+' : '−'}${V.worth(Math.abs(g.valueNet))}</b>`);
+        if (real && real[rid] && real[rid].started >= 1) stat.push(`${Math.round(real[rid].started)} pts started`);
         return `<div class="mv-hist-side${mine ? ' me' : ''}">
           <div class="mv-hist-who"><b>${mine ? 'You' : esc(nameOfOwner(lg, owner))}</b><span class="mv-grade g-${g.tone}" title="Value now ${pct(g.valuePct)}${real ? `, started ${g.ptsNet >= 0 ? '+' : ''}${g.ptsNet} pts net` : ''}">${g.letter}</span></div>
-          <ul>${assetsOf(side, 'got').map((a) => `<li>${esc(assetText(lg, a))}</li>`).join('') || '<li class="muted">nothing</li>'}</ul>
+          <ul>${assetList(lg, assetsOf(side, 'got'))}</ul>
           ${stat.length ? `<small class="muted">${stat.join(' · ')}</small>` : ''}
         </div>`;
       });
@@ -105,6 +117,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </tbody></table>`;
     }
 
+    const managersFold = (lg, h) => {
+      const table = managers(lg, h);
+      return table ? `<details class="mv-fold"><summary>Managers</summary>${table}</details>` : '';
+    };
+
     // ---- markup ----------------------------------------------------------
 
     function pane() {
@@ -119,12 +136,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const dyn = V.usesKtc(lg);
       const band = h.band;
       const mine = h.graded.filter((g) => g.trade.sides[lg.mine.roster_id] && g.owners[lg.mine.roster_id] === lg.mine.owner_id);
-      const myLetters = mine.map((g) => g.grades[lg.mine.roster_id].letter).join(' ');
+      const myLetters = mine.slice(0, 8).map((g) => g.grades[lg.mine.roster_id].letter).join(' ') + (mine.length > 8 ? ' …' : '');
       const shown = hs.all ? h.graded : h.graded.slice(0, SHOWN);
       return `${select}
-        <p class="mv-kind muted small">${h.graded.length} trade${h.graded.length === 1 ? '' : 's'} since ${esc(h.seasons[h.seasons.length - 1])}${band.medianAbsPct != null && dyn ? ` · the typical deal is ${Math.round(band.medianAbsPct * 100)}% off an even price` : ''}${mine.length ? ` · your grades: ${esc(myLetters)}` : ''}.
-        ${dyn ? 'Graded on today\'s KeepTradeCut values and what the players scored since; older deals carry hindsight (a rookie who hit or busted).' : 'Graded on the points the players started for their new teams.'}</p>
-        ${managers(lg, h)}
+        <p class="mv-kind muted small" title="${esc(dyn ? 'Graded on today\'s KeepTradeCut values and what the players started since; older deals carry hindsight.' : 'Graded on the points the players started for their new teams.')}">${h.graded.length} trade${h.graded.length === 1 ? '' : 's'} · ${esc(h.seasons[h.seasons.length - 1])}${h.seasons.length > 1 ? `–${esc(h.seasons[0])}` : ''}${band.medianAbsPct != null && dyn ? ` · typically ${Math.round(band.medianAbsPct * 100)}% off even` : ''}${mine.length ? ` · you ${esc(myLetters)}` : ''}</p>
+        ${managersFold(lg, h)}
         ${shown.map((g) => tradeCard(lg, g)).join('')}
         ${!hs.all && h.graded.length > SHOWN ? `<button type="button" class="mv-btn" data-history="more">Show all ${h.graded.length}</button>` : ''}`;
     }

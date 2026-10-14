@@ -68,7 +68,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     async saveRankings(rankings, { markSynced = false } = {}) {
       if (!Array.isArray(rankings) || rankings.length === 0) return false;
       const items = { rankings: renumber(rankings) };
-      if (markSynced) items.lastSynced = Date.now();
+      if (markSynced) {
+        items.lastSynced = Date.now();
+        items['ringer.synced'] = items.rankings.map((r) => `${r.name}|${r.position}`); // what a sync made, to tell later whether it was edited
+      }
       await set(items);
       return true;
     },

@@ -85,7 +85,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         ${grades.map((g) => `<tr class="${g.rid === lg.mine.roster_id ? 'me' : ''}"><td>${esc(teamName(lg, g.rid))}</td><td class="num"><span class="mv-grade g-${tradeHistory.toneOf(g.letter)}">${g.letter}</span></td><td class="num">${V.worth(g.t.value)}</td><td class="num ${g.t.trades > 0 ? 'up' : g.t.trades < 0 ? 'down' : ''}">${g.t.trades ? signed(g.t.trades) : '–'}</td><td class="num ${g.t.gain > 0 ? 'up' : g.t.gain < 0 ? 'down' : ''}">${g.t.gain ? signed(g.t.gain) : '–'}</td></tr>`).join('')}
       </tbody></table>`;
       return `<div class="dv-wrap"><div class="dv-grid" style="--teams:${b.teams}"><div class="dv-corner"></div>${head}${rows}</div></div>
-        <p class="muted small mv-note dv-legend"><i class="dv-key up"></i> ${ds.color === 'value' ? 'worth the most now' : 'beat the pick chart'} <i class="dv-key down"></i> ${ds.color === 'value' ? 'worth little' : 'fell short (late picks count for less)'} · values are today's, so older drafts carry hindsight · ↔ traded pick · team grades include what was paid or received in pick trades</p>
+        <p class="muted small mv-note dv-legend" title="Values are today's, so older drafts carry hindsight. Team grades include what was paid or received in pick trades."><i class="dv-key up"></i> ${ds.color === 'value' ? 'worth the most' : 'beat its slot'} <i class="dv-key down"></i> ${ds.color === 'value' ? 'worth little' : 'fell short'} · ↔ traded pick</p>
         ${table}`;
     }
 

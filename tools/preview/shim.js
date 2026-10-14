@@ -8,6 +8,10 @@
 //   picks=<n>                show a draft as in progress after n picks
 //   stage=1                  leave one starter slot empty (shows the lineup fixer)
 //   rankings=<json>          draft rankings [{ rank, name, position }]
+//   fault=<what>             break something: sleeper | projections | ktc | espn | slow
+//   nfl=<json>               override the NFL calendar, e.g. {"season_type":"off","week":0}
+//   leagues=none             the user has no leagues
+//   status=<s>               every league's status: complete | pre_draft | drafting | in_season
 (function () {
   'use strict';
 
@@ -37,7 +41,7 @@
       return Object.assign({}, data, { display_name: 'nightowl', username: 'nightowl', avatar: null });
     }
     if (Array.isArray(data) && data[0] && data[0].league_id && 'name' in data[0]) {
-      return data.map((l) => Object.assign({}, l, { name: pick(leagueNames, l.league_id, LEAGUES), avatar: null }));
+      return data.map((l) => Object.assign({}, l, { name: pick(leagueNames, l.league_id, LEAGUES), avatar: null }, params.get('status') ? { status: params.get('status') } : {}));
     }
     if (Array.isArray(data) && data[0] && data[0].display_name !== undefined) {
       return data.map((u) => {
@@ -50,9 +54,19 @@
   }
 
   const realFetch = window.fetch.bind(window);
+  const fault = params.get('fault') || '';
+  const nflOverride = params.get('nfl') ? JSON.parse(params.get('nfl')) : null;
   window.fetch = async (input, init) => {
-    const res = await realFetch(input, init);
     const url = String(input);
+    if (fault === 'sleeper' && /api\.sleeper\.(app|com)/.test(url)) throw new TypeError('Failed to fetch');
+    if (fault === 'projections' && /\/projections\//.test(url)) throw new TypeError('Failed to fetch');
+    if (fault === 'slow') await new Promise((r) => setTimeout(r, 2500));
+    const res = await realFetch(input, init);
+    if (nflOverride && /\/v1\/state\/nfl$/.test(url)) {
+      const real = await res.clone().json();
+      return json(Object.assign({}, real, nflOverride));
+    }
+    if (params.get('leagues') === 'none' && /\/v1\/user\/[^/]+\/leagues\//.test(url)) return json([]);
 
     const picks = Number(params.get('picks'));
     if (picks && /\/v1\/draft\/\d+(\/picks)?$/.test(url)) {
@@ -90,7 +104,9 @@
       id: 'preview',
       lastError: null,
       getURL: (path) => `/${path}`,
-      sendMessage: (msg, cb) => realFetch(msg.type === 'nightowl-ktc' ? `/ktc?kind=${msg.kind || 'dynasty'}` : `/relay?url=${encodeURIComponent(msg.url)}`)
+      sendMessage: (msg, cb) => (fault === 'espn' && msg.type !== 'nightowl-ktc') || (fault === 'ktc' && msg.type === 'nightowl-ktc')
+        ? cb({ ok: false, error: 'Failed to fetch' })
+        : realFetch(msg.type === 'nightowl-ktc' ? `/ktc?kind=${msg.kind || 'dynasty'}` : `/relay?url=${encodeURIComponent(msg.url)}`)
         .then((r) => r.json())
         .then((data) => cb({ ok: true, data }), (err) => cb({ ok: false, error: String(err) }))
     },

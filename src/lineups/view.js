@@ -107,7 +107,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       state.error = null;
     } catch (err) {
       console.error('[Night Owl lineups]', err);
-      state.error = err.message || String(err);
+      state.error = NightOwl.format.errorText(err);
     } finally {
       state.busy = false;
       if (root) $('lu-refresh').classList.remove('spin');
@@ -172,8 +172,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     ? `<span class="lu-gain">${fmt(o.proj)}</span>`
     : `<span class="lu-gain ${cls}">${o.gain > 0 ? '+' : o.gain < 0 ? '−' : '±'}${fmt(Math.abs(o.gain))}</span>`}</span>`;
     };
-    const top = r.options.slice(0, 3).map(chip).join('');
-    const rest = r.options.slice(3);
+    // A backup plan is one line; swaps that gain points get a few.
+    const shown = anyGain ? 3 : 1;
+    const top = r.options.slice(0, shown).map(chip).join('');
+    const rest = r.options.slice(shown);
     return `<div class="lu-opts${anyGain ? '' : ' quiet'}"><span class="lu-opts-label"><span>${label}</span><span>${unit}</span></span>${top}${rest.length
       ? `<details class="lu-more"><summary>+${rest.length} more</summary>${rest.map(chip).join('')}</details>` : ''}</div>`;
   }
@@ -251,11 +253,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </div>`);
     }
 
-    if (!wins.length) html.push('<p class="muted small empty">Every game this week has kicked off. Lineups are locked.</p>');
+    // With no league in season there is nothing to lock; with games all started the lineups are set.
+    const shownWins = leagues.length ? wins : [];
+    if (!leagues.length) html.push('<p class="muted small empty">No in-season leagues right now.</p>');
+    else if (!wins.length) html.push('<p class="muted small empty">Every game this week has kicked off. Lineups are locked.</p>');
 
     // Each league's optimal-lineup banner shows once, in its first upcoming window.
     const bannered = new Set();
-    wins.forEach((w, i) => {
+    shownWins.forEach((w, i) => {
       const blocks = [];
       let starting = 0;
       let benched = 0;
@@ -283,7 +288,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           ${i === 0 ? '<span class="lu-eyebrow">Next lock</span>' : ''}
           <div class="lu-when">
             <span class="lu-label">${esc(windowLabel(w))}</span>
-            <span class="lu-lock${soon ? ' soon' : ''}">${w.kickoff - Date.now() < 12 * 3600000 ? ring(w.kickoff, soon) : ''}locks in ${countdown(w.kickoff)}</span>
+            ${w.approx ? '' : `<span class="lu-lock${soon ? ' soon' : ''}">${w.kickoff - Date.now() < 12 * 3600000 ? ring(w.kickoff, soon) : ''}locks in ${countdown(w.kickoff)}</span>`}
           </div>
           <div class="lu-meta">
             <div class="lu-games">${logos}</div>

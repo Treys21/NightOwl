@@ -34,3 +34,24 @@ test('percent and countdown', () => {
   assert.equal(format.countdown(now + (2 * 24 + 4) * 3600000, now), '2d 4h');
   assert.equal(format.countdown(now - 60000, now), '0m');
 });
+
+test('errorText: a sentence for a failed load, never the browser\'s "Failed to fetch"', () => {
+  const { errorText } = format;
+  assert.match(errorText(new TypeError('Failed to fetch')), /retries on its own/);
+  assert.match(errorText(new Error('timed out: https://x')), /retries on its own/);
+  assert.match(errorText(new Error('503 https://api.sleeper.app/v1/state/nfl')), /problem \(503\)/);
+  assert.match(errorText(new Error('429 https://x')), /Too many requests/);
+  assert.match(errorText(new Error('404 https://x')), /request \(404\)/);
+  assert.strictEqual(errorText(new Error('No Sleeper user named "x"')), 'No Sleeper user named "x"');
+  assert.ok(errorText(null));
+});
+
+test('windowTitle: an approximate kickoff names the day, not a made-up time', () => {
+  const games = [{ away: 'SEA', home: 'DEN' }];
+  const day = new Date('2026-10-15T17:00:00Z');
+  const exact = format.windowTitle({ kickoff: day.getTime(), games });
+  const approx = format.windowTitle({ kickoff: day.getTime(), games, approx: true });
+  assert.match(exact, /\d:\d\d/);
+  assert.doesNotMatch(approx, /\d:\d\d/);
+  assert.match(approx, /SEA @ DEN/);
+});

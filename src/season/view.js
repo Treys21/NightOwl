@@ -235,7 +235,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
     } catch (err) {
       console.error('[Night Owl season] projections unavailable', err);
-      state.error = `Projections unavailable: ${err.message || err}`;
+      state.error = `Projections unavailable. ${NightOwl.format.errorText(err)}`;
     } finally {
       state.projecting = false;
       render();
@@ -252,7 +252,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       state.error = null;
     } catch (err) {
       console.error('[Night Owl season]', err);
-      state.error = err.message || String(err);
+      state.error = NightOwl.format.errorText(err);
     } finally {
       state.busy = false;
       if (root) {
@@ -280,11 +280,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function reviewLine(r) {
     if (!r) return '';
     const left = r.max - r.points;
-    let text = `Week ${r.week}: ${num(r.points)} of ${num(r.max)} possible.`;
+    let text = `Wk ${r.week}: <b>${num(r.points)}</b> of ${num(r.max)} possible.`;
     if (r.miss && left >= 0.5) {
-      text += ` Starting ${esc(playerName(r.miss.in))} instead of ${esc(playerName(r.miss.out))} would have added ${num(r.miss.gain)}.`;
+      text += ` Start ${esc(playerName(r.miss.in))} over ${esc(playerName(r.miss.out))}: <b>+${num(r.miss.gain)}</b>.`;
     } else {
-      text += ' Best lineup you could have set.';
+      text += ' A perfect lineup.';
     }
     const lost = r.opp != null && r.points < r.opp;
     const flip = lost && r.max > r.opp;

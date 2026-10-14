@@ -48,7 +48,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <select id="lv-league" title="Show one league"><option value="">All leagues</option></select>
         </div>
         <ol id="feed"></ol>
-        <p id="feed-empty" class="muted small empty">New scoring plays by your starters and your opponents' show up here as they happen, with what each did in every league.</p>
+        <p id="feed-empty" class="muted small empty">Scoring plays by your starters and opponents show up here live.</p>
       </section>
       <section data-pane="matchups" hidden>
         <div id="scoreboard"><div class="skel" role="status" aria-label="Loading your leagues"><i></i><i></i><i></i></div></div>
@@ -309,7 +309,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       render();
     } catch (err) {
       console.error('[Night Owl]', err);
-      showError(err.message || String(err));
+      showError(NightOwl.format.errorText(err));
     } finally {
       state.busy = false;
       if (root) $('refresh').classList.remove('spin');
@@ -719,7 +719,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('feed-empty').hidden = list.length > 0;
     $('feed-empty').textContent = state.events.length
       ? 'No plays match these filters.'
-      : "New scoring plays by your starters and your opponents' show up here as they happen, with what each did in every league.";
+      : state.ctx && !state.ctx.leagues.length
+        ? 'No in-season leagues right now.'
+        : 'Scoring plays by your starters and opponents show up here live.';
     const first = state.seenEventIds.size === 0;
     const html = [];
     let lastTs = null;

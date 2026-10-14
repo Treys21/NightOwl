@@ -22,7 +22,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     let userId = settings.userId;
     if (!userId) {
       const user = await api.user(username);
-      if (!user || !user.user_id) throw new Error(`No Sleeper user named "${username}"`);
+      if (!user || !user.user_id) throw new Error(`No Sleeper user named "${username}". Check the spelling in Night Owl's settings (the toolbar icon).`);
       userId = user.user_id;
       await storage.saveSettings({ userId });
     }

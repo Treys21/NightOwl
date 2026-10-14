@@ -36,9 +36,28 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   /** A kickoff window's title: "Sun 1:00 PM · 7 games", or the matchups when there are one or two. */
+  // When ESPN is unreachable the schedule has only dates: say the day, never a made-up 1:00 PM.
+  const dayOf = (w) => (w.approx ? new Date(w.kickoff).toLocaleDateString([], { weekday: 'short' }) : dayTime(w.kickoff));
   const windowTitle = (w) => (w.games.length > 2
-    ? `${dayTime(w.kickoff)} · ${w.games.length} games`
-    : `${dayTime(w.kickoff)} · ${w.games.map((g) => `${g.away} @ ${g.home}`).join(', ')}`);
+    ? `${dayOf(w)} · ${w.games.length} games`
+    : `${dayOf(w)} · ${w.games.map((g) => `${g.away} @ ${g.home}`).join(', ')}`);
+
+  /**
+   * What to tell someone when a load fails: a sentence, not the browser's "Failed to fetch".
+   * The panel's source note names which feed is down; this says what to expect.
+   */
+  function errorText(err) {
+    const text = String((err && err.message) || err || '');
+    if (/failed to fetch|networkerror|network request failed|load failed|timed out|timeout|aborted/i.test(text)) return "Couldn't load this right now. It retries on its own.";
+    const status = /^(\d{3}) /.exec(text);
+    if (status) {
+      const code = Number(status[1]);
+      if (code === 429) return 'Too many requests just now. It slows down and retries on its own.';
+      if (code >= 500) return `The data source had a problem (${code}). It retries on its own.`;
+      return `The data source refused the request (${code}).`;
+    }
+    return text || 'Something went wrong.';
+  }
 
   /** "8:21 PM", or "8:21:07 PM" with seconds. */
   const clock = (ms, seconds = false) => new Date(ms).toLocaleTimeString([], seconds
@@ -53,7 +72,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return h < 24 ? `${h}h ${mins % 60}m` : `${Math.floor(h / 24)}d ${h % 24}h`;
   }
 
-  NightOwl.format = { escape, points, tenths, short, signed, percent, dayTime, dayTimeShort, windowTitle, clock, countdown };
+  NightOwl.format = { escape, points, tenths, short, signed, percent, dayTime, dayTimeShort, windowTitle, errorText, clock, countdown };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.format;
