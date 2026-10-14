@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.8.0
 **New: Moves tab** (Alt+Shift+6). Waivers and a trade analyzer, priced in what
 each league actually scores.
 - **Waivers.** Per league: the free agents who would raise your lineup over
@@ -16,9 +16,11 @@ each league actually scores.
   pays one), scaled by how the league's scoring treats the player compared with
   KTC's PPR baseline, and packages are priced so depth doesn't buy a star.
   Redraft leagues use projected points only. Draft picks (next three drafts,
-  rounds 1 to 4) can be traded too: priced early, mid or late from the
-  standings for the next draft and mid for later ones, with traded picks
-  tracked per owner. Ratios against the league's typical scoring are used, so
+  rounds 1 to 4) can be traded too, with traded picks tracked per owner. The
+  next draft's slots ("2027 1.03") come from the Season tab's projection: the
+  season played out 2,000 times from the standings and every remaining week's
+  projected lineups, sorted by the league's draft formula, then priced early,
+  mid or late. Later drafts are priced mid. Ratios against the league's typical scoring are used, so
   standard scoring doesn't make picks look better than players.
 - **Type checking.** `npm run typecheck` (`tsc --checkJs`) is part of `verify`
   and CI; it caught a malformed doc comment and a handful of typed-wrong spots.

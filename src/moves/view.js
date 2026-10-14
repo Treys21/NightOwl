@@ -12,7 +12,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { api, teams, players, storage, account, dom, season, value, model, ktc } = NightOwl;
+  const { api, teams, players, storage, account, dom, season, projection, value, model, ktc } = NightOwl;
   const { isPlaying, mine: rosterOf, teamNames, teamUrl } = NightOwl.leagues;
   const { escape: esc, percent } = NightOwl.format;
 
@@ -28,6 +28,7 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
 
   const state = {
     mode: 'waivers', // or 'trade'
+    draftMethod: 'linear', // how the league sorts its draft order (see season.draftOrder); the Season tab's setting
     nfl: null,
     stats: {},
     remainingOf: null,
@@ -82,6 +83,17 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
     return new Map(order.map((ro, i) => [ro.roster_id, i + 1]));
   }
 
+  /**
+   * Where a team's pick will land in the next draft (1 = first). The best
+   * guess is the season played out 2,000 times (standings, then every
+   * remaining week's projected lineups and the playoffs) and sorted by the
+   * league's draft formula; until that runs, today's standings stand in.
+   */
+  const pickSlot = (lg, rosterId) => (lg.slots && lg.slots.get(rosterId)) || lg.ranks.get(rosterId) || 1;
+
+  /** Early, mid or late for a pick. Only the next draft has a guessable slot; later ones are priced mid. */
+  const pickTierOf = (lg, pick) => (pick.year === Number(lg.raw.season) + 1 ? ktc.pickTier(pickSlot(lg, pick.from), lg.raw.rosters.length) : 'mid');
+
   /** roster id -> the future picks that roster holds right now, after trades. */
   function ownedPicks(lg) {
     const held = new Map(lg.raw.rosters.map((ro) => [ro.roster_id, []]));
@@ -103,6 +115,7 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
   async function load() {
     const { userId } = await account.resolve();
     const excluded = await account.excluded();
+    state.draftMethod = (await storage.get('season.settings', {})).draftMethod || 'linear';
     await players.load();
     const nfl = await api.state();
     state.nfl = nfl;
@@ -125,7 +138,7 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
         name: lg.name.trim(),
         playoffTeams: t.playoffTeams,
         medianGame: t.medianGame,
-        draft: null,
+        draft: KIND[(lg.settings && lg.settings.type) || 0] === 'redraft' ? null : {}, // keeper and dynasty leagues project their draft order
         draftRounds: (lg.settings && lg.settings.draft_rounds) || PICK_ROUNDS,
         // Roster spots: the lineup and bench, plus the separate IR and taxi slots.
         capacity: (lg.roster_positions || []).length + ((lg.settings && lg.settings.reserve_slots) || 0) + ((lg.settings && lg.settings.taxi_slots) || 0),
@@ -183,6 +196,27 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
     state.loadedAt = Date.now();
   }
 
+  // Draft order for each keeper and dynasty league, from the simulated season.
+  // The same run is the baseline the trade odds compare against.
+  async function projectPicks() {
+    const generation = state.generation;
+    for (const lg of state.leagues) {
+      if (!lg.draft || lg.slots) continue;
+      await tick();
+      if (!root || generation !== state.generation) return;
+      try {
+        const base = await model.projectLeague(lg, { remainingOf: state.remainingOf, stats: state.stats, draftMethod: state.draftMethod });
+        if (generation !== state.generation) return;
+        state.base.set(lg.leagueId, base);
+        lg.slots = new Map(projection.projectedDraft(base, { method: state.draftMethod }).map((t) => [t.rosterId, t.pick]));
+        lg.dyn = new Map(); // pick values were priced on standings alone
+        render();
+      } catch (err) {
+        console.warn('[Night Owl moves] draft order projection failed', lg.name, err);
+      }
+    }
+  }
+
   // Waiver math for every league, one at a time so Sleeper's page never stalls.
   async function analyze() {
     const generation = state.generation;
@@ -215,7 +249,7 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
         $('mv-refresh').classList.remove('spin');
         keepTradeValid();
         render();
-        analyze();
+        analyze().then(projectPicks).then(() => state.mode === 'trade' && analyzeTrade());
         if (state.mode === 'trade') analyzeTrade();
       }
     }
@@ -233,11 +267,11 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
 
   function pickLabel(lg, pid, owner) {
     const pick = pickOf(pid);
-    const next = Number(lg.raw.season) + 1;
-    const tier = pick.year === next ? ktc.pickTier(lg.ranks.get(pick.from) || 1, lg.raw.rosters.length) : 'mid';
+    const tier = pickTierOf(lg, pick);
+    const slot = pick.year === Number(lg.raw.season) + 1 ? pickSlot(lg, pick.from) : null;
     const own = pick.from === owner.roster_id;
     const from = own ? 'own pick' : `from ${esc(lg.names.get((lg.raw.rosters.find((r) => r.roster_id === pick.from) || {}).owner_id) || `Team ${pick.from}`)}`;
-    return `<span class="mv-who"><span class="mv-pk">${String(pick.year).slice(2)}</span><span class="mv-nm"><b>${pick.year} ${tier[0].toUpperCase()}${tier.slice(1)} ${ordinalRound(pick.round)}</b><small>${from}</small></span></span>`;
+    return `<span class="mv-who"><span class="mv-pk">${String(pick.year).slice(2)}</span><span class="mv-nm"><b>${pick.year} ${slot ? `${pick.round}.${String(slot).padStart(2, '0')}` : `${tier[0].toUpperCase()}${tier.slice(1)} ${ordinalRound(pick.round)}`}</b><small>${slot ? `${tier} ${ordinalRound(pick.round)} · ` : ''}${from}</small></span></span>`;
   }
 
   function addRow(lg, t, { by }) {
@@ -311,9 +345,7 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
     if (lg.dyn.has(pid)) return lg.dyn.get(pid);
     if (isPick(pid)) {
       const pick = pickOf(pid);
-      // Only the next draft has a known slot; later ones are priced as mid-round.
-      const next = Number(lg.raw.season) + 1;
-      const tier = pick.year === next ? ktc.pickTier(lg.ranks.get(pick.from) || 1, lg.raw.rosters.length) : 'mid';
+      const tier = pickTierOf(lg, pick);
       const v = state.ktc ? ktc.pickValue(state.ktc.picks, { year: pick.year, round: pick.round, tier, superflex: lg.superflex }) : 0;
       lg.dyn.set(pid, v);
       return v;
@@ -569,7 +601,7 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
     });
     render();
     if (Date.now() - state.loadedAt > REFRESH_MS / 2) refresh();
-    else { render(); analyze(); }
+    else { render(); analyze().then(projectPicks); }
     state.timer = setInterval(() => {
       if (Date.now() - state.loadedAt >= REFRESH_MS - 1000) refresh();
     }, 60000);

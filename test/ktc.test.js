@@ -76,3 +76,18 @@ test('pick tier follows the standings: the worst teams pick early', () => {
   assert.deepEqual(tiers, ['early', 'early', 'early', 'early', 'mid', 'mid', 'mid', 'mid', 'late', 'late', 'late', 'late']);
   assert.deepEqual([1, 5, 10].map((r) => ktc.pickTier(r, 10)), ['early', 'mid', 'late']);
 });
+
+test('projected draft slots turn into pick tiers: the team projected to finish last holds the early pick', () => {
+  require('../src/lineups/core.js');
+  require('../src/season/core.js');
+  const projection = require('../src/season/project.js');
+  const strength = { 1: 150, 2: 120, 3: 100, 4: 60 };
+  const week = { pairs: [[1, 4], [2, 3]], teams: Object.fromEntries(Object.entries(strength).map(([id, m]) => [id, { mean: m, variance: 100 }])) };
+  const teams = [1, 2, 3, 4].map((rosterId) => ({ rosterId, wins: 2, losses: 2, ties: 0, pf: 400, max: 450, efficiency: 1 }));
+  const p = projection.projectSeason({ teams, weeks: [week, week], sims: 1500, seed: 3, draft: { method: 'linear' } });
+  const order = projection.projectedDraft(p, { method: 'linear' });
+  assert.equal(order[0].rosterId, 4); // the weakest roster picks first
+  assert.equal(order[3].rosterId, 1);
+  assert.equal(ktc.pickTier(order[0].pick, 12), 'early');
+  assert.equal(ktc.pickTier(order[3].pick, 4), 'late');
+});
