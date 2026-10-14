@@ -62,7 +62,7 @@ test('after trades: a pick bought is graded against its price, a pick sold again
   assert.ok(net[30].score > 0, 'the seller was paid more than the slot was expected to return');
   // No trades: the gain is just the picks over their slots.
   const plain = d.afterTrades(b, rookie, [], () => 0);
-  assert.strictEqual(plain[20].gain, Math.round(b.byRoster[20].value - b.byRoster[20].expected));
+  assert.strictEqual(plain[20].gain, Math.round(b.byRoster[20].excess));
 });
 
 test('the pick chart sets each slot\'s baseline, and a late-round hit is graded on total growth', () => {
@@ -98,4 +98,18 @@ test('settle: a pick whose holder did not draft with it (it moved some way not r
   const t = { at: 1, sides: { 20: { got: [], gave: [], gotPicks: [{ season: '2025', round: 1, from: 30 }], gavePicks: [] }, 30: { got: [], gave: [], gotPicks: [], gavePicks: [{ season: '2025', round: 1, from: 30 }] } } };
   d.settle([t], idx);
   assert.ok(t.sides[20].gotPicks[0].passed);
+});
+
+test('a late pick that loses all its value costs little; an early one costs its full shortfall', () => {
+  const chart = ({ round }) => ({ 1: 6000, 2: 1500 }[round]);
+  const draft = { season: '2025', rounds: 2, teams: 2, slotToRoster: { 1: 1, 2: 2 }, picks: [
+    { no: 1, round: 1, slot: 1, by: 1, pid: 'a' }, { no: 2, round: 1, slot: 2, by: 2, pid: 'b' },
+    { no: 3, round: 2, slot: 2, by: 2, pid: 'c' }, { no: 4, round: 2, slot: 1, by: 1, pid: 'd' } ] };
+  const values = { a: 0, b: 6000, c: 0, d: 6000 }; // roster 1 busts its first, hits its second; roster 2 hits its first, busts its second
+  const b = d.board(draft, (pid) => values[pid], chart);
+  const early = b.picks[0];
+  const late = b.picks[2];
+  assert.strictEqual(early.excess, -6000, 'an early bust counts in full');
+  assert.ok(late.excess > -1500 * 0.5 && late.excess < 0, `a late bust counts for a fraction: ${late.excess}`);
+  assert.ok(late.weight < early.weight);
 });

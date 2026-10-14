@@ -37,7 +37,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     targets: new Map(), // league id -> waiver targets
     open: new Set(), // league ids expanded
     history: { all: false }, // the trade history pane: whether the whole list is open
-    drafts: { draftId: null }, // the drafts pane: which draft is showing
+    drafts: { draftId: null, color: 'slot' }, // the drafts pane: which draft is showing, and what colours it
     finder: { leagueId: null, goal: 'balanced', shop: null, target: null, results: null, running: false, progress: '', error: null, token: 0 },
     trade: { leagueId: null, partner: null, give: new Set(), get: new Set(), result: null, token: 0 },
     base: new Map(), // league id -> projection with today's rosters
@@ -600,6 +600,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     body.addEventListener('click', (e) => {
       if (state.mode === 'finder') finder().click(e);
       else if (state.mode === 'history') history().click(e);
+      else if (state.mode === 'drafts') drafts().click(e);
     });
     body.addEventListener('change', (e) => {
       if (state.mode === 'finder') { finder().change(e); return; }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.12.4
+**Draft grades weigh the early picks; the board is colour only.**
+- **Late busts count for less.** A pick that falls short is counted in proportion to what its
+  slot was worth (at least a quarter of it), so a good first five rounds is a good draft even
+  if the last rounds lose all their value. Hits count in full wherever they come.
+- **Colour is the signal.** The ▲▼ badges and rings are gone: picks near expectation fade
+  back and steals and busts are the strongly coloured cells.
+- **Colour the board two ways:** against the pick chart (how far each pick is from its slot)
+  or by player value (how much each player is worth now, whatever the slot).
+
 ## 3.12.3
 **Manager names instead of team names.** Moves, Live and Season now show each manager's
 Sleeper display name, which is easier to recognise than a team name (the team name is

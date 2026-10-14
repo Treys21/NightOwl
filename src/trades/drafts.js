@@ -19,6 +19,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const NEIGHBOURS = 2; // picks either side that set what a slot is "expected" to return
+  const MIN_WEIGHT = 0.25; // the least a pick's shortfall counts, at the late end of the draft
   const FLOOR = 800; // expected value never counts below this, so a late pick that beats nothing isn't an infinite win
 
   /**
@@ -132,16 +133,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     for (const c of cells) {
       (rows[c.round - 1] = rows[c.round - 1] || new Array(teams).fill(null))[c.slot - 1] = c;
     }
+    // What a pick is worth to the draft: the early picks set it. A late pick that loses all its value costs a team
+    // little (a good draft is good in its first rounds), so a shortfall counts in proportion to what the slot was
+    // worth; a hit counts in full wherever it comes.
+    const lead = cells.slice(0, Math.max(1, Math.ceil(cells.length / 4)));
+    const reference = lead.reduce((sum, c) => sum + c.expected, 0) / lead.length;
+    const weigh = (c) => Math.max(MIN_WEIGHT, Math.min(1, Math.max(c.expected, c.value) / Math.max(reference, FLOOR)));
+    for (const c of cells) {
+      c.weight = weigh(c);
+      c.excess = c.value >= c.expected ? c.value - c.expected : (c.value - c.expected) * c.weight;
+    }
     const byRoster = {};
     for (const c of cells) {
-      const t = (byRoster[c.by] = byRoster[c.by] || { value: 0, expected: 0, picks: 0 });
+      const t = (byRoster[c.by] = byRoster[c.by] || { value: 0, expected: 0, picks: 0, excess: 0 });
       t.value += c.value;
       t.expected += c.expected;
+      t.excess += c.excess;
       t.picks++;
     }
     for (const t of Object.values(byRoster)) t.score = (t.value - t.expected) / Math.max(t.expected, FLOOR);
     const average = cells.reduce((sum, c) => sum + c.expected, 0) / teams; // what a team's own picks are worth on average
-    return { rounds: rows.length, teams, rows, picks: cells, byRoster, average };
+    return { rounds: rows.length, teams, rows, picks: cells, byRoster, average, reference };
   }
 
   /**
@@ -176,13 +188,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const out = {};
     const rids = new Set([...Object.keys(b.byRoster), ...Object.keys(baseline), ...Object.keys(moved)]);
     for (const rid of rids) {
-      const t = b.byRoster[rid] || { value: 0, expected: 0, picks: 0 };
+      const t = b.byRoster[rid] || { value: 0, expected: 0, picks: 0, excess: 0 };
       const base = baseline[rid] || 0;
       const trade = moved[rid] || 0;
       out[rid] = {
         value: t.value, expected: t.expected, picks: t.picks, trades: Math.round(trade), baseline: Math.round(base),
-        gain: Math.round(t.value + trade - base),
-        score: (t.value + trade - base) / Math.max(b.average, FLOOR)
+        // The picks' excess over their slots (shortfalls weighted by what the slot was worth), plus what the trades
+        // did: the slots it bought less the slots it sold, and the players and picks it paid or got for them.
+        gain: Math.round(t.excess + (t.expected + trade - base)),
+        score: (t.excess + (t.expected + trade - base)) / Math.max(b.average, FLOOR)
       };
     }
     return out;
