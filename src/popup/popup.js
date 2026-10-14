@@ -1,7 +1,7 @@
 (function (NightOwl) {
   'use strict';
 
-  const byId = (id) => /** @type {any} */ (document.getElementById(id));
+  const byId = (elementId) => /** @type {any} */ (document.getElementById(elementId));
 
   const listEl = byId('list');
   const formatEl = byId('format');
@@ -9,31 +9,31 @@
   const usernameEl = byId('username');
   const userStatusEl = byId('user-status');
   const rankStatusEl = byId('rank-status');
-  const ago = (ms) => {
-    const mins = Math.round((Date.now() - ms) / 60000);
+  const timeAgo = (timestamp) => {
+    const mins = Math.round((Date.now() - timestamp) / 60000);
     if (mins < 1) return 'just now';
     if (mins < 60) return `${mins}m ago`;
     if (mins < 24 * 60) return `${Math.round(mins / 60)}h ago`;
-    return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return new Date(timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
   const status = (element, text, tone = '') => { element.textContent = text; element.className = `status ${tone}`; };
   const escapeHtml = NightOwl.format.escape;
 
   let rankings = [];
   let dragIndex = null;
-  let inTab = false;
+  let isInTab = false;
 
   async function init() {
     chrome.tabs.getCurrent((tab) => {
-      inTab = Boolean(tab);
-      byId('open-tab').hidden = inTab;
+      isInTab = Boolean(tab);
+      byId('open-tab').hidden = isInTab;
     });
 
     rankings = await NightOwl.storage.getRankings();
     const settings = await NightOwl.storage.getSettings();
 
     formatEl.innerHTML = NightOwl.ringer.FORMATS.map(
-      (f) => `<option value="${f.id}">${f.label}</option>`
+      (format) => `<option value="${format.id}">${format.label}</option>`
     ).join('');
     formatEl.value = settings.format || 'half-ppr';
     formatEl.addEventListener('change', () => NightOwl.storage.saveSettings({ format: formatEl.value }));
@@ -47,7 +47,7 @@
     else status(userStatusEl, settings.username ? 'Not found yet. Check the spelling, then Save.' : 'Add your username to turn on Live, Lineups, Bets and Season.');
 
     const lastSynced = await NightOwl.storage.getLastSynced();
-    syncedEl.textContent = lastSynced ? `synced ${ago(lastSynced)}` : 'not synced yet';
+    syncedEl.textContent = lastSynced ? `synced ${timeAgo(lastSynced)}` : 'not synced yet';
 
     render();
   }
@@ -115,7 +115,7 @@
 
   byId('add').addEventListener('click', async () => {
     const nameEl = byId('add-name');
-    const posEl = byId('add-pos');
+    const positionInput = byId('add-pos');
     const teamEl = byId('add-team');
     const name = nameEl.value.trim();
     if (!name) return;
@@ -123,10 +123,10 @@
     rankings.push({
       rank: rankings.length + 1,
       name,
-      position: posEl.value.trim().toUpperCase(),
+      position: positionInput.value.trim().toUpperCase(),
       team: teamEl.value.trim().toUpperCase()
     });
-    nameEl.value = posEl.value = teamEl.value = '';
+    nameEl.value = positionInput.value = teamEl.value = '';
     await persist();
   });
 
@@ -189,7 +189,7 @@
   byId('open-tab').addEventListener('click', openInTab);
 
   byId('import').addEventListener('click', () => {
-    if (!inTab) {
+    if (!isInTab) {
       openInTab();
       return;
     }

@@ -4,18 +4,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { winProbability } = NightOwl.season;
-  const round2 = (n) => Math.round(n * 100) / 100;
+  const round2 = (value) => Math.round(value * 100) / 100;
 
   function schedule(forecast, rosterId) {
     const out = [];
-    for (const w of forecast.weeks) {
-      const pair = w.pairs.find((p) => p.includes(rosterId));
+    for (const week of forecast.weeks) {
+      const pair = week.pairs.find((pair) => pair.includes(rosterId));
       if (!pair) continue;
-      const oppId = pair.find((id) => id !== rosterId);
-      const me = w.teams[rosterId];
-      const opponent = w.teams[oppId];
-      if (!me || !opponent) continue;
-      out.push({ week: w.week, oppId, p: round2(winProbability(me, opponent)), mean: Math.round(me.mean * 10) / 10, oppMean: Math.round(opponent.mean * 10) / 10 });
+      const opponentId = pair.find((teamId) => teamId !== rosterId);
+      const myTeamWeek = week.teams[rosterId];
+      const opponent = week.teams[opponentId];
+      if (!myTeamWeek || !opponent) continue;
+      out.push({ week: week.week, oppId: opponentId, p: round2(winProbability(myTeamWeek, opponent)), mean: Math.round(myTeamWeek.mean * 10) / 10, oppMean: Math.round(opponent.mean * 10) / 10 });
     }
     return out;
   }
@@ -25,20 +25,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const out = [];
     for (let i = 0; i < rows.length; i++) {
       const tail = rows.slice(i);
-      const p = tail.reduce((sum, r) => sum + r.p, 0);
-      const make = p > 0 ? tail.reduce((sum, r) => sum + r.p * r.make, 0) / p : 0;
-      if (p >= 0.02 && Number.isInteger(rows[i].wins)) out.push({ atLeast: rows[i].wins, p, make });
+      const probability = tail.reduce((sum, row) => sum + row.p, 0);
+      const make = probability > 0 ? tail.reduce((sum, row) => sum + row.p * row.make, 0) / probability : 0;
+      if (probability >= 0.02 && Number.isInteger(rows[i].wins)) out.push({ atLeast: rows[i].wins, p: probability, make });
     }
     return out;
   }
 
   function leverage(win, lose, rosterId) {
-    const w = win.teams[rosterId];
-    const l = lose.teams[rosterId];
+    const ifWin = win.teams[rosterId];
+    const ifLose = lose.teams[rosterId];
     return {
-      win: { playoffs: w.playoffOdds, title: w.titleOdds },
-      lose: { playoffs: l.playoffOdds, title: l.titleOdds },
-      swing: Math.round((w.playoffOdds - l.playoffOdds) * 1000) / 1000
+      win: { playoffs: ifWin.playoffOdds, title: ifWin.titleOdds },
+      lose: { playoffs: ifLose.playoffOdds, title: ifLose.titleOdds },
+      swing: Math.round((ifWin.playoffOdds - ifLose.playoffOdds) * 1000) / 1000
     };
   }
 
@@ -46,14 +46,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!bracket) return null;
     const out = [];
     for (const round of bracket.rounds) {
-      const match = round.matches.find((m) => (m.top && m.top.rosterId === rosterId) || (m.bottom && m.bottom.rosterId === rosterId));
+      const match = round.matches.find((match) => (match.top && match.top.rosterId === rosterId) || (match.bottom && match.bottom.rosterId === rosterId));
       if (!match) break;
       const top = match.top && match.top.rosterId === rosterId;
-      const me = top ? match.top : match.bottom;
+      const mySide = top ? match.top : match.bottom;
       const opponent = top ? match.bottom : match.top;
-      const p = opponent ? (top ? match.pTop : 1 - match.pTop) : 1;
-      out.push({ label: round.label, weeks: round.weeks, bye: !opponent, seed: me.seed, opponent: opponent ? { rosterId: opponent.rosterId, seed: opponent.seed } : null, p });
-      if (p < 0.5) break;
+      const probability = opponent ? (top ? match.pTop : 1 - match.pTop) : 1;
+      out.push({ label: round.label, weeks: round.weeks, bye: !opponent, seed: mySide.seed, opponent: opponent ? { rosterId: opponent.rosterId, seed: opponent.seed } : null, p: probability });
+      if (probability < 0.5) break;
     }
     return out.length ? out : null;
   }

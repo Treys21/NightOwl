@@ -4,10 +4,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, tracker, scoring, teams, players, storage, account, dom } = NightOwl;
-  const { escape: escapeHtml, points: fmt, signed, clock: clockOf, short } = NightOwl.format;
+  const { escape: escapeHtml, points: formatPoints, signed, clock: clockOf, short: shortNumber } = NightOwl.format;
   const { isPlaying, mine, ownerNames, avatars, startingSlots, slotLabel, displayWeek, seasonType: seasonTypeOf } = NightOwl.leagues;
   let root = null;
-  const $ = (id) => root.querySelector(`#${id}`);
+  const byId = (elementId) => root.querySelector(`#${elementId}`);
 
   const MARKUP = `
     <header class="bar">
@@ -107,7 +107,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!roster) return null;
       const names = ownerNames(users);
       const faces = avatars(users);
-      const ownerOf = (rosterId) => (rosters.find((x) => x.roster_id === rosterId) || {}).owner_id;
+      const ownerOf = (rosterId) => (rosters.find((roster) => roster.roster_id === rosterId) || {}).owner_id;
       const teamName = (rosterId) => names.get(ownerOf(rosterId)) || `Team ${rosterId}`;
       const avatar = (rosterId) => faces.get(ownerOf(rosterId)) || '';
       const matchup = tracker.pickMatchup(matchups || [], roster.roster_id);
@@ -130,10 +130,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   async function loadSchedule() {
     const context = state.ctx;
-    const before = new Map(state.schedule.games.map((g) => [g.game_id, g.status]));
-    const games = (await api.schedule(context.season, context.seasonType)).filter((g) => g.week === context.week);
+    const before = new Map(state.schedule.games.map((game) => [game.game_id, game.status]));
+    const games = (await api.schedule(context.season, context.seasonType)).filter((game) => game.week === context.week);
     state.schedule = { games, loadedAt: Date.now() };
-    return games.some((g) => g.status === 'in_game' && before.has(g.game_id) && before.get(g.game_id) !== 'in_game');
+    return games.some((game) => game.status === 'in_game' && before.has(game.game_id) && before.get(game.game_id) !== 'in_game');
   }
 
   const positionsNeeded = () => api.positionsFor(activeLeagues().map((league) => league.slots));
@@ -141,15 +141,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function trackedTeams() {
     const codes = new Set();
     for (const playerId of tracker.watchList(activeLeagues()).keys()) {
-      const t = info(playerId).team;
-      if (t) codes.add(t);
+      const team = info(playerId).team;
+      if (team) codes.add(team);
     }
     return codes;
   }
 
   function gameStatus(team) {
-    const g = state.schedule.games.find((x) => x.home === team || x.away === team);
-    return g ? g.status : null;
+    const teamGame = state.schedule.games.find((game) => game.home === team || game.away === team);
+    return teamGame ? teamGame.status : null;
   }
 
   const todayET = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
@@ -157,10 +157,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function isLive() {
     const today = todayET();
     const tracked = trackedTeams();
-    return state.schedule.games.some((g) => {
-      if (!tracked.has(g.home) && !tracked.has(g.away)) return false;
-      if (g.status === 'complete' || g.status === 'canceled') return false;
-      return g.status !== 'pre_game' || g.date === today;
+    return state.schedule.games.some((game) => {
+      if (!tracked.has(game.home) && !tracked.has(game.away)) return false;
+      if (game.status === 'complete' || game.status === 'canceled') return false;
+      return game.status !== 'pre_game' || game.date === today;
     });
   }
 
@@ -172,7 +172,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (now - state.projAt > PROJ_TTL_MS) {
       try {
         const rows = await api.weekProjections(context.season, context.week, context.seasonType, positionsNeeded());
-        state.proj = Object.fromEntries(rows.map((r) => [r.player_id, r.stats || {}]));
+        state.proj = Object.fromEntries(rows.map((row) => [row.player_id, row.stats || {}]));
         state.projAt = now;
       } catch (error) {
         console.warn('[Night Owl] projections unavailable', error);
@@ -189,13 +189,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function remainingFor(team) {
-    const g = state.clocks.find((x) => x.home === team || x.away === team);
-    return g ? g.remaining : 0;
+    const teamClock = state.clocks.find((clock) => clock.home === team || clock.away === team);
+    return teamClock ? teamClock.remaining : 0;
   }
 
   function winChance(league) {
     if (!league.matchup || !league.matchup.opp || !Object.keys(state.proj).length) return null;
-    const side = (s) => NightOwl.season.outlook(s.starters.map((playerId) => ({
+    const side = (lineup) => NightOwl.season.outlook(lineup.starters.map((playerId) => ({
       points: scoring.points(state.stats[playerId], league.scoring),
       proj: scoring.points(state.proj[playerId], league.scoring),
       remaining: remainingFor(info(playerId).team)
@@ -215,9 +215,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (chance == null) continue;
       const series = state.trend.series[league.leagueId] || (state.trend.series[league.leagueId] = []);
       const last = series[series.length - 1];
-      if (last && Math.abs(last[1] - chance) < 0.005 && now - last[0] < 15 * 60000) continue;
+      if (last && Math.abs(last[1] - chance) < TREND_MIN_CHANGE && now - last[0] < TREND_REPEAT_MS) continue;
       series.push([now, Math.round(chance * 1000) / 1000]);
-      if (series.length > 400) series.splice(0, series.length - 400);
+      if (series.length > TREND_MAX_POINTS) series.splice(0, series.length - TREND_MAX_POINTS);
       changed = true;
     }
     if (changed) storage.set({ 'live.trend': state.trend });
@@ -225,23 +225,23 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function trendSvg(series) {
     if (!series || series.length < 2) return '';
-    const w = 300;
-    const h = 44;
-    const t0 = series[0][0];
-    const span = Math.max(1, series[series.length - 1][0] - t0);
-    const points = series.map(([t, p]) => `${((t - t0) / span * w).toFixed(1)},${((1 - p) * h).toFixed(1)}`).join(' ');
+    const width = TREND_WIDTH;
+    const height = TREND_HEIGHT;
+    const startTime = series[0][0];
+    const span = Math.max(1, series[series.length - 1][0] - startTime);
+    const points = series.map(([time, chance]) => `${((time - startTime) / span * width).toFixed(1)},${((1 - chance) * height).toFixed(1)}`).join(' ');
     const end = series[series.length - 1][1];
     return `<div class="trend"><span class="muted small">Win chance today</span>
-      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
-        <line x1="0" y1="${h / 2}" x2="${w}" y2="${h / 2}" class="mid"/>
+      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="${height / 2}" x2="${width}" y2="${height / 2}" class="mid"/>
         <polyline points="${points}" class="${end >= 0.5 ? 'good' : 'bad'}"/>
       </svg></div>`;
   }
 
-  async function poll(force) {
+  async function pollLiveData(force) {
     if (state.busy || !root || !state.settings.username) return;
     state.busy = true;
-    $('refresh').classList.add('spin');
+    byId('refresh').classList.add('spin');
     try {
       showError(null);
       await loadPlayers();
@@ -252,12 +252,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
       const context = state.ctx;
       const rows = await api.weekStats(context.season, context.week, context.seasonType, positionsNeeded());
-      const cur = {};
-      for (const r of rows) {
-        cur[r.player_id] = r.stats || {};
-        if (r.player) players.remember(r.player_id, `${r.player.first_name} ${r.player.last_name}`, r.player.position, r.team);
+      const current = {};
+      for (const row of rows) {
+        current[row.player_id] = row.stats || {};
+        if (row.player) players.remember(row.player_id, `${row.player.first_name} ${row.player.last_name}`, row.player.position, row.team);
       }
-      state.stats = cur;
+      state.stats = current;
       await loadOutlook(context);
       recordTrend(context);
 
@@ -265,19 +265,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const key = weekKey(context);
       let eventsChanged = false;
       if (state.snapshot && state.snapshot.key === key) {
-        const fresh = tracker.diffEvents(state.snapshot.stats, cur, leagues, info, Date.now());
-        const gap = Date.now() - state.snapshot.at > 3 * LIVE_POLL_MS;
-        for (const event of fresh) if (gap) { event.catchUp = true; event.since = state.snapshot.at; }
+        const fresh = tracker.diffEvents(state.snapshot.stats, current, leagues, info, Date.now());
+        const missedUpdates = Date.now() - state.snapshot.at > 3 * LIVE_POLL_MS;
+        for (const event of fresh) if (missedUpdates) { event.catchUp = true; event.since = state.snapshot.at; }
         if (fresh.length) { state.events = fresh.concat(state.events).slice(0, MAX_EVENTS); eventsChanged = true; }
-        if (!gap) celebrate(fresh);
+        if (!missedUpdates) celebrate(fresh);
       } else {
-        const fresh = tracker.diffEvents(tracker.trimSnapshot({}, leagues), cur, leagues, info, Date.now());
+        const fresh = tracker.diffEvents(tracker.trimSnapshot({}, leagues), current, leagues, info, Date.now());
         for (const event of fresh) { event.catchUp = true; event.firstLook = true; event.since = event.ts; }
         if (fresh.length) state.openRecaps.add(`${fresh[0].since}-${fresh[0].ts}`);
         state.events = fresh;
         eventsChanged = true;
       }
-      state.snapshot = { key, at: Date.now(), stats: tracker.trimSnapshot(cur, leagues) };
+      state.snapshot = { key, at: Date.now(), stats: tracker.trimSnapshot(current, leagues) };
       state.lastPoll = Date.now();
       await storage.set(eventsChanged
         ? { 'live.snapshot': state.snapshot, 'live.events': { key, list: state.events } }
@@ -288,7 +288,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       showError(NightOwl.format.errorText(error));
     } finally {
       state.busy = false;
-      if (root) $('refresh').classList.remove('spin');
+      if (root) byId('refresh').classList.remove('spin');
       schedule();
     }
   }
@@ -297,16 +297,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     clearTimeout(state.timer);
     if (!root) return;
     const live = state.ctx && isLive();
-    $('live-dot').classList.toggle('live', !!live);
+    byId('live-dot').classList.toggle('live', !!live);
     if (root.parentElement) root.parentElement.classList.toggle('hot', !!live);
-    state.timer = setTimeout(() => poll(false), live ? LIVE_POLL_MS : IDLE_POLL_MS);
+    state.timer = setTimeout(() => pollLiveData(false), live ? LIVE_POLL_MS : IDLE_POLL_MS);
   }
 
   function render() {
     if (!root) return;
     const context = state.ctx;
-    if (context) $('week-label').textContent = `Week ${context.week}${context.seasonType === 'post' ? ' playoffs' : ''}`;
-    $('updated').textContent = state.lastPoll ? `updated ${clockOf(state.lastPoll)}` : '';
+    if (context) byId('week-label').textContent = `Week ${context.week}${context.seasonType === 'post' ? ' playoffs' : ''}`;
+    byId('updated').textContent = state.lastPoll ? `updated ${clockOf(state.lastPoll)}` : '';
     renderIdle();
     renderGames();
     renderScoreboard();
@@ -321,48 +321,48 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return side.slots.map((playerId, i) => {
       const slot = slotLabel(league.slots[i]);
       if (!playerId || playerId === '0') return `<div class="slot"><span class="pos">${escapeHtml(slot)}</span><span class="nm muted">empty</span><span></span></div>`;
-      const p = info(playerId);
-      const playing = gameStatus(p.team) === 'in_game';
+      const player = info(playerId);
+      const playing = gameStatus(player.team) === 'in_game';
       return `<div class="slot${playing ? ' playing' : ''}"><span class="pos ${escapeHtml(slot)}">${escapeHtml(slot)}</span>`
-        + `<span class="nm" title="${escapeHtml(p.name)} ${escapeHtml(p.pos)} ${escapeHtml(p.team)}">${escapeHtml(p.name)}</span>`
-        + `<span class="pt">${fmt(scoring.points(state.stats[playerId], league.scoring))}</span></div>`;
+        + `<span class="nm" title="${escapeHtml(player.name)} ${escapeHtml(player.pos)} ${escapeHtml(player.team)}">${escapeHtml(player.name)}</span>`
+        + `<span class="pt">${formatPoints(scoring.points(state.stats[playerId], league.scoring))}</span></div>`;
     }).join('');
   }
 
   function renderGames() {
     const today = todayET();
     const leagues = activeLeagues();
-    const byId = new Map(leagues.map((league) => [league.leagueId, league]));
+    const leagueById = new Map(leagues.map((league) => [league.leagueId, league]));
     const watch = tracker.watchList(leagues);
     const games = state.schedule.games
-      .filter((g) => g.status === 'in_game' || (g.status === 'pre_game' && g.date === today))
+      .filter((game) => game.status === 'in_game' || (game.status === 'pre_game' && game.date === today))
       .sort((a, b) => Number(b.status === 'in_game') - Number(a.status === 'in_game'));
 
-    const html = games.map((g) => {
-      const rows = [...watch].filter(([playerId]) => [g.home, g.away].includes(info(playerId).team)).map(([playerId, spots]) => {
-        const p = info(playerId);
-        const forMe = spots.filter((s) => s.side === 'me').length - spots.filter((s) => s.side === 'opp').length;
+    const html = games.map((game) => {
+      const rows = [...watch].filter(([playerId]) => [game.home, game.away].includes(info(playerId).team)).map(([playerId, spots]) => {
+        const player = info(playerId);
+        const netForMe = spots.filter((spot) => spot.side === 'me').length - spots.filter((spot) => spot.side === 'opp').length;
         const chips = spots.map(({ leagueId, side }) => {
-          const league = byId.get(leagueId);
+          const league = leagueById.get(leagueId);
           const points = scoring.points(state.stats[playerId], league.scoring);
-          return `<span class="impact ${side === 'me' ? 'helps' : 'hurts'}">${escapeHtml(league.name)} · ${side === 'me' ? 'you' : 'opp'} ${fmt(points)}</span>`;
+          return `<span class="impact ${side === 'me' ? 'helps' : 'hurts'}">${escapeHtml(league.name)} · ${side === 'me' ? 'you' : 'opp'} ${formatPoints(points)}</span>`;
         }).join('');
-        return { forMe, mine: spots.some((sp) => sp.side === 'me'), html: `<li class="ev" style="--tc:${teams.colors(p.team).primary}"><div class="ev-top"><span class="ev-who">${face(playerId, p.team)}<span><span class="ev-name">${escapeHtml(p.name)}</span> <span class="muted small">${escapeHtml(p.pos)} · ${escapeHtml(p.team)}</span></span></span></div><div class="impacts">${chips}</div></li>` };
+        return { forMe: netForMe, mine: spots.some((spot) => spot.side === 'me'), html: `<li class="ev" style="--tc:${teams.colors(player.team).primary}"><div class="ev-top"><span class="ev-who">${playerAvatar(playerId, player.team)}<span><span class="ev-name">${escapeHtml(player.name)}</span> <span class="muted small">${escapeHtml(player.pos)} · ${escapeHtml(player.team)}</span></span></span></div><div class="impacts">${chips}</div></li>` };
       }).sort((a, b) => b.forMe - a.forMe);
-      const status = g.status === 'in_game' ? '<span class="live-tag">LIVE</span>' : '<span class="muted small">later</span>';
-      const mine = rows.filter((r) => r.mine).length;
-      const id = String(g.game_id);
-      const open = state.gameOpen.has(id) ? state.gameOpen.get(id) : g.status === 'in_game';
-      return `<details class="game" data-game="${escapeHtml(id)}"${open ? ' open' : ''}>
-        <summary class="game-h"><img alt="" src="${teams.logo(g.away)}">${escapeHtml(g.away)} <span class="muted">@</span> <img alt="" src="${teams.logo(g.home)}">${escapeHtml(g.home)} ${status}<span class="game-count">${rows.length} starters · ${mine} yours</span></summary>
-        ${rows.length ? `<ol class="game-list">${rows.map((r) => r.html).join('')}</ol>` : '<p class="muted small">None of your matchups have a starter in this game.</p>'}
+      const status = game.status === 'in_game' ? '<span class="live-tag">LIVE</span>' : '<span class="muted small">later</span>';
+      const mine = rows.filter((row) => row.mine).length;
+      const gameId = String(game.game_id);
+      const open = state.gameOpen.has(gameId) ? state.gameOpen.get(gameId) : game.status === 'in_game';
+      return `<details class="game" data-game="${escapeHtml(gameId)}"${open ? ' open' : ''}>
+        <summary class="game-h"><img alt="" src="${teams.logo(game.away)}">${escapeHtml(game.away)} <span class="muted">@</span> <img alt="" src="${teams.logo(game.home)}">${escapeHtml(game.home)} ${status}<span class="game-count">${rows.length} starters · ${mine} yours</span></summary>
+        ${rows.length ? `<ol class="game-list">${rows.map((row) => row.html).join('')}</ol>` : '<p class="muted small">None of your matchups have a starter in this game.</p>'}
       </details>`;
     }).join('') || `<p class="muted small empty">${gamesIdleText()}</p>`;
-    dom.setHtml($('games'), html);
-    $('lv-count-games').textContent = games.filter((g) => g.status === 'in_game').length ? `${games.filter((g) => g.status === 'in_game').length} live` : '';
+    dom.setHtml(byId('games'), html);
+    byId('lv-count-games').textContent = games.filter((game) => game.status === 'in_game').length ? `${games.filter((game) => game.status === 'in_game').length} live` : '';
   }
 
-  function face(playerId, team) {
+  function playerAvatar(playerId, team) {
     return `<img class="face" alt="" src="${teams.photo(playerId, team)}" style="border-color:${teams.colors(team).primary}">`;
   }
 
@@ -370,6 +370,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const POP_GAP_MS = 150;
   const MAX_POPS = 3;
   const BIG_PTS = 4;
+  const TREND_MIN_CHANGE = 0.005;
+  const TREND_REPEAT_MS = 15 * 60000;
+  const TREND_MAX_POINTS = 400;
+  const TREND_WIDTH = 300;
+  const TREND_HEIGHT = 44;
+  const SPARK_COUNT = 36;
+  const SPARK_MIN_DISTANCE = 70;
+  const SPARK_EXTRA_DISTANCE = 150;
+  const SPARK_LIFETIME_MS = 1600;
+  const COUNT_UP_MS = 900;
+  const INTRO_MS = 1600;
   const MIN_POP_PTS = 1;
   const popQueue = [];
   let popping = false;
@@ -383,7 +394,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!popping) nextPop();
   }
 
-  const maxImpact = (event) => Math.max(0, ...event.impacts.map((im) => Math.abs(im.pts)));
+  const maxImpact = (event) => Math.max(0, ...event.impacts.map((impact) => Math.abs(impact.pts)));
 
   function isBig(event) {
     return /TD|safety|2-pt/.test(event.text) || maxImpact(event) >= BIG_PTS;
@@ -391,7 +402,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function nextPop() {
     const event = popQueue.shift();
-    const layer = root && $('stage');
+    const layer = root && byId('stage');
     if (!event || !layer) {
       popping = false;
       if (layer) layer.classList.remove('busy');
@@ -402,22 +413,22 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     layer.classList.add('busy');
     layer.classList.remove('dormant');
 
-    const big = isBig(event);
+    const isBigPlay = isBig(event);
     const mood = moodOf(event);
-    const headline = /TD/.test(event.text) ? 'TOUCHDOWN!' : /safety/.test(event.text) ? 'SAFETY!' : big ? 'BIG PLAY' : '';
-    const p = info(event.pid);
-    const team = event.team || p.team;
-    const c = teams.colors(team);
-    const pop = document.createElement('div');
-    pop.className = `pop ${mood}${big ? ' major' : ''}`;
-    pop.style.setProperty('--tp', c.primary);
-    pop.style.setProperty('--ts', c.secondary);
-    pop.style.setProperty('--ink', c.ink);
-    pop.style.setProperty('--ink2', teams.inkOn(c.secondary));
-    pop.innerHTML = `
+    const headline = /TD/.test(event.text) ? 'TOUCHDOWN!' : /safety/.test(event.text) ? 'SAFETY!' : isBigPlay ? 'BIG PLAY' : '';
+    const player = info(event.pid);
+    const team = event.team || player.team;
+    const colors = teams.colors(team);
+    const popup = document.createElement('div');
+    popup.className = `pop ${mood}${isBigPlay ? ' major' : ''}`;
+    popup.style.setProperty('--tp', colors.primary);
+    popup.style.setProperty('--ts', colors.secondary);
+    popup.style.setProperty('--ink', colors.ink);
+    popup.style.setProperty('--ink2', teams.inkOn(colors.secondary));
+    popup.innerHTML = `
       <div class="band"></div>
       <img class="mark" alt="" src="${teams.logo(team)}">
-      <div class="fig">${figure(event, p, team, c)}</div>
+      <div class="fig">${renderFigure(event, player, team, colors)}</div>
       <div class="copy">
         ${headline ? `<div class="headline">${headline}</div>` : ''}
         <div class="pts">${playValue(event)}</div>
@@ -425,22 +436,22 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <div class="what">${escapeHtml(event.text)}</div>
         <div class="where">${impactChips(event)}</div>
       </div>`;
-    pop.querySelectorAll('img').forEach((img) => img.addEventListener('error', () => img.remove()));
-    layer.append(pop);
+    popup.querySelectorAll('img').forEach((image) => image.addEventListener('error', () => image.remove()));
+    layer.append(popup);
     layer.classList.remove('glow-good', 'glow-bad');
     void layer.offsetWidth;
     if (mood !== 'even') layer.classList.add(`glow-${mood}`);
-    if (big) burst(layer, mood, c);
+    if (isBigPlay) spawnSparks(layer, mood, colors);
 
-    setTimeout(() => { pop.remove(); setTimeout(nextPop, POP_GAP_MS); }, POP_MS);
+    setTimeout(() => { popup.remove(); setTimeout(nextPop, POP_GAP_MS); }, POP_MS);
   }
 
   function gamesIdleText() {
     const games = state.schedule.games;
-    if (games.length && games.every((g) => g.status === 'complete' || g.status === 'canceled')) {
+    if (games.length && games.every((game) => game.status === 'complete' || game.status === 'canceled')) {
       return `Every Week ${state.ctx ? state.ctx.week : ''} game is final. Next week's games show up here at kickoff.`;
     }
-    const next = (state.clocks || []).filter((c) => c.kickoff > Date.now()).sort((a, b) => a.kickoff - b.kickoff)[0];
+    const next = (state.clocks || []).filter((clock) => clock.kickoff > Date.now()).sort((a, b) => a.kickoff - b.kickoff)[0];
     return next ? `No games on right now. Next kickoff ${NightOwl.format.dayTime(next.kickoff)}.` : 'No games on right now.';
   }
 
@@ -448,9 +459,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!root || popping) return;
     const last = state.events.find((event) => !event.catchUp);
     const recap = !last && state.events[0];
-    const live = state.schedule.games.find((g) => g.status === 'in_game');
-    $('stage').classList.toggle('dormant', !last && !live);
-    $('stage-idle').innerHTML = last
+    const live = state.schedule.games.find((game) => game.status === 'in_game');
+    byId('stage').classList.toggle('dormant', !last && !live);
+    byId('stage-idle').innerHTML = last
       ? `<span class="muted small">Last play · ${clockOf(last.ts)}</span>
          <span class="idle-who"><img alt="" src="${teams.photo(last.pid, last.team)}"><b>${escapeHtml(last.name)}</b></span>
          <span>${escapeHtml(last.text)}</span>
@@ -459,104 +470,104 @@ globalThis.NightOwl = globalThis.NightOwl || {};
          ${recap && !recap.firstLook ? `<span class="muted small">Caught up on everything since ${clockOf(recap.since || recap.ts)}</span>` : ''}`;
   }
 
-  function figure(event, p, team, c) {
+  function renderFigure(event, player, team, colors) {
     if (event.pos === 'DEF' || teams.isDefenseId(event.pid)) {
       return `<img class="logo" alt="" src="${teams.logo(team)}">`;
     }
-    const num = escapeHtml(p.number || event.pos || '');
+    const jerseyLabel = escapeHtml(player.number || event.pos || '');
     return `
       <svg class="jersey" viewBox="0 0 120 112" aria-hidden="true">
         <path d="M34 8 L50 2 Q60 12 70 2 L86 8 L116 30 L102 54 L90 47 L90 110 L30 110 L30 47 L18 54 L4 30 Z"
-              fill="${c.primary}" stroke="${c.secondary}" stroke-width="3" stroke-linejoin="round"/>
-        <path d="M12 40 L22 46 M108 40 L98 46" stroke="${c.secondary}" stroke-width="5"/>
-        <path d="M14 35 L24 41 M106 35 L96 41" stroke="${c.ink}" stroke-width="2" opacity=".7"/>
+              fill="${colors.primary}" stroke="${colors.secondary}" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M12 40 L22 46 M108 40 L98 46" stroke="${colors.secondary}" stroke-width="5"/>
+        <path d="M14 35 L24 41 M106 35 L96 41" stroke="${colors.ink}" stroke-width="2" opacity=".7"/>
         <text x="60" y="92" text-anchor="middle" font-family="Poppins, Inter, sans-serif" font-weight="800"
-              font-size="${num.length > 2 ? 26 : 38}" fill="${c.ink}" stroke="${c.secondary}" stroke-width="1.5"
-              paint-order="stroke">${num}</text>
+              font-size="${jerseyLabel.length > 2 ? 26 : 38}" fill="${colors.ink}" stroke="${colors.secondary}" stroke-width="1.5"
+              paint-order="stroke">${jerseyLabel}</text>
       </svg>
       <img class="head" alt="" src="${teams.headshot(event.pid)}">`;
   }
 
-  function burst(layer, mood, c) {
-    const colors = [c.primary, c.secondary, '#ffffff', mood === 'bad' ? '#f75c8d' : '#00ceb8', c.secondary];
-    for (let i = 0; i < 36; i++) {
+  function spawnSparks(layer, mood, teamColors) {
+    const sparkColors = [teamColors.primary, teamColors.secondary, '#ffffff', mood === 'bad' ? '#f75c8d' : '#00ceb8', teamColors.secondary];
+    for (let i = 0; i < SPARK_COUNT; i++) {
       const spark = document.createElement('i');
       spark.className = 'spark';
-      const angle = (Math.PI * 2 * i) / 36 + Math.random() * 0.3;
-      const dist = 70 + Math.random() * 150;
-      spark.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
-      spark.style.setProperty('--dy', `${Math.sin(angle) * dist * 0.6 + 30}px`);
+      const angle = (Math.PI * 2 * i) / SPARK_COUNT + Math.random() * 0.3;
+      const distance = SPARK_MIN_DISTANCE + Math.random() * SPARK_EXTRA_DISTANCE;
+      spark.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+      spark.style.setProperty('--dy', `${Math.sin(angle) * distance * 0.6 + 30}px`);
       spark.style.setProperty('--rot', `${Math.random() * 720 - 360}deg`);
-      spark.style.background = colors[i % colors.length];
+      spark.style.background = sparkColors[i % sparkColors.length];
       spark.style.animationDelay = `${Math.random() * 120}ms`;
       layer.append(spark);
-      setTimeout(() => spark.remove(), 1600);
+      setTimeout(() => spark.remove(), SPARK_LIFETIME_MS);
     }
   }
 
-  const pctLabel = (p) => (p > 0.99 && p < 1 ? '>99%' : p < 0.01 && p > 0 ? '<1%' : `${Math.round(p * 100)}%`);
+  const probabilityLabel = (probability) => (probability > 0.99 && probability < 1 ? '>99%' : probability < 0.01 && probability > 0 ? '<1%' : `${Math.round(probability * 100)}%`);
 
-  const score = (n) => (Math.round(n * 100) / 100).toFixed(2);
+  const score = (value) => (Math.round(value * 100) / 100).toFixed(2);
 
-  const share = (a, b) => (a + b > 0 ? Math.round((a / (a + b)) * 100) : 50);
+  const percentShare = (own, other) => (own + other > 0 ? Math.round((own / (own + other)) * 100) : 50);
 
-  function avatarImg(src, name, cls) {
+  function avatarImg(source, name, className) {
     const initial = escapeHtml((name || '?').trim().charAt(0).toUpperCase());
-    return src
-      ? `<img class="av ${cls}" alt="" src="${escapeHtml(src)}">`
-      : `<span class="av ${cls} blank">${initial}</span>`;
+    return source
+      ? `<img class="av ${className}" alt="" src="${escapeHtml(source)}">`
+      : `<span class="av ${className} blank">${initial}</span>`;
   }
 
   function renderScoreboard() {
     const leagues = activeLeagues();
-    const board = new Map(tracker.scoreboard(leagues, state.stats).map((s) => [s.leagueId, s]));
-    const open = new Set([...root.querySelectorAll('.match[open]')].map((d) => d.dataset.id));
-    const prev = state.prevScores || {};
+    const board = new Map(tracker.scoreboard(leagues, state.stats).map((entry) => [entry.leagueId, entry]));
+    const open = new Set([...root.querySelectorAll('.match[open]')].map((details) => details.dataset.id));
+    const previous = state.prevScores || {};
     state.prevScores = {};
     let winning = 0;
     let favored = 0;
     let withChance = 0;
     let withOpp = 0;
-    const final = { won: 0, lost: 0, open: 0 };
+    const tally = { won: 0, lost: 0, open: 0 };
 
     const html = leagues.map((league) => {
-      const s = board.get(league.leagueId);
-      if (!s) return `<details class="match" data-id="${escapeHtml(league.leagueId)}"><summary><span class="lname">${escapeHtml(league.name)}</span><span class="muted">no matchup</span></summary></details>`;
-      state.prevScores[league.leagueId] = s;
-      if (s.margin != null) { withOpp++; if (s.margin > 0) winning++; }
-      const before = prev[league.leagueId];
-      const moved = before && (before.mine !== s.mine || before.opp !== s.opp);
+      const entry = board.get(league.leagueId);
+      if (!entry) return `<details class="match" data-id="${escapeHtml(league.leagueId)}"><summary><span class="lname">${escapeHtml(league.name)}</span><span class="muted">no matchup</span></summary></details>`;
+      state.prevScores[league.leagueId] = entry;
+      if (entry.margin != null) { withOpp++; if (entry.margin > 0) winning++; }
+      const before = previous[league.leagueId];
+      const scoreChanged = before && (before.mine !== entry.mine || before.opp !== entry.opp);
       const chance = winChance(league);
-      const decided = s.opp != null && stillToPlay(league.matchup.mine) === 0 && stillToPlay(league.matchup.opp) === 0 && chance != null;
-      if (s.opp != null) {
-        if (!decided) final.open++;
-        else if (s.margin > 0) final.won++;
-        else if (s.margin < 0) final.lost++;
+      const decided = entry.opp != null && stillToPlay(league.matchup.mine) === 0 && stillToPlay(league.matchup.opp) === 0 && chance != null;
+      if (entry.opp != null) {
+        if (!decided) tally.open++;
+        else if (entry.margin > 0) tally.won++;
+        else if (entry.margin < 0) tally.lost++;
       }
-      const mood = chance != null ? (chance >= 0.5 ? 'win' : 'lose') : s.margin > 0 ? 'win' : s.margin < 0 ? 'lose' : 'tie';
+      const mood = chance != null ? (chance >= 0.5 ? 'win' : 'lose') : entry.margin > 0 ? 'win' : entry.margin < 0 ? 'lose' : 'tie';
       if (chance != null) { withChance++; if (chance >= 0.5) favored++; }
-      const pct = s.opp == null ? 100 : chance == null ? share(s.mine, s.opp) : Math.round(chance * 100);
+      const percentText = entry.opp == null ? 100 : chance == null ? percentShare(entry.mine, entry.opp) : Math.round(chance * 100);
       const odds = decided
-        ? `<span class="winpct ${s.margin >= 0 ? 'good' : 'bad'}">${s.margin > 0 ? 'Won by' : s.margin < 0 ? 'Lost by' : 'Tied'}</span>`
-        : chance == null ? '' : `<span class="winpct ${chance >= 0.5 ? 'good' : 'bad'}" title="Chance to win, from live points plus projections for the time left">Win ${pctLabel(chance)}</span>`;
+        ? `<span class="winpct ${entry.margin >= 0 ? 'good' : 'bad'}">${entry.margin > 0 ? 'Won by' : entry.margin < 0 ? 'Lost by' : 'Tied'}</span>`
+        : chance == null ? '' : `<span class="winpct ${chance >= 0.5 ? 'good' : 'bad'}" title="Chance to win, from live points plus projections for the time left">Win ${probabilityLabel(chance)}</span>`;
       const toPlay = (side) => (chance == null || decided || !side ? '' : ` · ${stillToPlay(side)} to play`);
-      return `<details class="match ${mood}${moved ? ' flash' : ''}" data-id="${league.leagueId}"${open.has(league.leagueId) ? ' open' : ''}>
+      return `<details class="match ${mood}${scoreChanged ? ' flash' : ''}" data-id="${league.leagueId}"${open.has(league.leagueId) ? ' open' : ''}>
         <summary>
-          <div class="m-league"><span class="lname">${escapeHtml(league.name)}</span>${odds}${s.margin == null ? '' : `<span class="margin${chance == null || decided ? ` ${mood}` : ''}">${decided ? score(Math.abs(s.margin)) : signed(s.margin)}</span>`}</div>
+          <div class="m-league"><span class="lname">${escapeHtml(league.name)}</span>${odds}${entry.margin == null ? '' : `<span class="margin${chance == null || decided ? ` ${mood}` : ''}">${decided ? score(Math.abs(entry.margin)) : signed(entry.margin)}</span>`}</div>
           <div class="m-row">
             ${avatarImg(league.myAvatar, league.myName, 'me')}
             <div class="m-side me">
               <span class="tname">${escapeHtml(league.myName)}${toPlay(league.matchup.mine)}</span>
-              <span class="big${moved && before.mine !== s.mine ? ' bump' : ''}" data-from="${before ? before.mine : s.mine}" data-to="${s.mine}">${score(s.mine)}</span>
+              <span class="big${scoreChanged && before.mine !== entry.mine ? ' bump' : ''}" data-from="${before ? before.mine : entry.mine}" data-to="${entry.mine}">${score(entry.mine)}</span>
             </div>
             <span class="vs">VS</span>
             <div class="m-side opp">
               <span class="tname">${escapeHtml(league.oppName || 'Bye week')}${toPlay(league.matchup.opp)}</span>
-              <span class="big${moved && before.opp !== s.opp ? ' bump' : ''}" data-from="${before ? before.opp : s.opp}" data-to="${s.opp == null ? '' : s.opp}">${s.opp == null ? '' : score(s.opp)}</span>
+              <span class="big${scoreChanged && before.opp !== entry.opp ? ' bump' : ''}" data-from="${before ? before.opp : entry.opp}" data-to="${entry.opp == null ? '' : entry.opp}">${entry.opp == null ? '' : score(entry.opp)}</span>
             </div>
             ${league.oppName ? avatarImg(league.oppAvatar, league.oppName, 'opp') : ''}
           </div>
-          ${s.opp == null || decided ? '' : `<span class="wp" role="img" aria-label="${chance == null ? `Your share of points: ${pct}%` : `Win chance: ${pct}%`}" title="${chance == null ? 'Your share of the points so far' : 'Your chance to win'}"><span style="width:${pct}%"></span><i style="left:${pct}%"></i></span>`}
+          ${entry.opp == null || decided ? '' : `<span class="wp" role="img" aria-label="${chance == null ? `Your share of points: ${percentText}%` : `Win chance: ${percentText}%`}" title="${chance == null ? 'Your share of the points so far' : 'Your chance to win'}"><span style="width:${percentText}%"></span><i style="left:${percentText}%"></i></span>`}
         </summary>
         ${trendSvg(state.trend.series[league.leagueId])}
         <div class="lineups">
@@ -565,10 +576,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         </div>
       </details>`;
     }).join('') || '<p class="muted small">No in-season leagues found.</p>';
-    const changed = dom.setHtml($('scoreboard'), html);
+    const changed = dom.setHtml(byId('scoreboard'), html);
 
-    $('net-total').innerHTML = withOpp && !final.open
-      ? `<span class="pill-count ${final.won >= final.lost ? 'good' : 'bad'}" title="This week's results">${final.won}–${final.lost}</span>`
+    byId('net-total').innerHTML = withOpp && !tally.open
+      ? `<span class="pill-count ${tally.won >= tally.lost ? 'good' : 'bad'}" title="This week's results">${tally.won}–${tally.lost}</span>`
       : withChance
       ? `<span class="pill-count ${favored * 2 >= withChance ? 'good' : 'bad'}" title="Favored to win ${favored} of ${withChance}">${favored}/${withChance} favored</span>`
       : withOpp ? `<span class="pill-count ${winning * 2 >= withOpp ? 'good' : 'bad'}" title="Leading in ${winning} of ${withOpp}">${winning}/${withOpp} up</span>` : '';
@@ -576,45 +587,45 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function countUp(element) {
-    const from = parseFloat(element.dataset.from);
-    const to = parseFloat(element.dataset.to);
-    if (!Number.isFinite(from) || !Number.isFinite(to) || from === to) return;
+    const startValue = parseFloat(element.dataset.from);
+    const target = parseFloat(element.dataset.to);
+    if (!Number.isFinite(startValue) || !Number.isFinite(target) || startValue === target) return;
     const start = performance.now();
     const step = (now) => {
-      const t = Math.min(1, (now - start) / 900);
-      const eased = 1 - Math.pow(1 - t, 3);
-      element.textContent = score(from + (to - from) * eased);
-      if (t < 1 && element.isConnected) requestAnimationFrame(step);
+      const progress = Math.min(1, (now - start) / COUNT_UP_MS);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      element.textContent = score(startValue + (target - startValue) * eased);
+      if (progress < 1 && element.isConnected) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
   }
 
-  const forMe = (im) => (im.side === 'me' ? im.pts : -im.pts);
+  const impactForMe = (impact) => (impact.side === 'me' ? impact.pts : -impact.pts);
 
   function shownImpacts(event) {
-    return state.league ? event.impacts.filter((im) => im.leagueId === state.league) : event.impacts;
+    return state.league ? event.impacts.filter((impact) => impact.leagueId === state.league) : event.impacts;
   }
 
   function impactChips(event) {
-    return shownImpacts(event).map((im) => {
-      const v = forMe(im);
-      const cls = v > 0 ? 'helps' : v < 0 ? 'hurts' : 'zero';
-      return `<span class="impact ${cls}" title="${im.side === 'me' ? 'Your starter' : "Your opponent's starter"} in ${escapeHtml(im.leagueName)}">${escapeHtml(im.leagueName)} <b>${signed(v, short)}</b></span>`;
+    return shownImpacts(event).map((impact) => {
+      const signedPoints = impactForMe(impact);
+      const className = signedPoints > 0 ? 'helps' : signedPoints < 0 ? 'hurts' : 'zero';
+      return `<span class="impact ${className}" title="${impact.side === 'me' ? 'Your starter' : "Your opponent's starter"} in ${escapeHtml(impact.leagueName)}">${escapeHtml(impact.leagueName)} <b>${signed(signedPoints, shortNumber)}</b></span>`;
     }).join('');
   }
 
   function moodOf(event) {
-    const vals = shownImpacts(event).map(forMe).filter((v) => v !== 0);
-    if (!vals.length) return 'even';
-    if (vals.every((v) => v > 0)) return 'good';
-    if (vals.every((v) => v < 0)) return 'bad';
+    const impactValues = shownImpacts(event).map(impactForMe).filter((value) => value !== 0);
+    if (!impactValues.length) return 'even';
+    if (impactValues.every((value) => value > 0)) return 'good';
+    if (impactValues.every((value) => value < 0)) return 'bad';
     return 'even';
   }
 
   function playValue(event) {
-    const points = [...new Set(event.impacts.map((im) => im.pts))].sort((x, y) => x - y);
+    const points = [...new Set(event.impacts.map((impact) => impact.pts))].sort((x, y) => x - y);
     if (points.length === 1) return `${signed(points[0])}<small> pts</small>`;
-    return `${signed(points[0])}–${fmt(points[points.length - 1])}<small> pts</small>`;
+    return `${signed(points[0])}–${formatPoints(points[points.length - 1])}<small> pts</small>`;
   }
 
   function matchesFilters(event) {
@@ -622,15 +633,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!shown.length) return false;
     if (state.bigOnly && !isBig(event)) return false;
     if (state.filter === 'all') return true;
-    const vals = shown.map(forMe);
-    return state.filter === 'good' ? vals.some((v) => v > 0) : vals.some((v) => v < 0);
+    const impactValues = shown.map(impactForMe);
+    return state.filter === 'good' ? impactValues.some((value) => value > 0) : impactValues.some((value) => value < 0);
   }
 
   function playRow(event, isNew) {
     const mood = moodOf(event);
     return `<li class="ev ${mood === 'even' ? '' : mood}${isNew ? ' new' : ''}${isBig(event) ? ' major' : ''}" style="--tc:${teams.colors(event.team).primary}">
         <div class="ev-top">
-          <span class="ev-who">${face(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.pos)} · ${escapeHtml(event.team)}</span></span></span>
+          <span class="ev-who">${playerAvatar(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.pos)} · ${escapeHtml(event.team)}</span></span></span>
           <span class="ev-val">${playValue(event)}</span>
         </div>
         <div class="ev-text">${escapeHtml(event.text || 'stat correction')}</div>
@@ -643,7 +654,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const key = `${since}-${group[0].ts}`;
     const rows = group.map((event) => `
       <div class="recap-row">
-        <span class="ev-who">${face(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.text || 'stat correction')}</span></span></span>
+        <span class="ev-who">${playerAvatar(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.text || 'stat correction')}</span></span></span>
         <div class="impacts">${impactChips(event)}</div>
       </div>`).join('');
     return `<li class="recap"><details data-recap="${key}"${state.openRecaps.has(key) ? ' open' : ''}>
@@ -656,8 +667,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function renderFeed() {
     const list = state.events.filter(matchesFilters);
-    $('feed-empty').hidden = list.length > 0;
-    $('feed-empty').textContent = state.events.length
+    byId('feed-empty').hidden = list.length > 0;
+    byId('feed-empty').textContent = state.events.length
       ? 'No plays match these filters.'
       : state.ctx && !state.ctx.leagues.length
         ? 'No in-season leagues right now.'
@@ -675,47 +686,47 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         continue;
       }
       if (event.ts !== lastTs) {
-        let n = 1;
-        while (list[i + n] && !list[i + n].catchUp && list[i + n].ts === event.ts) n++;
-        html.push(`<li class="ev-when"><span>${clockOf(event.ts)}</span>${n > 1 ? `<span>${n} plays</span>` : ''}</li>`);
+        let playsAtTime = 1;
+        while (list[i + playsAtTime] && !list[i + playsAtTime].catchUp && list[i + playsAtTime].ts === event.ts) playsAtTime++;
+        html.push(`<li class="ev-when"><span>${clockOf(event.ts)}</span>${playsAtTime > 1 ? `<span>${playsAtTime} plays</span>` : ''}</li>`);
         lastTs = event.ts;
       }
       html.push(playRow(event, !first && !state.seenEventIds.has(event.id)));
     }
-    dom.setHtml($('feed'), html.join(''));
-    $('lv-count-feed').textContent = String(state.events.filter((event) => !event.catchUp).length || '');
+    dom.setHtml(byId('feed'), html.join(''));
+    byId('lv-count-feed').textContent = String(state.events.filter((event) => !event.catchUp).length || '');
     for (const event of state.events) state.seenEventIds.add(event.id);
   }
 
   function renderLeagueSelect() {
-    const sel = $('lv-league');
+    const leagueSelect = byId('lv-league');
     if (!state.ctx) return;
     const leagues = activeLeagues();
     if (state.league && !leagues.some((league) => league.leagueId === state.league)) state.league = '';
-    dom.setHtml(sel, '<option value="">All leagues</option>' + leagues.map((league) =>
+    dom.setHtml(leagueSelect, '<option value="">All leagues</option>' + leagues.map((league) =>
       `<option value="${escapeHtml(league.leagueId)}"${league.leagueId === state.league ? ' selected' : ''}>${escapeHtml(league.name)}</option>`).join(''));
   }
 
   function showView() {
-    for (const b of $('lv-tabs').children) b.classList.toggle('on', b.dataset.view === state.view);
+    for (const tab of byId('lv-tabs').children) tab.classList.toggle('on', tab.dataset.view === state.view);
     root.querySelectorAll('[data-pane]').forEach((pane) => { pane.hidden = pane.dataset.pane !== state.view; });
-    $('lv-big').classList.toggle('on', state.bigOnly);
+    byId('lv-big').classList.toggle('on', state.bigOnly);
   }
 
   function renderLeagueToggles() {
-    const box = $('league-toggles');
-    if (!state.ctx) { dom.setHtml(box, ''); return; }
-    dom.setHtml(box, '<p class="lv-set-h">Leagues to track</p>' + state.ctx.leagues.map((league) =>
+    const leagueToggles = byId('league-toggles');
+    if (!state.ctx) { dom.setHtml(leagueToggles, ''); return; }
+    dom.setHtml(leagueToggles, '<p class="lv-set-h">Leagues to track</p>' + state.ctx.leagues.map((league) =>
       `<label><input type="checkbox" data-id="${escapeHtml(league.leagueId)}"${state.settings.excluded.includes(league.leagueId) ? '' : ' checked'}> ${escapeHtml(league.name)}</label>`
     ).join(''));
   }
 
   function showError(message) {
     if (!root) return;
-    $('error').hidden = !message;
-    $('error').textContent = message || '';
-    const skel = message && $('scoreboard').querySelector('.skel');
-    if (skel) skel.remove();
+    byId('error').hidden = !message;
+    byId('error').textContent = message || '';
+    const placeholder = message && byId('scoreboard').querySelector('.skel');
+    if (placeholder) placeholder.remove();
   }
 
   async function saveSettings() {
@@ -739,35 +750,35 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.snapshot = null;
     state.events = [];
     await storage.set({ 'live.ctx': null, 'live.snapshot': null, 'live.events': null });
-    poll(true);
+    pollLiveData(true);
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (root && !document.hidden && Date.now() - state.lastPoll > LIVE_POLL_MS) poll(false);
+    if (root && !document.hidden && Date.now() - state.lastPoll > LIVE_POLL_MS) pollLiveData(false);
   });
 
   async function mount(element) {
     if (root === element) return;
     root = element;
     root.classList.add('tool', 'intro');
-    setTimeout(() => element.classList.remove('intro'), 1600);
+    setTimeout(() => element.classList.remove('intro'), INTRO_MS);
     root.innerHTML = MARKUP;
-    root.addEventListener('error', (e) => {
-      const img = e.target;
-      if (img && img.tagName === 'IMG' && img.classList.contains('av')) {
-        img.replaceWith(Object.assign(document.createElement('span'), { className: `${img.className} blank`, textContent: '•' }));
+    root.addEventListener('error', (event) => {
+      const image = event.target;
+      if (image && image.tagName === 'IMG' && image.classList.contains('av')) {
+        image.replaceWith(Object.assign(document.createElement('span'), { className: `${image.className} blank`, textContent: '•' }));
       }
     }, true);
 
     state.seenEventIds = new Set();
     state.prevScores = {};
 
-    $('settings-btn').addEventListener('click', () => {
-      $('settings').hidden = !$('settings').hidden;
-      $('settings-btn').setAttribute('aria-expanded', String(!$('settings').hidden));
+    byId('settings-btn').addEventListener('click', () => {
+      byId('settings').hidden = !byId('settings').hidden;
+      byId('settings-btn').setAttribute('aria-expanded', String(!byId('settings').hidden));
     });
-    $('refresh').addEventListener('click', () => poll(true));
-    $('week-label').addEventListener('dblclick', () => celebrate([
+    byId('refresh').addEventListener('click', () => pollLiveData(true));
+    byId('week-label').addEventListener('dblclick', () => celebrate([
       { pid: '6786', name: 'CeeDee Lamb', pos: 'WR', team: 'DAL', text: '+1 rec · +15 rec yds', net: 2.5,
         impacts: [{ leagueName: 'Your league', side: 'me', pts: 2.5 }] },
       { pid: '4892', name: 'Baker Mayfield', pos: 'QB', team: 'TB', text: '+42 pass yds · +1 pass TD', net: -5.68,
@@ -776,54 +787,54 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         impacts: [{ leagueName: 'Your league', side: 'me', pts: 1 }] }
     ]));
 
-    $('league-toggles').addEventListener('change', async (e) => {
-      const id = e.target.dataset.id;
-      if (!id) return;
+    byId('league-toggles').addEventListener('change', async (event) => {
+      const leagueId = event.target.dataset.id;
+      if (!leagueId) return;
       const excluded = new Set(state.settings.excluded);
-      if (e.target.checked) excluded.delete(id); else excluded.add(id);
+      if (event.target.checked) excluded.delete(leagueId); else excluded.add(leagueId);
       state.settings.excluded = [...excluded];
       await saveSettings();
       if (state.snapshot) state.snapshot.stats = Object.assign(tracker.trimSnapshot(state.stats, activeLeagues()), state.snapshot.stats);
       render();
     });
 
-    $('feed').addEventListener('toggle', (e) => {
-      const key = e.target.dataset && e.target.dataset.recap;
+    byId('feed').addEventListener('toggle', (event) => {
+      const key = event.target.dataset && event.target.dataset.recap;
       if (!key) return;
-      if (e.target.open) state.openRecaps.add(key); else state.openRecaps.delete(key);
+      if (event.target.open) state.openRecaps.add(key); else state.openRecaps.delete(key);
     }, true);
 
-    $('lv-tabs').addEventListener('click', (e) => {
-      const b = e.target.closest('[data-view]');
-      if (!b) return;
-      state.view = b.dataset.view;
+    byId('lv-tabs').addEventListener('click', (event) => {
+      const tab = event.target.closest('[data-view]');
+      if (!tab) return;
+      state.view = tab.dataset.view;
       showView();
       root.querySelector('.tool-scroll').scrollTop = 0;
       saveSettings();
     });
 
-    $('lv-big').addEventListener('click', () => {
+    byId('lv-big').addEventListener('click', () => {
       state.bigOnly = !state.bigOnly;
       showView();
       renderFeed();
       saveSettings();
     });
 
-    $('lv-league').addEventListener('change', (e) => {
-      state.league = e.target.value;
+    byId('lv-league').addEventListener('change', (event) => {
+      state.league = event.target.value;
       renderFeed();
     });
 
-    $('games').addEventListener('toggle', (e) => {
-      const id = e.target.dataset && e.target.dataset.game;
-      if (id) state.gameOpen.set(id, e.target.open);
+    byId('games').addEventListener('toggle', (event) => {
+      const gameId = event.target.dataset && event.target.dataset.game;
+      if (gameId) state.gameOpen.set(gameId, event.target.open);
     }, true);
 
-    $('filters').addEventListener('click', (e) => {
-      const f = e.target.dataset.filter;
-      if (!f) return;
-      state.filter = f;
-      for (const b of $('filters').children) b.classList.toggle('on', b.dataset.filter === f);
+    byId('filters').addEventListener('click', (event) => {
+      const filter = event.target.dataset.filter;
+      if (!filter) return;
+      state.filter = filter;
+      for (const button of byId('filters').children) button.classList.toggle('on', button.dataset.filter === filter);
       renderFeed();
     });
 
@@ -837,7 +848,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (saved && state.snapshot && saved.key === state.snapshot.key) state.events = saved.list;
     render();
     if (!state.settings.username) showError(account.NEED_USERNAME);
-    poll(false);
+    pollLiveData(false);
   }
 
   function unmount() {

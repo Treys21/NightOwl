@@ -145,7 +145,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         slot: slotIndex != null ? league.slots[slotIndex] : null,
         slotIndex,
         proj: projected(playerId, league.scoring),
-        notes: []
+        notes: [],
+        move: null,
+        moveSlot: null
       };
     };
 
@@ -188,6 +190,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       moves.sort((x, y) => order[x.type] - order[y.type]);
       for (const m of moves) {
         const r = byPid.get(m.pid);
+        r.move = m.type === 'move' ? 'slide' : m.type;
+        r.moveSlot = m.slot || null;
         if (m.type === 'start') r.notes.push({ kind: 'swap', text: `Start him at ${m.slot}: +${gain} for your lineup` });
         if (m.type === 'bench') r.notes.push({ kind: 'swap', text: `Bench him: +${gain} for your lineup` });
         if (m.type === 'move') r.notes.push({ kind: 'info', text: `Slide to ${m.slot} in the best lineup` });
@@ -235,8 +239,64 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { rows, empty, best: { gain, moves } };
   }
 
+  function riskOf(row) {
+    if (row.status !== 'start' || row.locked) return null;
+    if (row.bye) return 'bye';
+    if (OUT.has(row.injury)) return 'out';
+    if (row.injury === 'Questionable') return 'questionable';
+    return null;
+  }
+
+  function verdictOf({ rows, empty, best }) {
+    const startersScoringZero = rows.filter((row) => riskOf(row) === 'bye' || riskOf(row) === 'out').length;
+    const problems = empty.length + startersScoringZero;
+    if (problems) return { state: 'fix', problems, gain: best.gain };
+    if (best.moves.length) return { state: 'better', problems: 0, gain: best.gain };
+    return { state: 'set', problems: 0, gain: 0 };
+  }
+
+  function startersToFix(league) {
+    const fixes = [];
+    const startMoves = league.best.moves.filter((move) => move.type === 'start');
+    for (const slot of league.empty) {
+      const moveIndex = startMoves.findIndex((move) => move.slot === slot);
+      const replacement = moveIndex >= 0 ? startMoves.splice(moveIndex, 1)[0].name : null;
+      fixes.push({ kind: 'empty', leagueId: league.leagueId, leagueName: league.name, slot, replacement, team: null });
+    }
+    for (const row of league.rows) {
+      if (row.status !== 'start' || row.locked) continue;
+      const unavailable = row.bye || OUT.has(row.injury);
+      if (!unavailable) continue;
+      const bestOption = row.options.find((option) => option.pid);
+      fixes.push({
+        kind: row.bye ? 'bye' : 'out',
+        leagueId: league.leagueId,
+        leagueName: league.name,
+        playerName: row.name,
+        problem: row.bye ? 'on bye' : row.injury.toLowerCase(),
+        slot: row.slot,
+        replacement: bestOption ? bestOption.name : null,
+        team: row.bye ? null : row.team
+      });
+    }
+    return fixes;
+  }
+
+  function lineupSummary(leagues, upcomingWindows) {
+    const fixes = leagues.flatMap(startersToFix).map((fix) => {
+      const windowIndex = fix.team ? upcomingWindows.findIndex((lockWindow) => lockWindow.teams.has(fix.team)) : 0;
+      return Object.assign({ windowIndex: Math.max(0, windowIndex) }, fix);
+    });
+    const improvements = leagues
+      .filter((league) => league.best.gain >= MIN_GAIN)
+      .map((league) => ({ leagueId: league.leagueId, leagueName: league.name, gain: league.best.gain, moves: league.best.moves }));
+    const totalGain = round1(improvements.reduce((total, improvement) => total + improvement.gain, 0));
+    const status = fixes.length ? 'fix' : improvements.length ? 'improve' : 'set';
+    return { status, fixes, improvements, totalGain };
+  }
+
   NightOwl.lineups = {
-    parseGames, gamesFromSchedule, windows, lineup, assign, canPlay, remainingShare, NOT_STARTING_SLOTS, OUT, MIN_GAIN
+    parseGames, gamesFromSchedule, windows, lineup, startersToFix, lineupSummary, assign, canPlay, remainingShare, riskOf, verdictOf, NOT_STARTING_SLOTS, OUT, MIN_GAIN
   };
 })(globalThis.NightOwl);
 

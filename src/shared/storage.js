@@ -62,7 +62,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const items = { rankings: renumber(rankings) };
       if (markSynced) {
         items.lastSynced = Date.now();
-        items['ringer.synced'] = items.rankings.map((r) => `${r.name}|${r.position}`);
+        items['ringer.synced'] = items.rankings.map((ranking) => `${ranking.name}|${ranking.position}`);
       }
       await set(items);
       return true;

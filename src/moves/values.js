@@ -31,18 +31,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const owner = season.pickOwners(league.traded, year);
         for (let round = 1; round <= rounds; round++) {
           for (const roster of league.raw.rosters) {
-            const to = owner(round, roster.roster_id);
-            if (held.has(to)) held.get(to).push(`pick:${year}:${round}:${roster.roster_id}`);
+            const holderId = owner(round, roster.roster_id);
+            if (held.has(holderId)) held.get(holderId).push(`pick:${year}:${round}:${roster.roster_id}`);
           }
         }
       }
       return held;
     }
 
-    const ordinalRound = (n) => `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n] || 'th'}`;
+    const ordinalRound = (roundNumber) => `${roundNumber}${{ 1: 'st', 2: 'nd', 3: 'rd' }[roundNumber] || 'th'}`;
 
-    const rosPoints = (league, playerId) => value.restOfSeason(playerId, league.weeks);
-    const overReplacement = (league, playerId) => (league.rep ? Math.max(0, league.rep.over(playerId)) : rosPoints(league, playerId));
+    const restOfSeasonPoints = (league, playerId) => value.restOfSeason(playerId, league.weeks);
+    const overReplacement = (league, playerId) => (league.rep ? Math.max(0, league.rep.over(playerId)) : restOfSeasonPoints(league, playerId));
 
     const usesKtc = (league) => league.kind !== 'redraft' && !!state.ktc;
     function dynastyValue(league, playerId) {
@@ -51,9 +51,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (isPick(playerId)) {
         const pick = pickOf(playerId);
         const tier = pickTierOf(league, pick);
-        const v = state.ktc ? Math.round(ktc.pickValue(state.ktc.picks, { year: pick.year, round: pick.round, tier, superflex: league.superflex }) * (PICK_PREMIUM[pick.round] || 1)) : 0;
-        league.dyn.set(playerId, v);
-        return v;
+        const chartValue = state.ktc ? Math.round(ktc.pickValue(state.ktc.picks, { year: pick.year, round: pick.round, tier, superflex: league.superflex }) * (PICK_PREMIUM[pick.round] || 1)) : 0;
+        league.dyn.set(playerId, chartValue);
+        return chartValue;
       }
       const entry = state.ktc && state.ktc.players[playerId];
       const out = entry ? Math.round(ktc.valueIn(entry, league) * scoringFactor(league, playerId, state.ktc.players, 'dynasty')) : 0;
@@ -78,39 +78,39 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     function scoringRatio(league, playerId) {
       const plain = Object.assign({}, league.raw.scoring, { bonus_rec_te: 0 });
       let mine = 0;
-      let ppr = 0;
-      for (const w of league.weeks) {
-        const row = state.stats[w.week] && state.stats[w.week][playerId];
+      let pprPoints = 0;
+      for (const week of league.weeks) {
+        const row = state.stats[week.week] && state.stats[week.week][playerId];
         mine += NightOwl.scoring.points(row, plain);
-        ppr += (row && row.pts_ppr) || 0;
+        pprPoints += (row && row.pts_ppr) || 0;
       }
-      return mine > 0 && ppr > 0 ? mine / ppr : null;
+      return mine > 0 && pprPoints > 0 ? mine / pprPoints : null;
     }
 
     function scoringFactor(league, playerId, listed, kind) {
       league.ratioBase = league.ratioBase || {};
       if (league.ratioBase[kind] === undefined) {
-        const ratios = Object.keys(listed).map((id) => scoringRatio(league, id)).filter((r) => r !== null).sort((a, b) => a - b);
+        const ratios = Object.keys(listed).map((playerId) => scoringRatio(league, playerId)).filter((ratio) => ratio !== null).sort((a, b) => a - b);
         league.ratioBase[kind] = ratios.length ? ratios[Math.floor(ratios.length / 2)] : null;
       }
       const ratio = scoringRatio(league, playerId);
       return league.ratioBase[kind] && ratio ? ktc.scoringFactor(ratio, league.ratioBase[kind]) : 1;
     }
-    const worth = (n) => Math.round(n).toLocaleString();
+    const worth = (amount) => Math.round(amount).toLocaleString();
 
     const AGE_PRIME = 27;
-    function windowFactor(league, id, w) {
-      if (isPick(id)) return w > 0.6 ? 0.97 : w < 0.3 ? 1.06 : 1;
-      const entry = state.ktc && state.ktc.players[id];
+    function windowFactor(league, assetId, contentionLevel) {
+      if (isPick(assetId)) return contentionLevel > 0.6 ? 0.97 : contentionLevel < 0.3 ? 1.06 : 1;
+      const entry = state.ktc && state.ktc.players[assetId];
       const age = entry && entry.a;
       if (!age) return 1;
-      if (w < 0.3) return age > AGE_PRIME ? Math.max(0.7, 1 - 0.05 * (age - AGE_PRIME)) : age <= 23 ? 1.05 : 1;
-      if (w > 0.6) return age > AGE_PRIME ? 1.03 : age <= 22 ? 0.97 : 1;
+      if (contentionLevel < 0.3) return age > AGE_PRIME ? Math.max(0.7, 1 - 0.05 * (age - AGE_PRIME)) : age <= 23 ? 1.05 : 1;
+      if (contentionLevel > 0.6) return age > AGE_PRIME ? 1.03 : age <= 22 ? 0.97 : 1;
       return 1;
     }
 
     const MIX = { now: 0.45, mixed: 0.3, rebuild: 0.15 };
-    const mixFor = (w) => (w > 0.6 ? MIX.now : w < 0.3 ? MIX.rebuild : MIX.mixed);
+    const productionMixFor = (contentionLevel) => (contentionLevel > 0.6 ? MIX.now : contentionLevel < 0.3 ? MIX.rebuild : MIX.mixed);
     const YOUTH_AGE = 23;
     const YOUTH_CAP = 4500;
     const YOUTH_HAIRCUT = 0.92;
@@ -118,31 +118,31 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     function blendedValue(league, playerId, mix = MIX.mixed) {
       const market = dynastyValue(league, playerId);
-      if (!market || isPick(playerId) || !league.rep || !league.rep.weeks.some((w) => !w.isOut(playerId))) return market;
+      if (!market || isPick(playerId) || !league.rep || !league.rep.weeks.some((week) => !week.isOut(playerId))) return market;
       league.blend = league.blend || new Map();
       const key = `${playerId}:${mix}`;
       if (league.blend.has(key)) return league.blend.get(key);
       const production = Math.min(market * PRODUCTION_CAP, overReplacement(league, playerId) * pointValue(league));
-      let v = (1 - mix) * market + mix * production;
+      let blended = (1 - mix) * market + mix * production;
       const age = state.ktc && state.ktc.players[playerId] && state.ktc.players[playerId].a;
-      if (age && age <= YOUTH_AGE && market < YOUTH_CAP) v *= YOUTH_HAIRCUT;
-      v = Math.round(v);
-      league.blend.set(key, v);
-      return v;
+      if (age && age <= YOUTH_AGE && market < YOUTH_CAP) blended *= YOUTH_HAIRCUT;
+      blended = Math.round(blended);
+      league.blend.set(key, blended);
+      return blended;
     }
 
-    const valueFor = (league, id, w) => blendedValue(league, id, mixFor(w)) * windowFactor(league, id, w);
+    const valueFor = (league, assetId, contentionLevel) => blendedValue(league, assetId, productionMixFor(contentionLevel)) * windowFactor(league, assetId, contentionLevel);
 
     function pointValue(league) {
       if (league.pointPrice !== undefined) return league.pointPrice;
       const listed = consensus(league) ? state.ktcRedraft.players : state.ktc && state.ktc.players;
       const prices = [];
       for (const roster of league.raw.rosters) {
-        for (const id of roster.players || []) {
-          if (!listed || !listed[id]) continue;
-          const v = consensus(league) ? redraftValue(league, id) : dynastyValue(league, id);
-          const points = overReplacement(league, id);
-          if (v >= 3000 && points >= 12) prices.push(v / points);
+        for (const playerId of roster.players || []) {
+          if (!listed || !listed[playerId]) continue;
+          const value = consensus(league) ? redraftValue(league, playerId) : dynastyValue(league, playerId);
+          const points = overReplacement(league, playerId);
+          if (value >= 3000 && points >= 12) prices.push(value / points);
         }
       }
       prices.sort((a, b) => a - b);
@@ -159,8 +159,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return dynastyValue(league, `pick:${pick.season}:${pick.round}:${pick.from}`);
     }
 
-    function packageValue(league, pids) {
-      const items = pids.map((playerId) => ({ v: marketValue(league, playerId), pick: isPick(playerId) }));
+    function packageValue(league, assetIds) {
+      const items = assetIds.map((playerId) => ({ v: marketValue(league, playerId), pick: isPick(playerId) }));
       return ktc.packageValue(items, consensus(league)
         ? { exponent: ktc.EXPONENT_REDRAFT, replacement: ktc.REPLACEMENT_REDRAFT }
         : { exponent: ktc.EXPONENT_PACKAGE, replacement: ktc.REPLACEMENT_DYNASTY });
@@ -168,7 +168,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     return {
       pickAsset, packageValue, isPick, pickOf, standingsRanks, ownedPicks, pickSlot, pickTierOf, ordinalRound,
-      rosPoints, overReplacement, usesKtc, consensus, dynastyValue, blendedValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
+      restOfSeasonPoints, overReplacement, usesKtc, consensus, dynastyValue, blendedValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
     };
   }
 

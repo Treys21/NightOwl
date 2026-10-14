@@ -11,7 +11,7 @@ const scripts = manifest.content_scripts[0].js;
 function sandbox() {
   const noop = () => {};
   const chrome = {
-    runtime: { id: 'test', getURL: (p) => p, sendMessage: noop },
+    runtime: { id: 'test', getURL: (relativePath) => relativePath, sendMessage: noop },
     storage: { local: { get: (k, callback) => callback({}), set: (i, callback) => callback && callback(), remove: (k, callback) => callback && callback() }, onChanged: { addListener: noop } }
   };
   const document = { addEventListener: noop, hidden: false, getElementById: () => null };
@@ -22,7 +22,7 @@ function sandbox() {
 
 test('content scripts load in order and register every tool', () => {
   const context = sandbox();
-  for (const file of scripts.filter((f) => f !== 'src/panel/main.js')) {
+  for (const file of scripts.filter((script) => script !== 'src/panel/main.js')) {
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   }
   const { NightOwl } = context;
@@ -62,11 +62,11 @@ test('api names a failing feed and clears it on recovery', async () => {
 test('the background worker starts, with every script it imports', () => {
   const noop = () => {};
   const listeners = [];
-  const event = () => ({ addListener: (fn) => listeners.push(fn) });
+  const event = () => ({ addListener: (listener) => listeners.push(listener) });
   const context = {
     console, setTimeout, clearTimeout, fetch: async () => ({ ok: false }),
     chrome: {
-      runtime: { id: 'test', getURL: (p) => p, onMessage: event(), onInstalled: event(), onStartup: event() },
+      runtime: { id: 'test', getURL: (relativePath) => relativePath, onMessage: event(), onInstalled: event(), onStartup: event() },
       storage: { local: { get: (k, callback) => callback({}), set: (i, callback) => callback && callback(), remove: (k, callback) => callback && callback() }, onChanged: event() },
       alarms: { create: noop, onAlarm: event() },
       notifications: { create: noop, clear: noop, onClicked: event() },
@@ -74,10 +74,10 @@ test('the background worker starts, with every script it imports', () => {
     }
   };
   context.globalThis = context;
-  context.importScripts = (...files) => files.forEach((f) =>
-    vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), context, { filename: f }));
+  context.importScripts = (...files) => files.forEach((file) =>
+    vm.runInContext(fs.readFileSync(path.join(root, 'src', file), 'utf8'), context, { filename: file }));
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(root, manifest.background.service_worker), 'utf8'), context);
   assert.ok(context.NightOwl.alerts && context.NightOwl.api.injuries);
-  assert.equal(listeners.length, 6);
+  assert.equal(listeners.length, 7);
 });

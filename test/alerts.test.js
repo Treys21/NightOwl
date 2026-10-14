@@ -30,7 +30,7 @@ test('alerts for out and bye starters before lock, one per player across leagues
     { leagueId: 'a', name: 'Office', starters: ['lamb', 'hurts', 'kelce', 'dak'] },
     { leagueId: 'b', name: 'Dynasty', starters: ['lamb', '0'] }
   ] });
-  assert.deepEqual(found.map((f) => [f.pid, f.status, f.leagues.map((l) => l.name)]), [
+  assert.deepEqual(found.map((alert) => [alert.pid, alert.status, alert.leagues.map((league) => league.name)]), [
     ['lamb', 'Out', ['Office', 'Dynasty']],
     ['kelce', 'Bye', ['Office']]
   ]);

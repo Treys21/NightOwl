@@ -13,27 +13,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const REPLACEMENT_DYNASTY = 2000;
   const REPLACEMENT_REDRAFT = 1000;
 
-  const tiers = (v) => [v.value, (v.tep || v).value, (v.tepp || v).value, (v.teppp || v).value];
+  const tiers = (entry) => [entry.value, (entry.tep || entry).value, (entry.tepp || entry).value, (entry.teppp || entry).value];
 
   function parse(html) {
-    const m = /id="ktc-players"[^>]*>([\s\S]*?)<\/script>/.exec(html || '');
-    if (!m) throw new Error('KeepTradeCut changed its page');
-    const rows = JSON.parse(m[1]);
+    const tableMatch = /id="ktc-players"[^>]*>([\s\S]*?)<\/script>/.exec(html || '');
+    if (!tableMatch) throw new Error('KeepTradeCut changed its page');
+    const rows = JSON.parse(tableMatch[1]);
     if (!Array.isArray(rows) || !rows.length) throw new Error('KeepTradeCut returned no players');
     return rows
-      .filter((r) => r.oneQBValues && r.superflexValues)
-      .map((r) => ({ n: r.playerName, p: r.position, t: r.team, a: r.age, v: tiers(r.oneQBValues), s: tiers(r.superflexValues) }));
+      .filter((row) => row.oneQBValues && row.superflexValues)
+      .map((row) => ({ n: row.playerName, p: row.position, t: row.team, a: row.age, v: tiers(row.oneQBValues), s: tiers(row.superflexValues) }));
   }
 
-  const isSuperflex = (slots) => slots.includes('SUPER_FLEX') || slots.filter((s) => s === 'QB').length > 1;
+  const isSuperflex = (slots) => slots.includes('SUPER_FLEX') || slots.filter((slot) => slot === 'QB').length > 1;
 
   const PICK_NAME = /^(\d{4}) (Early|Mid|Late) (\d)(?:st|nd|rd|th)$/;
 
   function pickValues(rows) {
     const out = {};
-    for (const r of rows) {
-      const m = r.p === 'RDP' && PICK_NAME.exec(r.n);
-      if (m) out[`${m[1]}:${m[3]}:${m[2].toLowerCase()}`] = { v: r.v[0], s: r.s[0] };
+    for (const row of rows) {
+      const nameMatch = row.p === 'RDP' && PICK_NAME.exec(row.n);
+      if (nameMatch) out[`${nameMatch[1]}:${nameMatch[3]}:${nameMatch[2].toLowerCase()}`] = { v: row.v[0], s: row.s[0] };
     }
     return out;
   }
@@ -51,14 +51,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function pickBaseline(picks, { round, slot, teams, superflex }) {
     const year = Object.keys(picks).filter((k) => k.split(':')[1] === String(round)).map((k) => k.split(':')[0]).sort()[0];
     if (!year) return 0;
-    const at = (tier) => pickValue(picks, { year, round, tier, superflex });
-    const [early, mid, late] = [at('early'), at('mid'), at('late')];
-    if (!early || !mid || !late) return 0;
-    const t = (slot - 0.5) / Math.max(1, teams);
-    const lerp = (a, b, x) => a + (b - a) * x;
-    if (t <= 1 / 6) return early;
-    if (t >= 5 / 6) return late;
-    return t <= 0.5 ? lerp(early, mid, (t - 1 / 6) / (1 / 3)) : lerp(mid, late, (t - 0.5) / (1 / 3));
+    const valueAt = (tier) => pickValue(picks, { year, round, tier, superflex });
+    const [earlyValue, midValue, lateValue] = [valueAt('early'), valueAt('mid'), valueAt('late')];
+    if (!earlyValue || !midValue || !lateValue) return 0;
+    const shareOfRound = (slot - 0.5) / Math.max(1, teams);
+    const lerp = (from, to, fraction) => from + (to - from) * fraction;
+    if (shareOfRound <= 1 / 6) return earlyValue;
+    if (shareOfRound >= 5 / 6) return lateValue;
+    return shareOfRound <= 0.5 ? lerp(earlyValue, midValue, (shareOfRound - 1 / 6) / (1 / 3)) : lerp(midValue, lateValue, (shareOfRound - 0.5) / (1 / 3));
   }
 
   const tepTier = (scoring) => Math.max(0, Math.min(3, Math.round(((scoring && scoring.bonus_rec_te) || 0) / 0.5)));
@@ -71,25 +71,25 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const { buildIndex, matchPlayer } = NightOwl.match;
     const index = buildIndex(sleeperPlayers);
     const out = {};
-    for (const r of rows) {
-      if (r.p === 'RDP') continue;
-      const hit = matchPlayer({ name: r.n, position: r.p, team: r.t }, index);
-      if (hit) out[hit.id] = { p: r.p, a: r.a, v: r.v, s: r.s };
+    for (const row of rows) {
+      if (row.p === 'RDP') continue;
+      const hit = matchPlayer({ name: row.n, position: row.p, team: row.t }, index);
+      if (hit) out[hit.id] = { p: row.p, a: row.a, v: row.v, s: row.s };
     }
     return out;
   }
 
   function sideValue(values, exponent = EXPONENT) {
-    const vs = values.filter((v) => v > 0);
-    if (!vs.length) return 0;
-    return Math.round(Math.pow(vs.reduce((sum, v) => sum + Math.pow(v, exponent), 0), 1 / exponent));
+    const positiveValues = values.filter((value) => value > 0);
+    if (!positiveValues.length) return 0;
+    return Math.round(Math.pow(positiveValues.reduce((sum, value) => sum + Math.pow(value, exponent), 0), 1 / exponent));
   }
 
   function packageValue(items, { exponent = EXPONENT_PACKAGE, replacement = 0 } = {}) {
     const priced = items.filter((i) => i.v > 0);
     const players = priced.filter((i) => !i.pick).sort((a, b) => b.v - a.v);
     const parts = priced.filter((i) => i.pick).map((i) => i.v)
-      .concat(players.map((i, n) => (n === 0 ? i.v : Math.max(0, i.v - replacement))));
+      .concat(players.map((i, index) => (index === 0 ? i.v : Math.max(0, i.v - replacement))));
     return sideValue(parts, exponent);
   }
 

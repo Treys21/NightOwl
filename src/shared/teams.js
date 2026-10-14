@@ -18,16 +18,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   };
   const FALLBACK = ['#262e3e', '#00ceb8'];
 
-  function luminance(hex) {
-    const n = parseInt(hex.slice(1), 16);
-    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
-      const v = c / 255;
-      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  function luminance(hexColor) {
+    const colorValue = parseInt(hexColor.slice(1), 16);
+    const [red, green, blue] = [(colorValue >> 16) & 255, (colorValue >> 8) & 255, colorValue & 255].map((channel) => {
+      const fraction = channel / 255;
+      return fraction <= 0.03928 ? fraction / 12.92 : ((fraction + 0.055) / 1.055) ** 2.4;
     });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
   }
 
-  const inkOn = (hex) => (luminance(hex) > 0.35 ? '#101820' : '#ffffff');
+  const inkOn = (hexColor) => (luminance(hexColor) > 0.35 ? '#101820' : '#ffffff');
 
   function colors(team) {
     const [primary, secondary] = COLORS[team] || FALLBACK;

@@ -10,26 +10,26 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const isPlaying = (league) => league.status === 'in_season' || league.status === 'post_season';
 
   const mine = (rosters, userId) =>
-    (rosters || []).find((r) => r.owner_id === userId || (r.co_owners || []).includes(userId)) || null;
+    (rosters || []).find((roster) => roster.owner_id === userId || (roster.co_owners || []).includes(userId)) || null;
 
-  const ownerNames = (users) => new Map((users || []).map((u) => [u.user_id, u.display_name || (u.metadata && u.metadata.team_name) || u.username || 'Manager']));
+  const ownerNames = (users) => new Map((users || []).map((user) => [user.user_id, user.display_name || (user.metadata && user.metadata.team_name) || user.username || 'Manager']));
 
-  const avatars = (users) => new Map((users || []).map((u) => [
-    u.user_id,
-    (u.metadata && u.metadata.avatar) || (u.avatar ? `https://sleepercdn.com/avatars/thumbs/${u.avatar}` : '')
+  const avatars = (users) => new Map((users || []).map((user) => [
+    user.user_id,
+    (user.metadata && user.metadata.avatar) || (user.avatar ? `https://sleepercdn.com/avatars/thumbs/${user.avatar}` : '')
   ]));
 
-  const startingSlots = (league) => (league.roster_positions || []).filter((p) => !NOT_STARTING.has(p));
+  const startingSlots = (league) => (league.roster_positions || []).filter((slot) => !NOT_STARTING.has(slot));
 
-  const usesIdp = (slotLists) => slotLists.some((slots) => slots.some((s) => IDP_SLOTS.has(s)));
+  const usesIdp = (slotLists) => slotLists.some((slots) => slots.some((slot) => IDP_SLOTS.has(slot)));
 
   const slotLabel = (slot) => SLOT_SHORT[slot] || slot || '';
 
-  const displayWeek = (nfl) => nfl.display_week || nfl.week;
+  const displayWeek = (nflState) => nflState.display_week || nflState.week;
 
-  const lookaheadWeek = (nfl) => Math.max(nfl.week || 0, nfl.display_week || 0) || 1;
+  const lookaheadWeek = (nflState) => Math.max(nflState.week || 0, nflState.display_week || 0) || 1;
 
-  const seasonType = (nfl) => (nfl.season_type === 'post' ? 'post' : 'regular');
+  const seasonType = (nflState) => (nflState.season_type === 'post' ? 'post' : 'regular');
 
   const teamUrl = (leagueId) => `https://sleeper.com/leagues/${leagueId}/team`;
 

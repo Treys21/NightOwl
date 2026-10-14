@@ -11,7 +11,7 @@ const rows = [
   { rank: 4, name: 'Puka Nacua', position: 'WR', pickNo: null, delta: null, matched: false }
 ];
 const prefs = (patch) => Object.assign({ position: 'ALL', hideDrafted: false, sortBy: 'rank', sortDir: 'asc' }, patch);
-const names = (list) => list.map((r) => r.rank);
+const names = (list) => list.map((row) => row.rank);
 
 test('filters by position and drafted status', () => {
   assert.deepEqual(names(filterRows(rows, prefs({ position: 'WR' }))), [2, 4]);

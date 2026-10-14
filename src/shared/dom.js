@@ -14,9 +14,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function loadSheet(path) {
     if (!cache.has(path)) {
       cache.set(path, fetch(chrome.runtime.getURL(path))
-        .then((res) => {
-          if (!res.ok) throw new Error(`${res.status} ${path}`);
-          return res.text();
+        .then((response) => {
+          if (!response.ok) throw new Error(`${response.status} ${path}`);
+          return response.text();
         })
         .then(sheetFrom));
     }
@@ -42,8 +42,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function hideBrokenImages(root) {
-    root.addEventListener('error', (e) => {
-      if (e.target && e.target.tagName === 'IMG') e.target.style.visibility = 'hidden';
+    root.addEventListener('error', (event) => {
+      if (event.target && event.target.tagName === 'IMG') event.target.style.visibility = 'hidden';
     }, true);
   }
 

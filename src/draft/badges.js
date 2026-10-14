@@ -3,6 +3,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
+  const MAX_NAME_LENGTH = 40;
+  const RESCAN_DELAY_MS = 400;
   const BADGE_CLASS = 'night-owl-rank';
   const MARKED_ATTR = 'data-night-owl-ranked';
   const STYLE = `
@@ -35,7 +37,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     observe();
   }
 
-  function paint(badge, row) {
+  function paintBadge(badge, row) {
     badge.textContent = String(row.rank);
     badge.dataset.drafted = row.pickNo ? '1' : '0';
     badge.title = row.pickNo ? `Your rank ${row.rank}, taken at #${row.pickNo}` : `Your rank ${row.rank}`;
@@ -48,7 +50,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (existing) {
           const row = rankByName.get(/** @type {HTMLElement} */ (existing).dataset.key);
           if (row) {
-            paint(existing, row);
+            paintBadge(existing, row);
           } else {
             existing.remove();
             element.removeAttribute(MARKED_ATTR);
@@ -57,7 +59,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         }
 
         const text = (element.textContent || '').replace(/\s+/g, ' ').trim();
-        if (!text || text.length > 40) continue;
+        if (!text || text.length > MAX_NAME_LENGTH) continue;
         const key = NightOwl.match.normalizeName(text);
         const row = rankByName.get(key);
         if (!row) continue;
@@ -65,7 +67,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const badge = document.createElement('span');
         badge.className = BADGE_CLASS;
         badge.dataset.key = key;
-        paint(badge, row);
+        paintBadge(badge, row);
         element.setAttribute(MARKED_ATTR, '1');
         element.prepend(badge);
       }
@@ -85,17 +87,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         } catch (error) {
           console.debug('[Night Owl badges]', error);
         }
-      }, 400);
+      }, RESCAN_DELAY_MS);
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  function stop() {
+  function removeBadges() {
     if (observer) observer.disconnect();
     observer = null;
     document.querySelectorAll(`.${BADGE_CLASS}`).forEach((badge) => badge.remove());
     document.querySelectorAll(`[${MARKED_ATTR}]`).forEach((element) => element.removeAttribute(MARKED_ATTR));
   }
 
-  NightOwl.badges = { update, stop };
+  NightOwl.badges = { update, stop: removeBadges };
 })(globalThis.NightOwl);

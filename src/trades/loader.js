@@ -10,9 +10,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const LAST_WEEK = 18;
   const CHUNK = 6;
 
-  async function inChunks(items, fn) {
+  async function inChunks(items, work) {
     const out = [];
-    for (let i = 0; i < items.length; i += CHUNK) out.push(...await Promise.all(items.slice(i, i + CHUNK).map(fn)));
+    for (let i = 0; i < items.length; i += CHUNK) out.push(...await Promise.all(items.slice(i, i + CHUNK).map(work)));
     return out;
   }
 
@@ -31,19 +31,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const key = `trades.rows.v2.${leagueId}`;
     const cached = await storage.get(key, { weeks: {} });
     const weeks = [];
-    for (let w = 1; w <= lastWeek; w++) if (!cached.weeks[w] || w >= lastWeek) weeks.push(w);
-    const fetched = await inChunks(weeks, (w) => api.transactions(leagueId, w).then((all) => {
-      const done = (all || []).filter((t) => t.status === 'complete');
-      return [w, {
-        t: done.filter((t) => t.type === 'trade'),
-        m: done.filter((t) => t.type !== 'trade').map((t) => ({ type: t.type, leg: t.leg, adds: t.adds, drops: t.drops, roster_ids: t.roster_ids, created: t.created }))
+    for (let week = 1; week <= lastWeek; week++) if (!cached.weeks[week] || week >= lastWeek) weeks.push(week);
+    const fetched = await inChunks(weeks, (week) => api.transactions(leagueId, week).then((all) => {
+      const done = (all || []).filter((transaction) => transaction.status === 'complete');
+      return [week, {
+        t: done.filter((transaction) => transaction.type === 'trade'),
+        m: done.filter((transaction) => transaction.type !== 'trade').map((transaction) => ({ type: transaction.type, leg: transaction.leg, adds: transaction.adds, drops: transaction.drops, roster_ids: transaction.roster_ids, created: transaction.created }))
       }];
-    }).catch(() => [w, null]));
+    }).catch(() => [week, null]));
     let changed = false;
-    for (const [w, entry] of fetched) if (entry) { cached.weeks[w] = entry; changed = true; }
+    for (const [week, entry] of fetched) if (entry) { cached.weeks[week] = entry; changed = true; }
     if (changed) await storage.set({ [key]: cached });
     const all = Object.values(cached.weeks);
-    return { trades: all.flatMap((e) => e.t), moves: all.flatMap((e) => e.m) };
+    return { trades: all.flatMap((event) => event.t), moves: all.flatMap((event) => event.m) };
   }
 
   async function draftsOf(leagueId) {
@@ -51,17 +51,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const cached = await storage.get(key, null);
     if (cached) return cached;
     const listed = (await api.leagueDrafts(leagueId).catch(() => null)) || [];
-    const done = listed.filter((d) => d.status === 'complete');
+    const done = listed.filter((draft) => draft.status === 'complete');
     const out = [];
-    for (const d of done) {
-      const [info, picks] = await Promise.all([api.draft(d.draft_id).catch(() => d), api.draftPicks(d.draft_id).catch(() => null)]);
+    for (const draft of done) {
+      const [info, picks] = await Promise.all([api.draft(draft.draft_id).catch(() => draft), api.draftPicks(draft.draft_id).catch(() => null)]);
       if (!picks || !picks.length) continue;
       out.push({
-        id: d.draft_id, season: String(d.season), type: d.type,
-        rounds: (d.settings && d.settings.rounds) || Math.max(...picks.map((p) => p.round)),
-        teams: (d.settings && d.settings.teams) || 0,
+        id: draft.draft_id, season: String(draft.season), type: draft.type,
+        rounds: (draft.settings && draft.settings.rounds) || Math.max(...picks.map((pick) => pick.round)),
+        teams: (draft.settings && draft.settings.teams) || 0,
         slotToRoster: (info && info.slot_to_roster_id) || null,
-        picks: picks.filter((p) => p.player_id).map((p) => ({ no: p.pick_no, round: p.round, slot: p.draft_slot, by: p.roster_id, pid: p.player_id }))
+        picks: picks.filter((pick) => pick.player_id).map((pick) => ({ no: pick.pick_no, round: pick.round, slot: pick.draft_slot, by: pick.roster_id, pid: pick.player_id }))
       });
     }
     if (out.length) await storage.set({ [key]: out });
@@ -72,19 +72,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const key = `trades.points.${leagueId}`;
     const cached = await storage.get(key, {});
     const need = [];
-    for (let w = from + 1; w <= lastPlayed; w++) if (!cached[w] || w === lastPlayed) need.push(w);
-    const fetched = await inChunks(need, (w) => api.matchups(leagueId, w).then((rows) => [w, rows]).catch(() => [w, null]));
+    for (let week = from + 1; week <= lastPlayed; week++) if (!cached[week] || week === lastPlayed) need.push(week);
+    const fetched = await inChunks(need, (week) => api.matchups(leagueId, week).then((rows) => [week, rows]).catch(() => [week, null]));
     let changed = false;
-    for (const [w, rows] of fetched) {
+    for (const [week, rows] of fetched) {
       if (!rows) continue;
       const rosters = {};
-      for (const m of rows) rosters[m.roster_id] = { starters: (m.starters || []).filter((p) => p && p !== '0'), points: m.players_points || {} };
-      cached[w] = rosters;
+      for (const row of rows) rosters[row.roster_id] = { starters: (row.starters || []).filter((playerId) => playerId && playerId !== '0'), points: row.players_points || {} };
+      cached[week] = rosters;
       changed = true;
     }
     if (changed) await storage.set({ [key]: cached });
     const out = [];
-    for (let w = from + 1; w <= lastPlayed; w++) if (cached[w]) out.push({ week: w, rosters: cached[w] });
+    for (let week = from + 1; week <= lastPlayed; week++) if (cached[week]) out.push({ week: week, rosters: cached[week] });
     return out;
   }
 
@@ -92,28 +92,28 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const seasons = await chain(league.leagueId, league.raw.season);
     const all = [];
     const drafts = [];
-    for (const s of seasons) {
-      const current = s.season === String(nfl.season);
+    for (const season of seasons) {
+      const current = season.season === String(nfl.season);
       const lastWeek = current ? Math.max(1, nfl.week) : LAST_WEEK;
-      const [{ trades: tradeTx }, rosters] = await Promise.all([rows(s.leagueId, lastWeek), api.rosters(s.leagueId).catch(() => [])]);
+      const [{ trades: tradeTx }, rosters] = await Promise.all([rows(season.leagueId, lastWeek), api.rosters(season.leagueId).catch(() => [])]);
       const owners = Object.fromEntries((rosters || []).map((roster) => [roster.roster_id, roster.owner_id]));
-      const trades = tradeHistory.parse(tradeTx, s.season);
-      drafts.push(...await draftsOf(s.leagueId).catch(() => []));
-      const earliest = trades.length ? Math.min(...trades.map((t) => t.week)) : null;
-      const weekly = earliest != null ? await weeklyPoints(s.leagueId, earliest, current ? Math.max(0, nfl.week - 1) : LAST_WEEK) : [];
+      const trades = tradeHistory.parse(tradeTx, season.season);
+      drafts.push(...await draftsOf(season.leagueId).catch(() => []));
+      const earliest = trades.length ? Math.min(...trades.map((trade) => trade.week)) : null;
+      const weekly = earliest != null ? await weeklyPoints(season.leagueId, earliest, current ? Math.max(0, nfl.week - 1) : LAST_WEEK) : [];
       for (const trade of trades) {
         const real = tradeHistory.realized(trade, weekly);
         all.push({ trade, grades: null, real, owners });
       }
     }
-    tradeDrafts.settle(all.map((g) => g.trade), tradeDrafts.index(drafts));
-    for (const g of all) g.grades = tradeHistory.grade(g.trade, context, g.real);
+    tradeDrafts.settle(all.map((gradedTrade) => gradedTrade.trade), tradeDrafts.index(drafts));
+    for (const gradedTrade of all) gradedTrade.grades = tradeHistory.grade(gradedTrade.trade, context, gradedTrade.real);
     all.sort((a, b) => b.trade.at - a.trade.at);
-    const recentSeasons = new Set(seasons.slice(0, RECENT).map((x) => x.season));
-    const recent = all.filter((g) => recentSeasons.has(String(g.trade.season)));
-    const ownersOf = new Map(all.map((g) => [g.trade, g.owners]));
+    const recentSeasons = new Set(seasons.slice(0, RECENT).map((season) => season.season));
+    const recent = all.filter((gradedTrade) => recentSeasons.has(String(gradedTrade.trade.season)));
+    const ownersOf = new Map(all.map((gradedTrade) => [gradedTrade.trade, gradedTrade.owners]));
     const profiles = tradeHistory.profiles(all, (trade, rosterId) => (ownersOf.get(trade) || {})[rosterId] || `${trade.season}:${rosterId}`);
-    return { graded: all, drafts, profiles, band: tradeHistory.league(recent, Math.min(seasons.length, RECENT)), seasons: seasons.map((s) => s.season) };
+    return { graded: all, drafts, profiles, band: tradeHistory.league(recent, Math.min(seasons.length, RECENT)), seasons: seasons.map((season) => season.season) };
   }
 
   NightOwl.tradeLoader = { load, chain, rows, weeklyPoints, draftsOf };

@@ -5,32 +5,32 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
-  const escape = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (c) => ESCAPES[c]);
+  const escape = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (character) => ESCAPES[character]);
 
-  const points = (n) => (n == null ? '–' : (Math.round(n * 100) / 100).toString());
+  const points = (value) => (value == null ? '–' : (Math.round(value * 100) / 100).toString());
 
-  const tenths = (n) => (n == null ? '–' : (Math.round(n * 10) / 10).toFixed(1));
+  const tenths = (value) => (value == null ? '–' : (Math.round(value * 10) / 10).toFixed(1));
 
-  const short = (n) => (n == null ? '–' : (Math.round(n * 10) / 10).toString());
+  const short = (value) => (value == null ? '–' : (Math.round(value * 10) / 10).toString());
 
-  const signed = (n, format = points) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${format(Math.abs(n))}`;
+  const signed = (value, format = points) => `${value > 0 ? '+' : value < 0 ? '−' : '±'}${format(Math.abs(value))}`;
 
-  const percent = (p) => `${Math.round(p * 100)}%`;
+  const percent = (probability) => `${Math.round(probability * 100)}%`;
 
-  const dayTime = (ms) => new Date(ms).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  const dayTime = (timestamp) => new Date(timestamp).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
 
-  function dayTimeShort(ms) {
-    const d = new Date(ms);
-    const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  function dayTimeShort(timestamp) {
+    const date = new Date(timestamp);
+    const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
       .replace(/:00(?=\s)/, '')
-      .replace(/\s?(AM|PM)/i, (m, ap) => ap.toLowerCase()[0]);
-    return `${d.toLocaleDateString([], { weekday: 'short' })} ${time}`;
+      .replace(/\s?(AM|PM)/i, (match, meridiem) => meridiem.toLowerCase()[0]);
+    return `${date.toLocaleDateString([], { weekday: 'short' })} ${time}`;
   }
 
-  const dayOf = (w) => (w.approx ? new Date(w.kickoff).toLocaleDateString([], { weekday: 'short' }) : dayTime(w.kickoff));
-  const windowTitle = (w) => (w.games.length > 2
-    ? `${dayOf(w)} · ${w.games.length} games`
-    : `${dayOf(w)} · ${w.games.map((g) => `${g.away} @ ${g.home}`).join(', ')}`);
+  const dayOf = (kickoffWindow) => (kickoffWindow.approx ? new Date(kickoffWindow.kickoff).toLocaleDateString([], { weekday: 'short' }) : dayTime(kickoffWindow.kickoff));
+  const windowTitle = (kickoffWindow) => (kickoffWindow.games.length > 2
+    ? `${dayOf(kickoffWindow)} · ${kickoffWindow.games.length} games`
+    : `${dayOf(kickoffWindow)} · ${kickoffWindow.games.map((game) => `${game.away} @ ${game.home}`).join(', ')}`);
 
   function errorText(error) {
     const text = String((error && error.message) || error || '');
@@ -45,15 +45,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return text || 'Something went wrong.';
   }
 
-  const clock = (ms, seconds = false) => new Date(ms).toLocaleTimeString([], seconds
+  const clock = (timestamp, seconds = false) => new Date(timestamp).toLocaleTimeString([], seconds
     ? { hour: 'numeric', minute: '2-digit', second: '2-digit' }
     : { hour: 'numeric', minute: '2-digit' });
 
-  function countdown(ms, now = Date.now()) {
-    const mins = Math.max(0, Math.round((ms - now) / 60000));
+  function countdown(targetTime, now = Date.now()) {
+    const mins = Math.max(0, Math.round((targetTime - now) / 60000));
     if (mins < 60) return `${mins}m`;
-    const h = Math.floor(mins / 60);
-    return h < 24 ? `${h}h ${mins % 60}m` : `${Math.floor(h / 24)}d ${h % 24}h`;
+    const hours = Math.floor(mins / 60);
+    return hours < 24 ? `${hours}h ${mins % 60}m` : `${Math.floor(hours / 24)}d ${hours % 24}h`;
   }
 
   NightOwl.format = { escape, points, tenths, short, signed, percent, dayTime, dayTimeShort, windowTitle, errorText, clock, countdown };

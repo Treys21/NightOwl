@@ -18,24 +18,24 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   ];
   const HISTORY_WAIT_MS = 8000;
   const tick = () => new Promise((resolve) => setTimeout(resolve));
-  const sum = (xs) => xs.reduce((a, b) => a + b, 0);
+  const sum = (numbers) => numbers.reduce((total, number) => total + number, 0);
 
   function create(deps) {
-    const { state, V, nameOf, league: currentLeague, render, openTrade, active, ensureHistory } = deps;
-    const fs = state.finder;
+    const { state, V: leagueValues, nameOf, league: currentLeague, render, openTrade, active, ensureHistory } = deps;
+    const finderState = state.finder;
 
     function windows(league, base) {
-      const n = league.raw.rosters.length;
+      const teamCount = league.raw.rosters.length;
       const out = new Map();
       for (const roster of league.raw.rosters) {
-        const t = base && base.teams[roster.roster_id];
+        const projectedTeam = base && base.teams[roster.roster_id];
         const rank = league.ranks.get(roster.roster_id) || 1;
-        const w = t && league.playoffTeams ? finder.contention(t.playoffOdds) : n > 1 ? (rank - 1) / (n - 1) : 0.5;
-        out.set(roster.roster_id, { w, odds: t && league.playoffTeams ? t.playoffOdds : null });
+        const contentionLevel = projectedTeam && league.playoffTeams ? finder.contention(projectedTeam.playoffOdds) : teamCount > 1 ? (rank - 1) / (teamCount - 1) : 0.5;
+        out.set(roster.roster_id, { contention: contentionLevel, odds: projectedTeam && league.playoffTeams ? projectedTeam.playoffOdds : null });
       }
       return out;
     }
-    const outlook = (w) => (w >= 0.7 ? 'Contending' : w < 0.3 ? 'Rebuilding' : 'In the hunt');
+    const outlook = (contentionLevel) => (contentionLevel >= 0.7 ? 'Contending' : contentionLevel < 0.3 ? 'Rebuilding' : 'In the hunt');
 
     async function ensureBase(league) {
       let base = state.base.get(league.leagueId);
@@ -46,108 +46,108 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return base;
     }
 
-    const hasPick = (p) => p.give.concat(p.get).some(isPick);
+    const hasPick = (deal) => deal.give.concat(deal.get).some(isPick);
 
-    function varied(sorted, limit, wanted, limits = true) {
+    function variedDeals(sorted, limit, wanted, limits = true) {
       const chosen = new Set();
       const perPartner = new Map();
       const used = new Map();
-      const admit = (p) => {
-        if (chosen.has(p)) return;
-        const ids = p.give.concat(p.get);
-        if (limits && ((perPartner.get(p.partnerId) || 0) >= PER_PARTNER || ids.some((id) => (used.get(id) || 0) >= PER_ASSET))) return;
-        chosen.add(p);
-        perPartner.set(p.partnerId, (perPartner.get(p.partnerId) || 0) + 1);
-        for (const id of ids) used.set(id, (used.get(id) || 0) + 1);
+      const admit = (deal) => {
+        if (chosen.has(deal)) return;
+        const assetIds = deal.give.concat(deal.get);
+        if (limits && ((perPartner.get(deal.partnerId) || 0) >= PER_PARTNER || assetIds.some((assetId) => (used.get(assetId) || 0) >= PER_ASSET))) return;
+        chosen.add(deal);
+        perPartner.set(deal.partnerId, (perPartner.get(deal.partnerId) || 0) + 1);
+        for (const assetId of assetIds) used.set(assetId, (used.get(assetId) || 0) + 1);
       };
-      for (const p of sorted.filter(wanted)) { if (chosen.size >= Math.ceil(limit / 2)) break; admit(p); }
-      for (const p of sorted) { if (chosen.size >= limit) break; admit(p); }
-      return sorted.filter((p) => chosen.has(p));
+      for (const deal of sorted.filter(wanted)) { if (chosen.size >= Math.ceil(limit / 2)) break; admit(deal); }
+      for (const deal of sorted) { if (chosen.size >= limit) break; admit(deal); }
+      return sorted.filter((deal) => chosen.has(deal));
     }
 
-    const dynasty = (league) => league.kind !== 'redraft' && V.usesKtc(league);
+    const dynasty = (league) => league.kind !== 'redraft' && leagueValues.usesKtc(league);
 
-    const packageOf = (isDynasty) => (values, picks) => ktc.packageValue(values.map((v, i) => ({ v, pick: !!(picks && picks[i]) })), isDynasty
+    const packageOf = (isDynasty) => (values, picks) => ktc.packageValue(values.map((value, i) => ({ v: value, pick: !!(picks && picks[i]) })), isDynasty
       ? { exponent: ktc.EXPONENT_PACKAGE, replacement: ktc.REPLACEMENT_DYNASTY }
       : { exponent: ktc.EXPONENT_REDRAFT, replacement: ktc.REPLACEMENT_REDRAFT });
 
     function buildContext(league) {
       const isDynasty = dynasty(league);
-      const cons = V.consensus(league);
+      const hasConsensus = leagueValues.consensus(league);
       return {
         mode: isDynasty ? 'dynasty' : 'redraft',
-        consensus: cons,
+        consensus: hasConsensus,
         slots: league.raw.slots,
         weeks: league.rep.weeks,
         positionsOf: league.rep.positionsOf,
         isVirtual: league.rep.isVirtual,
         isPick,
-        canCut: isDynasty ? () => true : (id) => V.rosPoints(league, id) <= 25,
-        rawOf: isDynasty ? (id) => V.blendedValue(league, id) : cons ? (id) => V.redraftValue(league, id) : (id) => V.overReplacement(league, id),
-        valueOf: isDynasty ? (team, id, w) => V.valueFor(league, id, w) : (team, id) => V.redraftValue(league, id),
-        sideValue: isDynasty || cons ? packageOf(isDynasty) : sum,
-        pointValue: isDynasty || cons ? V.pointValue(league) : 1,
+        canCut: isDynasty ? () => true : (assetId) => leagueValues.restOfSeasonPoints(league, assetId) <= 25,
+        rawOf: isDynasty ? (assetId) => leagueValues.blendedValue(league, assetId) : hasConsensus ? (assetId) => leagueValues.redraftValue(league, assetId) : (assetId) => leagueValues.overReplacement(league, assetId),
+        valueOf: isDynasty ? (team, assetId, contentionLevel) => leagueValues.valueFor(league, assetId, contentionLevel) : (team, assetId) => leagueValues.redraftValue(league, assetId),
+        sideValue: isDynasty || hasConsensus ? packageOf(isDynasty) : sum,
+        pointValue: isDynasty || hasConsensus ? leagueValues.pointValue(league) : 1,
         fairTolerance: isDynasty && league.trade ? league.trade.band.tolerance : null,
         params: { minPoints: { me: finder.DEFAULTS.minPoints.me * league.scale, them: finder.DEFAULTS.minPoints.them * league.scale } },
-        goal: fs.goal,
-        focus: { shop: fs.shop, target: fs.target }
+        goal: finderState.goal,
+        focus: { shop: finderState.shop, target: finderState.target }
       };
     }
 
-    function teamOf(league, roster, w, isDynasty) {
+    function teamOf(league, roster, contentionLevel, isDynasty) {
       const pool = model.activePool(roster);
-      const priced = (id) => (isDynasty ? V.blendedValue(league, id) > 0 : V.rosPoints(league, id) > 0);
+      const priced = (assetId) => (isDynasty ? leagueValues.blendedValue(league, assetId) > 0 : leagueValues.restOfSeasonPoints(league, assetId) > 0);
       const assets = (isDynasty ? (roster.players || []) : pool).filter(priced).concat(isDynasty ? (league.picks.get(roster.roster_id) || []).filter(priced) : []);
       const appetite = league.trade ? league.trade.appetite.get(roster.roster_id) : null;
-      return { id: roster.roster_id, pool: league.rep.pool(pool), assets, players: roster.players || [], count: (roster.players || []).length, capacity: league.capacity, w, appetite };
+      return { id: roster.roster_id, pool: league.rep.pool(pool), assets, players: roster.players || [], count: (roster.players || []).length, capacity: league.capacity, w: contentionLevel, appetite };
     }
 
     async function run() {
-      const token = ++fs.token;
+      const token = ++finderState.token;
       const league = currentLeague();
-      fs.results = null;
-      fs.error = null;
-      if (!league) { fs.running = false; render(); return; }
-      if (!league.weeks.length) { fs.results = { items: [], windows: new Map(), mode: 'redraft', leagueId: league.leagueId }; fs.running = false; render(); return; }
-      fs.running = true;
-      fs.progress = 'Reading the league…';
+      finderState.results = null;
+      finderState.error = null;
+      if (!league) { finderState.running = false; render(); return; }
+      if (!league.weeks.length) { finderState.results = { items: [], windows: new Map(), mode: 'redraft', leagueId: league.leagueId }; finderState.running = false; render(); return; }
+      finderState.running = true;
+      finderState.progress = 'Reading the league…';
       render();
       try {
         if (!league.history) {
-          fs.progress = 'Reading the league\'s trades…';
+          finderState.progress = 'Reading the league\'s trades…';
           render();
           await Promise.race([ensureHistory(league), new Promise((resolve) => setTimeout(resolve, HISTORY_WAIT_MS))]);
-          if (token !== fs.token || !active()) return;
+          if (token !== finderState.token || !active()) return;
         }
         const base = await ensureBase(league).catch((error) => { console.warn('[Night Owl finder] no projection, using standings', error); return null; });
-        if (token !== fs.token || !active()) return;
-        const win = windows(league, base);
+        if (token !== finderState.token || !active()) return;
+        const teamWindows = windows(league, base);
         const isDynasty = dynasty(league);
         const context = buildContext(league);
-        const myRo = league.mine;
-        const me = teamOf(league, myRo, win.get(myRo.roster_id).w, isDynasty);
-        const mine = finder.dropLosses(me, context);
+        const myRoster = league.mine;
+        const myTeam = teamOf(league, myRoster, teamWindows.get(myRoster.roster_id).contention, isDynasty);
+        const mine = finder.dropLosses(myTeam, context);
         const found = [];
-        const others = league.raw.rosters.filter((roster) => roster.roster_id !== myRo.roster_id);
+        const others = league.raw.rosters.filter((roster) => roster.roster_id !== myRoster.roster_id);
         for (let i = 0; i < others.length; i++) {
-          fs.progress = `Checking ${nameOf(league, others[i])} (${i + 1} of ${others.length})…`;
+          finderState.progress = `Checking ${nameOf(league, others[i])} (${i + 1} of ${others.length})…`;
           render();
           await tick();
-          if (token !== fs.token || !active()) return;
-          const other = teamOf(league, others[i], win.get(others[i].roster_id).w, isDynasty);
-          found.push(...finder.proposeFor(context, me, other, mine));
+          if (token !== finderState.token || !active()) return;
+          const other = teamOf(league, others[i], teamWindows.get(others[i].roster_id).contention, isDynasty);
+          found.push(...finder.proposeFor(context, myTeam, other, mine));
         }
         found.sort((a, b) => b.score - a.score);
-        const shortlist = varied(found, CANDIDATES, (p) => !hasPick(p));
+        const shortlist = variedDeals(found, CANDIDATES, (deal) => !hasPick(deal));
         const items = await rankByOdds(league, shortlist, context.mode, token);
-        if (!items || token !== fs.token) return;
-        fs.results = { items: varied(items, SHOWN, (p) => !hasPick(p), false), windows: win, mode: context.mode, consensus: !!context.consensus, leagueId: league.leagueId };
-        fs.running = false;
+        if (!items || token !== finderState.token) return;
+        finderState.results = { items: variedDeals(items, SHOWN, (deal) => !hasPick(deal), false), windows: teamWindows, mode: context.mode, consensus: !!context.consensus, leagueId: league.leagueId };
+        finderState.running = false;
         render();
       } catch (error) {
         console.error('[Night Owl finder]', error);
-        fs.error = NightOwl.format.errorText(error);
-        fs.running = false;
+        finderState.error = NightOwl.format.errorText(error);
+        finderState.running = false;
         render();
       }
     }
@@ -155,23 +155,23 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     async function rankByOdds(league, items, mode, token) {
       const base = state.base.get(league.leagueId);
       if (!league.playoffTeams || !base) return items;
-      const mineId = league.mine.roster_id;
+      const myRosterId = league.mine.roster_id;
       const kept = [];
       for (let i = 0; i < items.length; i++) {
-        fs.progress = `Replaying the season with each deal (${i + 1} of ${items.length})…`;
+        finderState.progress = `Replaying the season with each deal (${i + 1} of ${items.length})…`;
         render();
         await tick();
-        if (token !== fs.token || !active()) return null;
+        if (token !== finderState.token || !active()) return null;
         const item = items[i];
         try {
-          const rosters = value.applyTrade(league.raw.rosters, mineId, item.partnerId, item.give.filter((id) => !isPick(id)), item.get.filter((id) => !isPick(id)));
+          const rosters = value.applyTrade(league.raw.rosters, myRosterId, item.partnerId, item.give.filter((assetId) => !isPick(assetId)), item.get.filter((assetId) => !isPick(assetId)));
           const after = await model.projectLeague(league, { remainingOf: state.remainingOf, stats: state.stats, rosters });
           item.odds = { base, after };
-          const dP = after.teams[mineId].playoffOdds - base.teams[mineId].playoffOdds;
-          const dT = after.teams[mineId].titleOdds - base.teams[mineId].titleOdds;
+          const playoffOddsChange = after.teams[myRosterId].playoffOdds - base.teams[myRosterId].playoffOdds;
+          const titleOddsChange = after.teams[myRosterId].titleOdds - base.teams[myRosterId].titleOdds;
           const care = mode === 'redraft' ? 1 : item.me.wMe;
-          if ((mode === 'redraft' || item.me.wMe >= 0.6) && (dP < -0.01 || dT < -0.005)) continue;
-          item.score *= Math.max(0.4, Math.min(3, 1 + care * (14 * dT + 5 * dP)));
+          if ((mode === 'redraft' || item.me.wMe >= 0.6) && (playoffOddsChange < -0.01 || titleOddsChange < -0.005)) continue;
+          item.score *= Math.max(0.4, Math.min(3, 1 + care * (14 * titleOddsChange + 5 * playoffOddsChange)));
         } catch (error) {
           console.warn('[Night Owl finder] odds unavailable', error);
         }
@@ -180,41 +180,41 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return kept.sort((a, b) => b.score - a.score);
     }
 
-    const nameOfAsset = (league, id) => {
-      if (!isPick(id)) return players.info(id).name;
-      const pick = pickOf(id);
-      const slot = pick.year === Number(league.raw.season) + 1 ? V.pickSlot(league, pick.from) : null;
-      return slot ? `${pick.year} ${pick.round}.${String(slot).padStart(2, '0')}` : `${pick.year} ${V.pickTierOf(league, pick)} ${V.ordinalRound(pick.round)}`;
+    const nameOfAsset = (league, assetId) => {
+      if (!isPick(assetId)) return players.info(assetId).name;
+      const pick = pickOf(assetId);
+      const slot = pick.year === Number(league.raw.season) + 1 ? leagueValues.pickSlot(league, pick.from) : null;
+      return slot ? `${pick.year} ${pick.round}.${String(slot).padStart(2, '0')}` : `${pick.year} ${leagueValues.pickTierOf(league, pick)} ${leagueValues.ordinalRound(pick.round)}`;
     };
-    const list = (league, ids) => ids.map((id) => nameOfAsset(league, id)).join(' + ');
-    const ageOf = (id) => { const e = state.ktc && state.ktc.players[id]; return e && e.a; };
-    const slotText = (s) => NightOwl.leagues.slotLabel(s);
-    const oddsLabel = (p) => (p >= 0.995 ? '>99%' : p > 0 && p < 0.005 ? '<1%' : percent(p));
-    const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(1)}`;
+    const list = (league, assetIds) => assetIds.map((assetId) => nameOfAsset(league, assetId)).join(' + ');
+    const ageOf = (assetId) => { const entry = state.ktc && state.ktc.players[assetId]; return entry && entry.a; };
+    const slotText = (slot) => NightOwl.leagues.slotLabel(slot);
+    const oddsLabel = (probability) => (probability >= 0.995 ? '>99%' : probability > 0 && probability < 0.005 ? '<1%' : percent(probability));
+    const signed = (amount) => `${amount > 0 ? '+' : amount < 0 ? '−' : ''}${Math.abs(amount).toFixed(1)}`;
 
-    function reasons(league, item, partner, win) {
-      const isDynasty = fs.results.mode === 'dynasty';
-      const w = win.get(partner.roster_id);
+    function reasons(league, item, partner, teamWindows) {
+      const isDynasty = finderState.results.mode === 'dynasty';
+      const partnerWindow = teamWindows.get(partner.roster_id);
       const them = nameOf(league, partner);
       const out = [];
-      const n = league.weeks.length;
-      const starts = (side) => side.starts.slice(0, 2).map((s) => `${players.info(s.id).name} at ${slotText(s.slot)} (${s.weeks} of ${n} wks${s.weeks <= 0.3 * n ? ', cover' : ''})`).join(', ');
+      const weekCount = league.weeks.length;
+      const starts = (side) => side.starts.slice(0, 2).map((start) => `${players.info(start.id).name} at ${slotText(start.slot)} (${start.weeks} of ${weekCount} wks${start.weeks <= 0.3 * weekCount ? ', cover' : ''})`).join(', ');
       if (item.me.starts.length) out.push(`<b>You:</b> ${escapeHtml(starts(item.me))}.`);
       else if (item.me.dPts > 0.5) out.push(`<b>You:</b> ${signed(item.me.dPts)} pts of depth and injury cover.`);
       else if (isDynasty) out.push(`<b>You:</b> little change this season (${signed(item.me.dPts)} pts), more long-term value.`);
       if (item.them.starts.length) out.push(`<b>${escapeHtml(them)}:</b> ${escapeHtml(starts(item.them))} (${signed(item.them.dPts)} pts).`);
       else if (item.them.dPts > 0.5) out.push(`<b>${escapeHtml(them)}:</b> ${signed(item.them.dPts)} pts of depth.`);
-      const market = isDynasty || fs.results.consensus;
+      const market = isDynasty || finderState.results.consensus;
       if (isDynasty) {
-        const ageGive = avg(item.give.filter((id) => !isPick(id)).map(ageOf).filter(Boolean));
-        const ageGet = avg(item.get.filter((id) => !isPick(id)).map(ageOf).filter(Boolean));
+        const ageGive = avg(item.give.filter((assetId) => !isPick(assetId)).map(ageOf).filter(Boolean));
+        const ageGet = avg(item.get.filter((assetId) => !isPick(assetId)).map(ageOf).filter(Boolean));
         const picksGive = item.give.filter(isPick).length;
         const picksGet = item.get.filter(isPick).length;
-        if (w.w < 0.3 && (picksGive || (ageGive && ageGet && ageGive < ageGet - 1))) out.push(`<b>Fit:</b> ${escapeHtml(them)} is rebuilding (${w.odds != null ? `${oddsLabel(w.odds)} playoff odds` : 'bottom of the standings'}) and gets ${picksGive ? 'draft capital' : 'younger players'}.`);
-        else if (w.w >= 0.7 && (picksGet || (ageGive && ageGet && ageGet < ageGive - 1))) out.push(`<b>Fit:</b> ${escapeHtml(them)} is contending and is paid in production, not futures.`);
-        else if (w.w >= 0.7) out.push(`<b>Fit:</b> ${escapeHtml(them)} is contending (${w.odds != null ? `${oddsLabel(w.odds)} playoff odds` : 'top of the standings'}) and wants points now.`);
-      } else if (fs.results.consensus && w.w < 0.25) {
-        out.push(`<b>Fit:</b> ${escapeHtml(them)} is out of the race${w.odds != null ? ` (${oddsLabel(w.odds)} playoff odds)` : ''}, so what counts for them is a fair price.`);
+        if (partnerWindow.contention < 0.3 && (picksGive || (ageGive && ageGet && ageGive < ageGet - 1))) out.push(`<b>Fit:</b> ${escapeHtml(them)} is rebuilding (${partnerWindow.odds != null ? `${oddsLabel(partnerWindow.odds)} playoff odds` : 'bottom of the standings'}) and gets ${picksGive ? 'draft capital' : 'younger players'}.`);
+        else if (partnerWindow.contention >= 0.7 && (picksGet || (ageGive && ageGet && ageGet < ageGive - 1))) out.push(`<b>Fit:</b> ${escapeHtml(them)} is contending and is paid in production, not futures.`);
+        else if (partnerWindow.contention >= 0.7) out.push(`<b>Fit:</b> ${escapeHtml(them)} is contending (${partnerWindow.odds != null ? `${oddsLabel(partnerWindow.odds)} playoff odds` : 'top of the standings'}) and wants points now.`);
+      } else if (finderState.results.consensus && partnerWindow.contention < 0.25) {
+        out.push(`<b>Fit:</b> ${escapeHtml(them)} is out of the race${partnerWindow.odds != null ? ` (${oddsLabel(partnerWindow.odds)} playoff odds)` : ''}, so what counts for them is a fair price.`);
       } else if (!market) {
         out.push('<b>Pitch:</b> both lineups improve, so neither side is giving ground.');
       }
@@ -225,31 +225,31 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         else if (gap > 0) out.push(`<b>Value:</b> they win by ${Math.round(gap * 100)}% on ${name}, so it reads as a good deal for them.`);
         else out.push(`<b>Value:</b> they give up ${Math.round(-gap * 100)}% on ${name}${isDynasty ? ' and get the fit in return' : ' but gain real points'}.`);
       }
-      if (!isDynasty && fs.results.consensus) {
-        const K = V.pointValue(league);
-        const priced = (id) => state.ktcRedraft.players[id] && V.redraftValue(league, id) >= 1500 && V.overReplacement(league, id) >= 12;
-        const edge = (id) => (priced(id) ? (V.overReplacement(league, id) * K) / V.redraftValue(league, id) - 1 : 0);
-        const regular = new Set(item.me.starts.filter((st) => st.weeks >= 0.4 * league.weeks.length).map((st) => st.id));
-        const buy = item.get.filter((id) => regular.has(id)).map((id) => [id, edge(id)]).sort((a, b) => b[1] - a[1])[0];
-        const sell = item.give.filter((id) => !isPick(id)).map((id) => [id, edge(id)]).sort((a, b) => a[1] - b[1])[0];
+      if (!isDynasty && finderState.results.consensus) {
+        const valuePerPoint = leagueValues.pointValue(league);
+        const priced = (assetId) => state.ktcRedraft.players[assetId] && leagueValues.redraftValue(league, assetId) >= 1500 && leagueValues.overReplacement(league, assetId) >= 12;
+        const edge = (assetId) => (priced(assetId) ? (leagueValues.overReplacement(league, assetId) * valuePerPoint) / leagueValues.redraftValue(league, assetId) - 1 : 0);
+        const regular = new Set(item.me.starts.filter((start) => start.weeks >= 0.4 * league.weeks.length).map((start) => start.id));
+        const buy = item.get.filter((assetId) => regular.has(assetId)).map((assetId) => [assetId, edge(assetId)]).sort((a, b) => b[1] - a[1])[0];
+        const sell = item.give.filter((assetId) => !isPick(assetId)).map((assetId) => [assetId, edge(assetId)]).sort((a, b) => a[1] - b[1])[0];
         if (buy && buy[1] >= 0.15) out.push(`<b>Edge:</b> ${escapeHtml(players.info(buy[0]).name)} projects ${Math.round(Math.min(buy[1], 0.6) * 100)}%${buy[1] > 0.6 ? '+' : ''} more points than his price suggests.`);
         else if (sell && sell[1] <= -0.15) out.push(`<b>Edge:</b> you are selling ${escapeHtml(players.info(sell[0]).name)} above what he projects (${Math.round(Math.min(-sell[1], 0.6) * 100)}% less production than his price).`);
       }
-      const rec = league.trade && league.trade.record.get(partner.roster_id);
-      if (rec && rec.trades >= 2) {
+      const tradeRecord = league.trade && league.trade.record.get(partner.roster_id);
+      if (tradeRecord && tradeRecord.trades >= 2) {
         const seasons = league.trade.seasons;
-        const base = `${them} has made ${rec.trades} trade${rec.trades === 1 ? '' : 's'} in ${seasons} season${seasons === 1 ? '' : 's'}`;
-        if (isDynasty && rec.avgPct > 0.05) out.push(`<b>History:</b> ${escapeHtml(base)} and usually comes out ahead (${Math.round(rec.avgPct * 100)}% on average): expect them to push on price.`);
-        else if (isDynasty && rec.avgPct < -0.05) out.push(`<b>History:</b> ${escapeHtml(base)} and has tended to give value away (${Math.round(-rec.avgPct * 100)}% on average).`);
+        const base = `${them} has made ${tradeRecord.trades} trade${tradeRecord.trades === 1 ? '' : 's'} in ${seasons} season${seasons === 1 ? '' : 's'}`;
+        if (isDynasty && tradeRecord.avgPct > 0.05) out.push(`<b>History:</b> ${escapeHtml(base)} and usually comes out ahead (${Math.round(tradeRecord.avgPct * 100)}% on average): expect them to push on price.`);
+        else if (isDynasty && tradeRecord.avgPct < -0.05) out.push(`<b>History:</b> ${escapeHtml(base)} and has tended to give value away (${Math.round(-tradeRecord.avgPct * 100)}% on average).`);
         else out.push(`<b>History:</b> ${escapeHtml(base)}, usually close to even.`);
       } else if (league.trade && league.trade.appetite.get(partner.roster_id) <= 0.3) {
         out.push(`<b>History:</b> ${escapeHtml(them)} has rarely traded here, so a yes is harder to get.`);
       }
-      if (item.drops.me.length) out.push(`<b>Roster:</b> you would cut ${escapeHtml(item.drops.me.map((id) => players.info(id).name).join(', '))}.`);
-      if (item.drops.them.length) out.push(`<b>Roster:</b> ${escapeHtml(them)} would cut ${escapeHtml(item.drops.them.map((id) => players.info(id).name).join(', '))}.`);
+      if (item.drops.me.length) out.push(`<b>Roster:</b> you would cut ${escapeHtml(item.drops.me.map((assetId) => players.info(assetId).name).join(', '))}.`);
+      if (item.drops.them.length) out.push(`<b>Roster:</b> ${escapeHtml(them)} would cut ${escapeHtml(item.drops.them.map((assetId) => players.info(assetId).name).join(', '))}.`);
       return out.slice(0, 6);
     }
-    const avg = (xs) => (xs.length ? sum(xs) / xs.length : null);
+    const avg = (numbers) => (numbers.length ? sum(numbers) / numbers.length : null);
 
     function offerText(league, item) {
       const them = item.them.starts[0];
@@ -257,60 +257,60 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return `Trade idea (${league.name}): I send ${list(league, item.give)} for your ${list(league, item.get)}.${pitch} Let me know what you think!`;
     }
 
-    function assetRow(league, id, ownerRo, isDynasty) {
-      const v = isDynasty ? V.worth(V.blendedValue(league, id)) : `${Math.round(V.rosPoints(league, id))} pts`;
-      const title = isDynasty ? `Value: KeepTradeCut (${V.worth(V.dynastyValue(league, id))}, for this league's format and scoring) mixed with projected points over a free agent` : `Projected points rest of season${fs.results.consensus ? `; consensus value ${V.worth(V.redraftValue(league, id))}` : ''}`;
-      const who = isPick(id) ? deps.pickLabel(league, id, ownerRo) : deps.label(id);
-      const age = !isPick(id) && ageOf(id) ? `<i class="mv-age">${Math.round(ageOf(id))}y</i>` : '';
-      return `<li>${who}${age}<span class="mv-ros" title="${title}">${v}</span></li>`;
+    function assetRow(league, assetId, ownerRoster, isDynasty) {
+      const valueText = isDynasty ? leagueValues.worth(leagueValues.blendedValue(league, assetId)) : `${Math.round(leagueValues.restOfSeasonPoints(league, assetId))} pts`;
+      const title = isDynasty ? `Value: KeepTradeCut (${leagueValues.worth(leagueValues.dynastyValue(league, assetId))}, for this league's format and scoring) mixed with projected points over a free agent` : `Projected points rest of season${finderState.results.consensus ? `; consensus value ${leagueValues.worth(leagueValues.redraftValue(league, assetId))}` : ''}`;
+      const who = isPick(assetId) ? deps.pickLabel(league, assetId, ownerRoster) : deps.label(assetId);
+      const age = !isPick(assetId) && ageOf(assetId) ? `<i class="mv-age">${Math.round(ageOf(assetId))}y</i>` : '';
+      return `<li>${who}${age}<span class="mv-ros" title="${title}">${valueText}</span></li>`;
     }
 
-    function kpiOdds(o, league, partner) {
-      if (!o) return '';
-      const key = o.after.bracket ? 'titleOdds' : league.playoffTeams ? 'playoffOdds' : null;
+    function kpiOdds(oddsReplay, league, partner) {
+      if (!oddsReplay) return '';
+      const key = oddsReplay.after.bracket ? 'titleOdds' : league.playoffTeams ? 'playoffOdds' : null;
       if (!key) return '';
-      const b = o.base.teams[league.mine.roster_id][key];
-      const a = o.after.teams[league.mine.roster_id][key];
-      const up = a - b > 0.002;
+      const b = oddsReplay.base.teams[league.mine.roster_id][key];
+      const a = oddsReplay.after.teams[league.mine.roster_id][key];
+      const improved = a - b > 0.002;
       const down = a - b < -0.002;
-      const theirs = o.after.teams[partner.roster_id];
-      return `<div class="kpi ${up ? 'up' : down ? 'down' : ''}" title="Your ${key === 'titleOdds' ? 'title' : 'playoff'} odds with the trade done; their ${key === 'titleOdds' ? 'title' : 'playoff'} odds: ${oddsLabel(o.base.teams[partner.roster_id][key])} → ${oddsLabel(theirs[key])}"><b>${oddsLabel(b)}<i>→</i>${oddsLabel(a)}</b><span>${key === 'titleOdds' ? 'title odds' : 'playoff odds'}</span></div>`;
+      const partnerOdds = oddsReplay.after.teams[partner.roster_id];
+      return `<div class="kpi ${improved ? 'up' : down ? 'down' : ''}" title="Your ${key === 'titleOdds' ? 'title' : 'playoff'} odds with the trade done; their ${key === 'titleOdds' ? 'title' : 'playoff'} odds: ${oddsLabel(oddsReplay.base.teams[partner.roster_id][key])} → ${oddsLabel(partnerOdds[key])}"><b>${oddsLabel(b)}<i>→</i>${oddsLabel(a)}</b><span>${key === 'titleOdds' ? 'title odds' : 'playoff odds'}</span></div>`;
     }
 
-    function why(league, item, partner, win) {
-      const [first, ...rest] = reasons(league, item, partner, win);
+    function why(league, item, partner, teamWindows) {
+      const [first, ...rest] = reasons(league, item, partner, teamWindows);
       if (!first) return '';
-      return `<p class="mv-why1">${first}</p>${rest.length ? `<details class="mv-more"><summary>Why it works</summary><ul class="mv-why">${rest.map((r) => `<li>${r}</li>`).join('')}</ul></details>` : ''}`;
+      return `<p class="mv-why1">${first}</p>${rest.length ? `<details class="mv-more"><summary>Why it works</summary><ul class="mv-why">${rest.map((reason) => `<li>${reason}</li>`).join('')}</ul></details>` : ''}`;
     }
 
-    function card(league, item, index, win) {
-      const isDynasty = fs.results.mode === 'dynasty';
+    function card(league, item, index, teamWindows) {
+      const isDynasty = finderState.results.mode === 'dynasty';
       const partner = league.raw.rosters.find((roster) => roster.roster_id === item.partnerId);
       const them = nameOf(league, partner);
-      const w = win.get(partner.roster_id);
+      const partnerWindow = teamWindows.get(partner.roster_id);
       const label = item.likelihood >= 0.62 ? 'Likely' : item.likelihood >= 0.42 ? 'Fair shot' : 'Long shot';
       const tone = item.likelihood >= 0.62 ? 'high' : item.likelihood >= 0.42 ? 'mid' : 'low';
-      const o = item.odds;
-      const marketOf = isDynasty ? V.blendedValue : V.redraftValue;
+      const oddsReplay = item.odds;
+      const marketOf = isDynasty ? leagueValues.blendedValue : leagueValues.redraftValue;
       const price = packageOf(isDynasty);
-      const rawGive = price(item.give.map((id) => marketOf(league, id)), item.give.map(isPick));
-      const rawGet = price(item.get.map((id) => marketOf(league, id)), item.get.map(isPick));
+      const rawGive = price(item.give.map((assetId) => marketOf(league, assetId)), item.give.map(isPick));
+      const rawGet = price(item.get.map((assetId) => marketOf(league, assetId)), item.get.map(isPick));
       return `<article class="mv-card ${tone}">
         <div class="mv-card-h">
-          <div><b>${escapeHtml(them)}</b> <span class="mv-win ${w.w >= 0.7 ? 'hot' : w.w < 0.3 ? 'cold' : ''}">${outlook(w.w)}${w.odds != null ? ` · ${oddsLabel(w.odds)}` : ''}</span></div>
+          <div><b>${escapeHtml(them)}</b> <span class="mv-win ${partnerWindow.contention >= 0.7 ? 'hot' : partnerWindow.contention < 0.3 ? 'cold' : ''}">${outlook(partnerWindow.contention)}${partnerWindow.odds != null ? ` · ${oddsLabel(partnerWindow.odds)}` : ''}</span></div>
           <span class="mv-likely ${tone}" title="How likely they are to say yes: they come out ahead in their own terms and the value is not lopsided against them">${label}</span>
         </div>
         <div class="mv-swap">
-          <div><h5>You give</h5><ul>${item.give.map((id) => assetRow(league, id, league.mine, isDynasty)).join('')}</ul></div>
+          <div><h5>You give</h5><ul>${item.give.map((assetId) => assetRow(league, assetId, league.mine, isDynasty)).join('')}</ul></div>
           <div class="mv-arrow" aria-hidden="true">⇄</div>
-          <div><h5>You get</h5><ul>${item.get.map((id) => assetRow(league, id, partner, isDynasty)).join('')}</ul></div>
+          <div><h5>You get</h5><ul>${item.get.map((assetId) => assetRow(league, assetId, partner, isDynasty)).join('')}</ul></div>
         </div>
         <div class="mv-kpis">
           <div class="kpi ${item.me.dPts >= 0 ? 'up' : 'down'}" title="Lineup points over replacement for the rest of the season; ${escapeHtml(them)}: ${signed(item.them.dPts)}"><b>${signed(item.me.dPts)}</b><span>pts for you</span></div>
-          ${kpiOdds(o, league, partner)}
-          ${isDynasty || fs.results.consensus ? `<div class="kpi" title="Blended value, packages adjusted: you give ${V.worth(rawGive)}, you get ${V.worth(rawGet)}"><b>${V.worth(rawGive)}<i>⇄</i>${V.worth(rawGet)}</b><span>value</span></div>` : ''}
+          ${kpiOdds(oddsReplay, league, partner)}
+          ${isDynasty || finderState.results.consensus ? `<div class="kpi" title="Blended value, packages adjusted: you give ${leagueValues.worth(rawGive)}, you get ${leagueValues.worth(rawGet)}"><b>${leagueValues.worth(rawGive)}<i>⇄</i>${leagueValues.worth(rawGet)}</b><span>value</span></div>` : ''}
         </div>
-        ${why(league, item, partner, win)}
+        ${why(league, item, partner, teamWindows)}
         <div class="mv-actions">
           <button type="button" class="mv-btn ghost" data-finder="copy" data-i="${index}">Copy offer</button>
           <button type="button" class="mv-btn" data-finder="open" data-i="${index}">Open in analyzer</button>
@@ -320,61 +320,61 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     function controls(league) {
       const isDynasty = dynasty(league);
-      const mineIds = (league.mine.players || []).filter((id) => (isDynasty ? V.dynastyValue(league, id) > 0 : V.rosPoints(league, id) > 0))
-        .concat(isDynasty ? (league.picks.get(league.mine.roster_id) || []).filter((id) => V.dynastyValue(league, id) > 0) : []);
-      const rank = (id) => (isDynasty ? V.dynastyValue(league, id) : V.rosPoints(league, id));
-      mineIds.sort((a, b) => rank(b) - rank(a));
+      const myAssetIds = (league.mine.players || []).filter((assetId) => (isDynasty ? leagueValues.dynastyValue(league, assetId) > 0 : leagueValues.restOfSeasonPoints(league, assetId) > 0))
+        .concat(isDynasty ? (league.picks.get(league.mine.roster_id) || []).filter((assetId) => leagueValues.dynastyValue(league, assetId) > 0) : []);
+      const rank = (assetId) => (isDynasty ? leagueValues.dynastyValue(league, assetId) : leagueValues.restOfSeasonPoints(league, assetId));
+      myAssetIds.sort((a, b) => rank(b) - rank(a));
       const others = league.raw.rosters.filter((roster) => roster.roster_id !== league.mine.roster_id).sort((a, b) => nameOf(league, a).localeCompare(nameOf(league, b)));
-      const option = (id, selected) => `<option value="${escapeHtml(id)}"${selected ? ' selected' : ''}>${escapeHtml(nameOfAsset(league, id))}${isPick(id) ? '' : ` (${escapeHtml(players.info(id).pos)})`}</option>`;
+      const option = (assetId, selected) => `<option value="${escapeHtml(assetId)}"${selected ? ' selected' : ''}>${escapeHtml(nameOfAsset(league, assetId))}${isPick(assetId) ? '' : ` (${escapeHtml(players.info(assetId).pos)})`}</option>`;
       const targets = others.map((roster) => {
-        const ids = (roster.players || []).filter((id) => rank(id) > 0).sort((a, b) => rank(b) - rank(a)).slice(0, 12);
-        return ids.length ? `<optgroup label="${escapeHtml(nameOf(league, roster))}">${ids.map((id) => option(id, id === fs.target)).join('')}</optgroup>` : '';
+        const topAssetIds = (roster.players || []).filter((assetId) => rank(assetId) > 0).sort((a, b) => rank(b) - rank(a)).slice(0, 12);
+        return topAssetIds.length ? `<optgroup label="${escapeHtml(nameOf(league, roster))}">${topAssetIds.map((assetId) => option(assetId, assetId === finderState.target)).join('')}</optgroup>` : '';
       }).join('');
       return `<div class="mv-selects mv-finder-controls">
-        <select id="mv-league" aria-label="League">${state.leagues.map((l) => `<option value="${escapeHtml(l.leagueId)}"${l.leagueId === league.leagueId ? ' selected' : ''}>${escapeHtml(l.name)}</option>`).join('')}</select>
-        <select id="mv-shop" aria-label="Shop a player"><option value="">Shop one of yours…</option>${mineIds.map((id) => option(id, id === fs.shop)).join('')}</select>
+        <select id="mv-league" aria-label="League">${state.leagues.map((leagueChoice) => `<option value="${escapeHtml(leagueChoice.leagueId)}"${leagueChoice.leagueId === league.leagueId ? ' selected' : ''}>${escapeHtml(leagueChoice.name)}</option>`).join('')}</select>
+        <select id="mv-shop" aria-label="Shop a player"><option value="">Shop one of yours…</option>${myAssetIds.map((assetId) => option(assetId, assetId === finderState.shop)).join('')}</select>
         <select id="mv-target" aria-label="Target a player"><option value="">Go after a player…</option>${targets}</select>
       </div>
-      ${isDynasty ? `<div class="tabs mv-goals" role="group" aria-label="Goal">${GOALS.map((g) => `<button type="button" class="tab${fs.goal === g.id ? ' on' : ''}" data-goal="${g.id}" title="${escapeHtml(g.title)}">${g.label}</button>`).join('')}</div>` : ''}`;
+      ${isDynasty ? `<div class="tabs mv-goals" role="group" aria-label="Goal">${GOALS.map((goal) => `<button type="button" class="tab${finderState.goal === goal.id ? ' on' : ''}" data-goal="${goal.id}" title="${escapeHtml(goal.title)}">${goal.label}</button>`).join('')}</div>` : ''}`;
     }
 
     function pane() {
       const league = currentLeague();
       if (!league) return '<p class="empty muted">No league with a regular season left to play.</p>';
       const isDynasty = dynasty(league);
-      const noValues = league.kind !== 'redraft' && !V.usesKtc(league)
+      const noValues = league.kind !== 'redraft' && !leagueValues.usesKtc(league)
         ? '<p class="mv-warn small">KeepTradeCut isn\'t loading, so deals are priced on this season\'s points only.</p>' : '';
       const deadline = league.tradeDeadline && state.nfl && state.nfl.week > league.tradeDeadline
         ? `<p class="mv-warn small">This league's trade deadline (week ${league.tradeDeadline}) has passed.</p>` : '';
-      const kind = isDynasty ? 'Dynasty: priced on KeepTradeCut and each team\'s window.' : V.consensus(league) ? 'Redraft: lineup points for the rest of the season (playoffs weighted), with KeepTradeCut\'s redraft values as the price.' : 'Redraft: priced on lineup points for the rest of the season.';
+      const kind = isDynasty ? 'Dynasty: priced on KeepTradeCut and each team\'s window.' : leagueValues.consensus(league) ? 'Redraft: lineup points for the rest of the season (playoffs weighted), with KeepTradeCut\'s redraft values as the price.' : 'Redraft: priced on lineup points for the rest of the season.';
       let body;
-      if (fs.running && !fs.results) body = `<div class="skel" role="status"><i></i><i></i></div><p class="muted small mv-note">${escapeHtml(fs.progress || '')}</p>`;
-      else if (fs.error) body = `<p class="error">${escapeHtml(fs.error)}</p>`;
-      else if (!fs.results) body = '<p class="muted small mv-note">Searching…</p>';
-      else if (!fs.results.items.length) {
-        body = `<p class="empty muted">No deal where both sides come out ahead.${fs.shop || fs.target ? ' Try another player.' : ' Shop a player or go after one.'}</p>`;
+      if (finderState.running && !finderState.results) body = `<div class="skel" role="status"><i></i><i></i></div><p class="muted small mv-note">${escapeHtml(finderState.progress || '')}</p>`;
+      else if (finderState.error) body = `<p class="error">${escapeHtml(finderState.error)}</p>`;
+      else if (!finderState.results) body = '<p class="muted small mv-note">Searching…</p>';
+      else if (!finderState.results.items.length) {
+        body = `<p class="empty muted">No deal where both sides come out ahead.${finderState.shop || finderState.target ? ' Try another player.' : ' Shop a player or go after one.'}</p>`;
       } else {
-        body = fs.results.items.map((item, i) => card(league, item, i, fs.results.windows)).join('');
+        body = finderState.results.items.map((item, i) => card(league, item, i, finderState.results.windows)).join('');
       }
       return `<div class="mv-finder" title="${escapeHtml(kind)}">${controls(league)}${noValues}${deadline}${body}</div>`;
     }
 
-    function change(e) {
-      const element = e.target;
-      if (element.id === 'mv-league') { fs.leagueId = element.value; fs.shop = null; fs.target = null; }
-      else if (element.id === 'mv-shop') fs.shop = element.value || null;
-      else if (element.id === 'mv-target') fs.target = element.value || null;
+    function change(event) {
+      const element = event.target;
+      if (element.id === 'mv-league') { finderState.leagueId = element.value; finderState.shop = null; finderState.target = null; }
+      else if (element.id === 'mv-shop') finderState.shop = element.value || null;
+      else if (element.id === 'mv-target') finderState.target = element.value || null;
       else return false;
       run();
       return true;
     }
 
-    function click(e) {
-      const goal = e.target.closest('[data-goal]');
-      if (goal) { fs.goal = goal.dataset.goal; run(); return true; }
-      const button = e.target.closest('[data-finder]');
-      if (!button || !fs.results) return false;
-      const item = fs.results.items[Number(button.dataset.i)];
+    function click(event) {
+      const goal = event.target.closest('[data-goal]');
+      if (goal) { finderState.goal = goal.dataset.goal; run(); return true; }
+      const button = event.target.closest('[data-finder]');
+      if (!button || !finderState.results) return false;
+      const item = finderState.results.items[Number(button.dataset.i)];
       if (!item) return true;
       if (button.dataset.finder === 'open') openTrade(item);
       else copy(button, item);

@@ -17,12 +17,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     'src/styles/moves.css'
   ];
   const TOOLS = [
-    { id: 'draft', label: 'Draft' },
     { id: 'live', label: 'Live' },
     { id: 'lineups', label: 'Lineups' },
-    { id: 'bets', label: 'Bets' },
     { id: 'season', label: 'Season' },
-    { id: 'moves', label: 'Moves' }
+    { id: 'moves', label: 'Moves' },
+    { id: 'draft', label: 'Draft' },
+    { id: 'bets', label: 'Bets' }
   ];
   const DEFAULT_W = 430;
   const DEFAULT_H = 780;
@@ -44,14 +44,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </g>
     </svg>`;
 
-  let ui = null;
+  let uiState = null;
   let panel = null;
   let mounting = null;
   let active = null;
   let needsSetup = false;
 
-  const toolOf = (value) => (TOOLS.some((t) => t.id === value) ? value : 'live');
-  const viewOf = (id) => NightOwl.views && NightOwl.views[id];
+  const toolOf = (value) => (TOOLS.some((tool) => tool.id === value) ? value : 'live');
+  const viewOf = (toolId) => NightOwl.views && NightOwl.views[toolId];
   const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
 
   function mount() {
@@ -63,7 +63,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   async function build() {
     unmountActive();
     document.getElementById(HOST_ID)?.remove();
-    ui = await storage.getUi();
+    uiState = await storage.getUi();
     needsSetup = !(await storage.getSettings()).username;
 
     const host = document.createElement('div');
@@ -79,11 +79,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         ${BRAND}
         <div class="switch" role="tablist">
           <span class="ind"></span>
-          ${TOOLS.map((t, i) => `<button role="tab" data-tool="${t.id}" title="${t.label} (Alt+Shift+${i + 1})">${t.label}</button>`).join('')}
+          ${TOOLS.map((tool, i) => `<button role="tab" data-tool="${tool.id}" title="${tool.label} (Alt+Shift+${i + 1})">${tool.label}</button>`).join('')}
         </div>
         <button class="iconbtn" data-act="collapse"></button>
       </header>
-      ${TOOLS.map((t) => `<div class="view view-${t.id}" hidden></div>`).join('')}
+      ${TOOLS.map((tool) => `<div class="view view-${tool.id}" hidden></div>`).join('')}
       <form class="setup" hidden>
         <div class="setup-mark">${BRAND}</div>
         <h2>Welcome to Night Owl</h2>
@@ -96,12 +96,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <p class="setup-note">It's the name on your Sleeper profile. Night Owl only reads public league data, and nothing leaves your browser.</p>
       </form>
       <div class="source-note" role="status" hidden></div>
-      ${EDGES.map((e) => `<div class="rz rz-${e}" data-edge="${e}" aria-hidden="true"></div>`).join('')}
+      ${EDGES.map((event) => `<div class="rz rz-${event}" data-edge="${event}" aria-hidden="true"></div>`).join('')}
     `;
     shadow.append(panel);
     document.documentElement.appendChild(host);
 
-    wire();
+    wirePanelEvents();
     wireSetup();
     showOutages(NightOwl.api.unavailable());
     apply();
@@ -121,7 +121,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   });
 
   const scrolled = new Map();
-  const scroller = (id) => panel && panel.querySelector(`.view-${id} .tool-scroll`);
+  const scroller = (toolId) => panel && panel.querySelector(`.view-${toolId} .tool-scroll`);
 
   function saveScroll() {
     const box = active && scroller(active);
@@ -133,53 +133,53 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     active = null;
   }
 
-  function restoreScroll(id) {
-    const top = scrolled.get(id);
+  function restoreScroll(toolId) {
+    const top = scrolled.get(toolId);
     if (!top) return;
     for (const delay of [0, 300, 1200]) {
       setTimeout(() => {
-        const box = active === id && scroller(id);
+        const box = active === toolId && scroller(toolId);
         if (box && box.scrollTop < top && box.scrollHeight - box.clientHeight >= top) box.scrollTop = top;
       }, delay);
     }
   }
 
-  function onShortcut(e) {
-    if (!panel || !e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return;
-    const n = /^Digit([1-9])$/.exec(e.code);
-    if (n && TOOLS[Number(n[1]) - 1]) {
-      e.preventDefault();
-      if (ui.collapsed) { ui.collapsed = false; storage.saveUi({ collapsed: false }); }
-      setTool(TOOLS[Number(n[1]) - 1].id).then(apply);
-    } else if (e.code === 'KeyM') {
-      e.preventDefault();
-      ui.collapsed = !ui.collapsed;
-      storage.saveUi({ collapsed: ui.collapsed });
+  function onShortcut(event) {
+    if (!panel || !event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) return;
+    const digitKey = /^Digit([1-9])$/.exec(event.code);
+    if (digitKey && TOOLS[Number(digitKey[1]) - 1]) {
+      event.preventDefault();
+      if (uiState.collapsed) { uiState.collapsed = false; storage.saveUi({ collapsed: false }); }
+      setTool(TOOLS[Number(digitKey[1]) - 1].id).then(apply);
+    } else if (event.code === 'KeyM') {
+      event.preventDefault();
+      uiState.collapsed = !uiState.collapsed;
+      storage.saveUi({ collapsed: uiState.collapsed });
       apply();
     }
   }
 
   function apply() {
     saveScroll();
-    const tool = toolOf(ui.tool);
-    panel.classList.toggle('collapsed', ui.collapsed);
+    const tool = toolOf(uiState.tool);
+    panel.classList.toggle('collapsed', uiState.collapsed);
     place();
-    panel.querySelectorAll('[data-tool]').forEach((b) => {
-      const on = b.dataset.tool === tool;
-      b.classList.toggle('on', on);
-      b.setAttribute('aria-selected', String(on));
+    panel.querySelectorAll('[data-tool]').forEach((tabButton) => {
+      const isActive = tabButton.dataset.tool === tool;
+      tabButton.classList.toggle('on', isActive);
+      tabButton.setAttribute('aria-selected', String(isActive));
     });
     const collapse = panel.querySelector('[data-act="collapse"]');
-    collapse.textContent = ui.collapsed ? '▢' : '—';
-    collapse.title = ui.collapsed ? 'Expand' : 'Minimize';
+    collapse.textContent = uiState.collapsed ? '▢' : '—';
+    collapse.title = uiState.collapsed ? 'Expand' : 'Minimize';
     collapse.setAttribute('aria-label', collapse.title);
-    const setup = needsSetup && tool !== 'draft' && !ui.collapsed;
-    for (const t of TOOLS) panel.querySelector(`.view-${t.id}`).hidden = setup || t.id !== tool;
+    const setup = needsSetup && tool !== 'draft' && !uiState.collapsed;
+    for (const toolInfo of TOOLS) panel.querySelector(`.view-${toolInfo.id}`).hidden = setup || toolInfo.id !== tool;
     panel.querySelector('.setup').hidden = !setup;
     panel.classList.toggle('setting-up', setup);
     slideIndicator();
 
-    const next = ui.collapsed || setup ? null : tool;
+    const next = uiState.collapsed || setup ? null : tool;
     if (next === active) return;
     unmountActive();
     if (next && viewOf(next)) {
@@ -192,19 +192,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   async function setTool(tool) {
     tool = toolOf(tool);
     await mount();
-    if (ui.tool === tool) return;
-    ui.tool = tool;
+    if (uiState.tool === tool) return;
+    uiState.tool = tool;
     storage.saveUi({ tool });
     apply();
   }
 
   function slideIndicator() {
     requestAnimationFrame(() => {
-      const on = panel && panel.querySelector('.switch button.on');
-      const ind = panel && panel.querySelector('.switch .ind');
-      if (!on || !ind) return;
-      ind.style.left = `${on.offsetLeft}px`;
-      ind.style.width = `${on.offsetWidth}px`;
+      const activeButton = panel && panel.querySelector('.switch button.on');
+      const indicator = panel && panel.querySelector('.switch .ind');
+      if (!activeButton || !indicator) return;
+      indicator.style.left = `${activeButton.offsetLeft}px`;
+      indicator.style.width = `${activeButton.offsetWidth}px`;
     });
   }
 
@@ -214,43 +214,43 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function place() {
     const maxW = viewW() - GAP * 2;
     const maxH = viewH() - GAP * 2;
-    const w = clamp(ui.w || DEFAULT_W, Math.min(MIN_W, maxW), maxW);
-    const h = clamp(ui.h || Math.min(DEFAULT_H, Math.round(viewH() * 0.86)), Math.min(MIN_H, maxH), maxH);
-    panel.style.width = `${w}px`;
-    panel.style.height = ui.collapsed ? '' : `${h}px`;
-    const x = ui.x === null ? viewW() - w - 20 : ui.x;
-    const y = ui.y === null ? 80 : ui.y;
-    panel.style.left = `${clamp(x, GAP, viewW() - w - GAP)}px`;
-    panel.style.top = `${clamp(y, GAP, viewH() - (ui.collapsed ? 60 : h) - GAP)}px`;
+    const width = clamp(uiState.w || DEFAULT_W, Math.min(MIN_W, maxW), maxW);
+    const height = clamp(uiState.h || Math.min(DEFAULT_H, Math.round(viewH() * 0.86)), Math.min(MIN_H, maxH), maxH);
+    panel.style.width = `${width}px`;
+    panel.style.height = uiState.collapsed ? '' : `${height}px`;
+    const left = uiState.x === null ? viewW() - width - 20 : uiState.x;
+    const top = uiState.y === null ? 80 : uiState.y;
+    panel.style.left = `${clamp(left, GAP, viewW() - width - GAP)}px`;
+    panel.style.top = `${clamp(top, GAP, viewH() - (uiState.collapsed ? 60 : height) - GAP)}px`;
   }
 
   function enableResize() {
     panel.querySelectorAll('.rz').forEach((handle) => {
       handle.addEventListener('pointerdown', (event) => {
-        if (event.button !== 0 || ui.collapsed) return;
+        if (event.button !== 0 || uiState.collapsed) return;
         event.preventDefault();
         handle.setPointerCapture(event.pointerId);
         const edge = handle.dataset.edge;
         const start = panel.getBoundingClientRect();
-        const sx = event.clientX;
-        const sy = event.clientY;
+        const startX = event.clientX;
+        const startY = event.clientY;
         panel.classList.add('resizing');
 
-        const onMove = (e) => {
-          const dx = e.clientX - sx;
-          const dy = e.clientY - sy;
+        const onMove = (event) => {
+          const deltaX = event.clientX - startX;
+          const deltaY = event.clientY - startY;
           let { left, top, width, height } = start;
-          if (edge.includes('e')) width = clamp(width + dx, MIN_W, viewW() - left - GAP);
-          if (edge.includes('s')) height = clamp(height + dy, MIN_H, viewH() - top - GAP);
+          if (edge.includes('e')) width = clamp(width + deltaX, MIN_W, viewW() - left - GAP);
+          if (edge.includes('s')) height = clamp(height + deltaY, MIN_H, viewH() - top - GAP);
           if (edge.includes('w')) {
-            const w = clamp(width - dx, MIN_W, start.right - GAP);
-            left = start.right - w;
-            width = w;
+            const newWidth = clamp(width - deltaX, MIN_W, start.right - GAP);
+            left = start.right - newWidth;
+            width = newWidth;
           }
           if (edge.includes('n')) {
-            const h = clamp(height - dy, MIN_H, start.bottom - GAP);
-            top = start.bottom - h;
-            height = h;
+            const newHeight = clamp(height - deltaY, MIN_H, start.bottom - GAP);
+            top = start.bottom - newHeight;
+            height = newHeight;
           }
           Object.assign(panel.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
           slideIndicator();
@@ -260,9 +260,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           handle.removeEventListener('pointerup', onUp);
           handle.removeEventListener('pointercancel', onUp);
           panel.classList.remove('resizing');
-          const r = panel.getBoundingClientRect();
-          Object.assign(ui, { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) });
-          storage.saveUi({ x: ui.x, y: ui.y, w: ui.w, h: ui.h });
+          const bounds = panel.getBoundingClientRect();
+          Object.assign(uiState, { x: Math.round(bounds.left), y: Math.round(bounds.top), w: Math.round(bounds.width), h: Math.round(bounds.height) });
+          storage.saveUi({ x: uiState.x, y: uiState.y, w: uiState.w, h: uiState.h });
         };
         handle.addEventListener('pointermove', onMove);
         handle.addEventListener('pointerup', onUp);
@@ -272,26 +272,26 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function resetSize() {
-    Object.assign(ui, { w: null, h: null });
+    Object.assign(uiState, { w: null, h: null });
     storage.saveUi({ w: null, h: null });
     place();
     slideIndicator();
   }
 
-  function wire() {
+  function wirePanelEvents() {
     document.removeEventListener('keydown', onShortcut, true);
     document.addEventListener('keydown', onShortcut, true);
     panel.querySelector('[data-act="collapse"]').addEventListener('click', () => {
-      ui.collapsed = !ui.collapsed;
-      storage.saveUi({ collapsed: ui.collapsed });
+      uiState.collapsed = !uiState.collapsed;
+      storage.saveUi({ collapsed: uiState.collapsed });
       apply();
     });
-    panel.querySelectorAll('[data-tool]').forEach((b) => {
-      b.addEventListener('click', () => setTool(b.dataset.tool));
+    panel.querySelectorAll('[data-tool]').forEach((tabButton) => {
+      tabButton.addEventListener('click', () => setTool(tabButton.dataset.tool));
     });
     enableDrag(panel.querySelector('header'));
-    panel.querySelector('header').addEventListener('dblclick', (e) => {
-      if (!e.target.closest('button')) resetSize();
+    panel.querySelector('header').addEventListener('dblclick', (event) => {
+      if (!event.target.closest('button')) resetSize();
     });
   }
 
@@ -304,17 +304,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const originX = parseInt(panel.style.left, 10) || 0;
       const originY = parseInt(panel.style.top, 10) || 0;
 
-      const onMove = (e) => {
-        const r = panel.getBoundingClientRect();
-        panel.style.left = `${clamp(originX + e.clientX - startX, GAP, viewW() - r.width - GAP)}px`;
-        panel.style.top = `${clamp(originY + e.clientY - startY, GAP, viewH() - r.height - GAP)}px`;
+      const onMove = (event) => {
+        const bounds = panel.getBoundingClientRect();
+        panel.style.left = `${clamp(originX + event.clientX - startX, GAP, viewW() - bounds.width - GAP)}px`;
+        panel.style.top = `${clamp(originY + event.clientY - startY, GAP, viewH() - bounds.height - GAP)}px`;
       };
       const onUp = () => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
-        ui.x = parseInt(panel.style.left, 10);
-        ui.y = parseInt(panel.style.top, 10);
-        storage.saveUi({ x: ui.x, y: ui.y });
+        uiState.x = parseInt(panel.style.left, 10);
+        uiState.y = parseInt(panel.style.top, 10);
+        storage.saveUi({ x: uiState.x, y: uiState.y });
       };
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
@@ -334,8 +334,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function wireSetup() {
     const form = panel.querySelector('.setup');
     const message = form.querySelector('.setup-msg');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
       const username = form.username.value.trim();
       if (!username) return;
       const button = form.querySelector('button');
@@ -382,6 +382,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     destroy,
     setTool,
     navigated,
-    tool: () => toolOf(ui && ui.tool)
+    tool: () => toolOf(uiState && uiState.tool)
   };
 })(globalThis.NightOwl);

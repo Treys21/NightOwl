@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const round2 = (n) => Math.round(n * 100) / 100;
+  const round2 = (value) => Math.round(value * 100) / 100;
 
   function points(stats, scoring) {
     if (!stats || !scoring) return 0;
@@ -15,11 +15,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return round2(total);
   }
 
-  function statDelta(prev, cur) {
+  function statDelta(previous, current) {
     const out = {};
-    const keys = new Set([...Object.keys(prev || {}), ...Object.keys(cur || {})]);
+    const keys = new Set([...Object.keys(previous || {}), ...Object.keys(current || {})]);
     for (const key of keys) {
-      const change = round2(((cur && cur[key]) || 0) - ((prev && prev[key]) || 0));
+      const change = round2(((current && current[key]) || 0) - ((previous && previous[key]) || 0));
       if (change !== 0) out[key] = change;
     }
     return out;
@@ -54,16 +54,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const UNIT = { pass_yd: 'pass yds', rush_yd: 'rush yds', rec_yd: 'rec yds', pass_cmp: 'cmp', rec: 'rec', rush_att: 'rush att' };
 
   function humanize(key) {
-    let m = key.match(/^(pass|rush|rec)_td_(\d+)p$/);
-    if (m) return `${m[2]}+ yd ${m[1]} TD`;
-    m = key.match(/^bonus_(.+?)_(\d+)p?$/);
-    if (m) return `${m[2]}+ ${UNIT[m[1]] || m[1].replace(/_/g, ' ')} bonus`;
-    m = key.match(/^(pass|rush|rec)_(\d+)_(\d+)$/);
-    if (m) return `${m[2]}-${m[3]} yd ${m[1]}`;
-    m = key.match(/^(pass|rush|rec)_(\d+)p$/);
-    if (m) return `${m[2]}+ yd ${m[1]}`;
-    m = key.match(/^bonus_rec_(te|rb|wr)$/);
-    if (m) return `${m[1].toUpperCase()} rec bonus`;
+    let match = key.match(/^(pass|rush|rec)_td_(\d+)p$/);
+    if (match) return `${match[2]}+ yd ${match[1]} TD`;
+    match = key.match(/^bonus_(.+?)_(\d+)p?$/);
+    if (match) return `${match[2]}+ ${UNIT[match[1]] || match[1].replace(/_/g, ' ')} bonus`;
+    match = key.match(/^(pass|rush|rec)_(\d+)_(\d+)$/);
+    if (match) return `${match[2]}-${match[3]} yd ${match[1]}`;
+    match = key.match(/^(pass|rush|rec)_(\d+)p$/);
+    if (match) return `${match[2]}+ yd ${match[1]}`;
+    match = key.match(/^bonus_rec_(te|rb|wr)$/);
+    if (match) return `${match[1].toUpperCase()} rec bonus`;
     return key.replace(/^bonus_(.+)$/, '$1 bonus').replace(/_/g, ' ');
   }
 
@@ -73,16 +73,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     let fold = false;
     for (const key of Object.keys(delta)) {
       if (HIDDEN.test(key)) continue;
-      const scored = scorings.some((s) => s && s[key]);
+      const scored = scorings.some((scoring) => scoring && scoring[key]);
       if (!scored && !ALWAYS.has(key)) continue;
-      const v = delta[key];
-      if (LABEL.has(key)) parts.push({ key, text: `${v > 0 ? '+' : ''}${v} ${LABEL.get(key)}` });
-      else if (v === 1) tags.push(humanize(key));
-      else if (v > 1) fold = true;
+      const amount = delta[key];
+      if (LABEL.has(key)) parts.push({ key, text: `${amount > 0 ? '+' : ''}${amount} ${LABEL.get(key)}` });
+      else if (amount === 1) tags.push(humanize(key));
+      else if (amount > 1) fold = true;
     }
     parts.sort((a, b) => ORDER.get(a.key) - ORDER.get(b.key));
     const extra = tags.length > 2 || (fold && !tags.length) ? ['big-play bonus'] : tags;
-    return parts.map((p) => p.text).concat(extra).join(' · ');
+    return parts.map((part) => part.text).concat(extra).join(' · ');
   }
 
   NightOwl.scoring = { points, statDelta, deltaPoints, describe, round2 };

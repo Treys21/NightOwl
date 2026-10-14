@@ -25,8 +25,6 @@
 .se-kpi span { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .se-kpi.up b { color: var(--teal); }
 .se-kpi.down b { color: var(--pink); }
-.se-review { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--hair); font-size: 12px; color: var(--muted); line-height: 1.45; }
-.se-review.flip b { color: #feae58; }
 
 .se-table { width: calc(100% - 16px); margin: 0 8px 4px; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
 .se-table th { text-align: left; font: 600 11px Poppins, sans-serif; color: var(--muted); padding: 6px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
@@ -73,7 +71,6 @@
 
 @container card (max-width: 360px) {
   .se-projected th:nth-child(5), .se-projected td:nth-child(5) { display: table-cell; }
-  .se-projected th:nth-child(6), .se-projected td:nth-child(6) { display: none; }
 }
 
 .se-bracket { margin: 6px 0 2px; padding-top: 10px; border-top: 1px solid var(--line); }
@@ -110,4 +107,7 @@
 .se-recap { list-style: none; margin: 8px 12px 10px; padding: 0; display: grid; gap: 7px; font-size: 12.5px; line-height: 1.45; color: var(--sub); }
 .se-recap b { color: var(--text); }
 .se-league > .se-kpis { padding: 0 12px; margin-top: 4px; }
-.se-review b { color: var(--sub); }
+
+@container card (max-width: 640px) {
+  .se-projected .se-opt { display: none; }
+}

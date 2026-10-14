@@ -17,8 +17,8 @@ function leagueCtx(leagueId, rosterId) {
 const info = (playerId) => ({ name: playerId, pos: '', team: '' });
 
 test('fixture leagues really do score differently', () => {
-  const [a, b] = leagueIds.map((id) => fixture.leagues[id].scoring);
-  assert.notDeepStrictEqual(a, b);
+  const [firstScoring, secondScoring] = leagueIds.map((leagueId) => fixture.leagues[leagueId].scoring);
+  assert.notDeepStrictEqual(firstScoring, secondScoring);
 });
 
 test('live team totals match Sleeper matchup points in every league', () => {
@@ -32,19 +32,19 @@ test('live team totals match Sleeper matchup points in every league', () => {
 });
 
 test('pickMatchup finds the opponent sharing my matchup_id', () => {
-  const m = tracker.pickMatchup([
+  const matchup = tracker.pickMatchup([
     { roster_id: 1, matchup_id: 3, starters: ['a', '0'] },
     { roster_id: 2, matchup_id: 4, starters: ['b'] },
     { roster_id: 5, matchup_id: 3, starters: ['c'] }
   ], 1);
-  assert.equal(m.opp.rosterId, 5);
-  assert.deepEqual(m.mine.starters, ['a']);
-  assert.deepEqual(m.mine.slots, ['a', '0']);
+  assert.equal(matchup.opp.rosterId, 5);
+  assert.deepEqual(matchup.mine.starters, ['a']);
+  assert.deepEqual(matchup.mine.slots, ['a', '0']);
 });
 
 test('pickMatchup handles a bye (no matchup_id)', () => {
-  const m = tracker.pickMatchup([{ roster_id: 1, matchup_id: null, starters: ['a'] }], 1);
-  assert.equal(m.opp, null);
+  const matchup = tracker.pickMatchup([{ roster_id: 1, matchup_id: null, starters: ['a'] }], 1);
+  assert.equal(matchup.opp, null);
 });
 
 const ppr = { rec: 1, rec_yd: 0.1, rec_td: 6 };
@@ -55,15 +55,15 @@ const leagues = [
 ];
 
 test('a 15-yard catch is scored separately in each league, signed by side', () => {
-  const prev = { LAMB: { rec: 3, rec_yd: 40 }, X: {}, Y: {} };
-  const cur = { LAMB: { rec: 4, rec_yd: 55, rec_fd: 1 }, X: {}, Y: {} };
-  const [event] = tracker.diffEvents(prev, cur, leagues, info, 1);
-  const a = event.impacts.find((i) => i.leagueId === 'A');
-  const b = event.impacts.find((i) => i.leagueId === 'B');
-  assert.equal(a.side, 'me');
-  assert.equal(a.pts, 2.5);
-  assert.equal(b.side, 'opp');
-  assert.equal(b.pts, 2.5);
+  const previousStats = { LAMB: { rec: 3, rec_yd: 40 }, X: {}, Y: {} };
+  const currentStats = { LAMB: { rec: 4, rec_yd: 55, rec_fd: 1 }, X: {}, Y: {} };
+  const [event] = tracker.diffEvents(previousStats, currentStats, leagues, info, 1);
+  const leagueAImpact = event.impacts.find((i) => i.leagueId === 'A');
+  const leagueBImpact = event.impacts.find((i) => i.leagueId === 'B');
+  assert.equal(leagueAImpact.side, 'me');
+  assert.equal(leagueAImpact.pts, 2.5);
+  assert.equal(leagueBImpact.side, 'opp');
+  assert.equal(leagueBImpact.pts, 2.5);
   assert.equal(event.net, 0);
   assert.match(event.text, /\+1 rec · \+15 rec yds/);
 });

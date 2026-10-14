@@ -7,7 +7,7 @@ const recap = require('../src/season/recap.js');
 
 const SLOTS = ['QB', 'RB', 'RB', 'BN', 'BN'];
 const POS = { q: ['QB'], a: ['RB'], b: ['RB'], c: ['RB'], d: ['RB'] };
-const positionsOf = (p) => POS[p] || [];
+const positionsOf = (playerId) => POS[playerId] || [];
 
 const weekly = [
   { week: 1, rosters: { 1: { starters: ['q', 'a', 'b'], points: { q: 20, a: 10, b: 4, c: 16 } }, 2: { starters: ['d'], points: { d: 22 } } } },
@@ -15,15 +15,15 @@ const weekly = [
 ];
 
 test('lineups: points the bench cost each week, the swap that would have helped, and the MVP', () => {
-  const r = recap.lineups(1, weekly, SLOTS, positionsOf);
-  assert.equal(r.weeks[0].actual, 34);
-  assert.equal(r.weeks[0].best, 46);
-  assert.equal(r.weeks[0].loss, 12);
-  assert.equal(r.weeks[0].miss.in, 'c');
-  assert.equal(r.weeks[0].miss.out, 'b');
-  assert.equal(r.weeks[1].loss, 0);
-  assert.equal(r.totalLoss, 12);
-  assert.deepEqual(r.mvp, { pid: 'q', pts: 38, weeks: 2 });
+  const review = recap.lineups(1, weekly, SLOTS, positionsOf);
+  assert.equal(review.weeks[0].actual, 34);
+  assert.equal(review.weeks[0].best, 46);
+  assert.equal(review.weeks[0].loss, 12);
+  assert.equal(review.weeks[0].miss.in, 'c');
+  assert.equal(review.weeks[0].miss.out, 'b');
+  assert.equal(review.weeks[1].loss, 0);
+  assert.equal(review.totalLoss, 12);
+  assert.deepEqual(review.mvp, { pid: 'q', pts: 38, weeks: 2 });
 });
 
 test('wire: the best player you added by points started for you, and the best one you let go', () => {
@@ -31,15 +31,15 @@ test('wire: the best player you added by points started for you, and the best on
     { type: 'waiver', leg: 0, adds: { c: 1 }, drops: { b: 1 } },
     { type: 'free_agent', leg: 0, adds: { d: 2 }, drops: { x: 2 } }
   ];
-  const w = [
+  const weekly = [
     { week: 1, rosters: { 1: { starters: ['c'], points: { c: 16 } } } },
     { week: 2, rosters: { 1: { starters: ['c'], points: { c: 11 } }, 2: { starters: ['b'], points: { b: 25 } } } }
   ];
-  const r = recap.wire(1, moves, w);
-  assert.deepEqual(r.bestAdd, { pid: 'c', week: 0, started: 27, onRoster: 27 });
-  assert.deepEqual(r.regret, { pid: 'b', week: 0, pts: 25 });
-  assert.equal(r.adds, 1);
-  assert.equal(r.drops, 1);
+  const wireReview = recap.wire(1, moves, weekly);
+  assert.deepEqual(wireReview.bestAdd, { pid: 'c', week: 0, started: 27, onRoster: 27 });
+  assert.deepEqual(wireReview.regret, { pid: 'b', week: 0, pts: 25 });
+  assert.equal(wireReview.adds, 1);
+  assert.equal(wireReview.drops, 1);
 });
 
 test('wire: no moves, no story', () => {

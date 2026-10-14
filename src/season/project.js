@@ -4,20 +4,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { optimal, outlook, phi, draftOrder, DRAFT_WIN_WEIGHT } = NightOwl.season;
-  const round1 = (n) => Math.round(n * 10) / 10;
-  const round2 = (n) => Math.round(n * 100) / 100;
+  const round1 = (value) => Math.round(value * 10) / 10;
+  const round2 = (value) => Math.round(value * 100) / 100;
 
   const OUT_FOR_SEASON = new Set(['IR', 'PUP', 'Sus', 'NA']);
   const OUT_THIS_WEEK = new Set(['Out', 'Doubtful']);
 
   const DEFAULT_EFFICIENCY = 0.92;
-  const clampEfficiency = (e) => (e == null || !isFinite(e) ? DEFAULT_EFFICIENCY : Math.max(0.8, Math.min(1, e)));
+  const clampEfficiency = (event) => (event == null || !isFinite(event) ? DEFAULT_EFFICIENCY : Math.max(0.8, Math.min(1, event)));
 
   function teamWeek(slots, pool, projOf, positionsOf, isOut) {
     const best = optimal(slots, pool, (playerId) => (isOut(playerId) ? 0 : projOf(playerId)), positionsOf);
     const starters = best.starters.filter(Boolean);
-    const o = outlook(starters.map((playerId) => ({ points: 0, proj: isOut(playerId) ? 0 : projOf(playerId), remaining: 1 })));
-    return { mean: o.mean, variance: o.variance, starters };
+    const teamOutlook = outlook(starters.map((playerId) => ({ points: 0, proj: isOut(playerId) ? 0 : projOf(playerId), remaining: 1 })));
+    return { mean: teamOutlook.mean, variance: teamOutlook.variance, starters };
   }
 
   function availability(injuryOf) {
@@ -30,8 +30,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function slotOrder(size) {
     let order = [1, 2];
     while (order.length < size) {
-      const n = order.length * 2;
-      order = order.flatMap((s) => [s, n + 1 - s]);
+      const nextSize = order.length * 2;
+      order = order.flatMap((seed) => [seed, nextSize + 1 - seed]);
     }
     return order;
   }
@@ -43,125 +43,140 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const order = slotOrder(size);
     const firstRound = [];
     for (let i = 0; i < order.length; i += 2) {
-      const a = order[i];
-      const b = order[i + 1];
-      firstRound.push([a, b <= playoffTeams ? b : null]);
+      const topSeed = order[i];
+      const bottomSeed = order[i + 1];
+      firstRound.push([topSeed, bottomSeed <= playoffTeams ? bottomSeed : null]);
     }
     const out = [];
     let week = playoffStart;
-    for (let r = 1; r <= rounds; r++) {
-      const final = r === rounds;
+    for (let roundNumber = 1; roundNumber <= rounds; roundNumber++) {
+      const final = roundNumber === rounds;
       const span = roundType === 2 || (roundType === 1 && final) ? 2 : 1;
       const weeks = Array.from({ length: span }, (_, i) => week + i);
       week += span;
-      const left = rounds - r;
-      out.push({ round: r, label: final ? 'Championship' : left === 1 ? 'Semifinals' : left === 2 ? 'Quarterfinals' : `Round ${r}`, weeks });
+      const left = rounds - roundNumber;
+      out.push({ round: roundNumber, label: final ? 'Championship' : left === 1 ? 'Semifinals' : left === 2 ? 'Quarterfinals' : `Round ${roundNumber}`, weeks });
     }
     return { rounds: out, firstRound };
   }
 
-  const playoffWeeks = (format) => (format ? format.rounds.flatMap((r) => r.weeks) : []);
+  const playoffWeeks = (format) => (format ? format.rounds.flatMap((round) => round.weeks) : []);
 
   function rng(seed) {
-    let a = seed >>> 0;
+    let generatorState = seed >>> 0;
     return () => {
-      a = (a + 0x6d2b79f5) >>> 0;
-      let t = a;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      generatorState = (generatorState + 0x6d2b79f5) >>> 0;
+      let mixed = generatorState;
+      mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1);
+      mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+      return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
     };
   }
 
-  const rankTeams = (ids, wins, pf) => ids.slice().sort((a, b) => wins.get(b) - wins.get(a) || pf.get(b) - pf.get(a) || a - b);
+  const rankTeamsByRecord = (ids, wins, pointsFor) => ids.slice().sort((a, b) => wins.get(b) - wins.get(a) || pointsFor.get(b) - pointsFor.get(a) || a - b);
 
   function projectSeason({ teams, weeks, playoff = null, medianGame = false, sims = 2000, seed = 1, draft = null, forced = null }) {
-    const ids = teams.map((t) => t.rosterId);
-    const byId = new Map(teams.map((t) => [t.rosterId, t]));
-    const eff = new Map(teams.map((t) => [t.rosterId, clampEfficiency(t.efficiency)]));
+    const ids = teams.map((team) => team.rosterId);
+    const byId = new Map(teams.map((team) => [team.rosterId, team]));
+    const efficiencyByTeam = new Map(teams.map((team) => [team.rosterId, clampEfficiency(team.efficiency)]));
     const rand = rng(seed);
     let spare = null;
     const normal = () => {
-      if (spare != null) { const s = spare; spare = null; return s; }
-      const u = Math.max(rand(), 1e-12);
-      const v = rand();
-      const r = Math.sqrt(-2 * Math.log(u));
-      spare = r * Math.sin(2 * Math.PI * v);
-      return r * Math.cos(2 * Math.PI * v);
+      if (spare != null) { const savedNormal = spare; spare = null; return savedNormal; }
+      const uniform = Math.max(rand(), 1e-12);
+      const uniformAngle = rand();
+      const radius = Math.sqrt(-2 * Math.log(uniform));
+      spare = radius * Math.sin(2 * Math.PI * uniformAngle);
+      return radius * Math.cos(2 * Math.PI * uniformAngle);
     };
-    const draw = (o) => (o ? Math.max(0, o.mean + Math.sqrt(o.variance) * normal()) : 0);
+    const draw = (teamOutlook) => (teamOutlook ? Math.max(0, teamOutlook.mean + Math.sqrt(teamOutlook.variance) * normal()) : 0);
 
     const format = playoff && playoff.format;
     const playoffTeams = format ? Math.min(ids.length, format.firstRound.flat().filter(Boolean).length) : 0;
-    const acc = new Map(ids.map((id) => [id, {
+    const tally = new Map(ids.map((rosterId) => [rosterId, {
       wins: 0, losses: 0, ties: 0, pf: 0, max: 0, rank: 0,
-      playoffs: 0, bye: 0, final: 0, title: 0,
+      playoffs: 0, bye: 0, final: 0, title: 0, firstRoundExit: 0, thirdPlace: 0,
       winHist: new Map(), madeByWins: new Map(),
       seeds: new Array(ids.length + 1).fill(0), picks: new Array(ids.length + 1).fill(0), pick: 0
     }]));
 
-    for (let s = 0; s < sims; s++) {
-      const wins = new Map(teams.map((t) => [t.rosterId, t.wins + (t.ties || 0) / 2]));
-      const losses = new Map(teams.map((t) => [t.rosterId, t.losses || 0]));
-      const pf = new Map(teams.map((t) => [t.rosterId, t.pf || 0]));
-      const max = new Map(teams.map((t) => [t.rosterId, t.max || 0]));
+    for (let simulation = 0; simulation < sims; simulation++) {
+      const wins = new Map(teams.map((team) => [team.rosterId, team.wins + (team.ties || 0) / 2]));
+      const losses = new Map(teams.map((team) => [team.rosterId, team.losses || 0]));
+      const pointsFor = new Map(teams.map((team) => [team.rosterId, team.pf || 0]));
+      const max = new Map(teams.map((team) => [team.rosterId, team.max || 0]));
 
-      for (let wi = 0; wi < weeks.length; wi++) {
-        const wk = weeks[wi];
+      for (let weekIndex = 0; weekIndex < weeks.length; weekIndex++) {
+        const weekForecast = weeks[weekIndex];
         const score = new Map();
-        for (const id of ids) {
-          const o = wk.teams[id];
-          const full = draw(o);
-          const actual = o && o.lineupSet ? full : full * eff.get(id);
-          score.set(id, actual);
-          pf.set(id, pf.get(id) + actual);
-          max.set(id, max.get(id) + full);
+        for (const rosterId of ids) {
+          const teamOutlook = weekForecast.teams[rosterId];
+          const full = draw(teamOutlook);
+          const actual = teamOutlook && teamOutlook.lineupSet ? full : full * efficiencyByTeam.get(rosterId);
+          score.set(rosterId, actual);
+          pointsFor.set(rosterId, pointsFor.get(rosterId) + actual);
+          max.set(rosterId, max.get(rosterId) + full);
         }
-        for (const [a, b] of wk.pairs) {
-          if (!byId.has(a) || !byId.has(b)) continue;
-          const force = forced && wi === forced.weekIndex && (a === forced.winner || b === forced.winner);
-          const [w, l] = force ? (a === forced.winner ? [a, b] : [b, a]) : score.get(a) >= score.get(b) ? [a, b] : [b, a];
-          wins.set(w, wins.get(w) + 1);
-          losses.set(l, losses.get(l) + 1);
+        for (const [firstTeamId, secondTeamId] of weekForecast.pairs) {
+          if (!byId.has(firstTeamId) || !byId.has(secondTeamId)) continue;
+          const isForcedGame = forced && weekIndex === forced.weekIndex && (firstTeamId === forced.winner || secondTeamId === forced.winner);
+          const firstWins = isForcedGame ? firstTeamId === forced.winner : score.get(firstTeamId) >= score.get(secondTeamId);
+          const [winnerId, loserId] = firstWins ? [firstTeamId, secondTeamId] : [secondTeamId, firstTeamId];
+          wins.set(winnerId, wins.get(winnerId) + 1);
+          losses.set(loserId, losses.get(loserId) + 1);
         }
         if (medianGame) {
-          const order = ids.slice().sort((x, y) => score.get(y) - score.get(x));
-          order.forEach((id, i) => {
-            if (i < Math.floor(order.length / 2)) wins.set(id, wins.get(id) + 1);
-            else losses.set(id, losses.get(id) + 1);
+          const order = ids.slice().sort((a, b) => score.get(b) - score.get(a));
+          order.forEach((rosterId, i) => {
+            if (i < Math.floor(order.length / 2)) wins.set(rosterId, wins.get(rosterId) + 1);
+            else losses.set(rosterId, losses.get(rosterId) + 1);
           });
         }
       }
 
-      const ranked = rankTeams(ids, wins, pf);
-      ranked.forEach((id, i) => {
-        const a = acc.get(id);
-        a.rank += i + 1;
-        a.seeds[i + 1]++;
-        const total = wins.get(id);
-        a.winHist.set(total, (a.winHist.get(total) || 0) + 1);
-        if (i < playoffTeams) { a.playoffs++; a.madeByWins.set(total, (a.madeByWins.get(total) || 0) + 1); }
+      const ranked = rankTeamsByRecord(ids, wins, pointsFor);
+      ranked.forEach((rosterId, i) => {
+        const teamTally = tally.get(rosterId);
+        teamTally.rank += i + 1;
+        teamTally.seeds[i + 1]++;
+        const total = wins.get(rosterId);
+        teamTally.winHist.set(total, (teamTally.winHist.get(total) || 0) + 1);
+        if (i < playoffTeams) { teamTally.playoffs++; teamTally.madeByWins.set(total, (teamTally.madeByWins.get(total) || 0) + 1); }
       });
 
       if (format && playoffTeams >= 2) {
-        const seedOf = (n) => (n <= playoffTeams ? ranked[n - 1] : null);
-        let alive = format.firstRound.map(([a, b]) => [seedOf(a), b == null ? null : seedOf(b)]);
-        for (const pair of alive) if (pair[1] == null && pair[0] != null) acc.get(pair[0]).bye++;
-        for (let r = 0; r < format.rounds.length; r++) {
-          const round = format.rounds[r];
-          const total = (id) => round.weeks.reduce((sum, w) => sum + draw(playoff.teams[w] && playoff.teams[w][id]) * eff.get(id), 0);
-          const winners = alive.map(([a, b]) => {
-            if (b == null) return a;
-            if (a == null) return b;
-            const sa = total(a);
-            const sb = total(b);
-            return sa > sb || (sa === sb && ranked.indexOf(a) < ranked.indexOf(b)) ? a : b;
+        const seedOf = (seedNumber) => (seedNumber <= playoffTeams ? ranked[seedNumber - 1] : null);
+        let alive = format.firstRound.map(([topSeedNumber, bottomSeedNumber]) => [seedOf(topSeedNumber), bottomSeedNumber == null ? null : seedOf(bottomSeedNumber)]);
+        for (const pair of alive) if (pair[1] == null && pair[0] != null) tally.get(pair[0]).bye++;
+        const semifinalRound = format.rounds.length - 2;
+        let semifinalLosers = [];
+        for (let roundIndex = 0; roundIndex < format.rounds.length; roundIndex++) {
+          const round = format.rounds[roundIndex];
+          const total = (rosterId) => round.weeks.reduce((sum, week) => sum + draw(playoff.teams[week] && playoff.teams[week][rosterId]) * efficiencyByTeam.get(rosterId), 0);
+          const losers = [];
+          const winners = alive.map(([firstTeamId, secondTeamId]) => {
+            if (secondTeamId == null) return firstTeamId;
+            if (firstTeamId == null) return secondTeamId;
+            const firstTotal = total(firstTeamId);
+            const secondTotal = total(secondTeamId);
+            const firstWins = firstTotal > secondTotal || (firstTotal === secondTotal && ranked.indexOf(firstTeamId) < ranked.indexOf(secondTeamId));
+            losers.push(firstWins ? secondTeamId : firstTeamId);
+            return firstWins ? firstTeamId : secondTeamId;
           });
-          if (r === format.rounds.length - 1) {
-            const [a, b] = alive[0];
-            if (a != null) acc.get(a).final++;
-            if (b != null) acc.get(b).final++;
-            acc.get(winners[0]).title++;
+          if (roundIndex === 0) for (const loser of losers) tally.get(loser).firstRoundExit++;
+          if (roundIndex === semifinalRound) semifinalLosers = losers;
+          if (roundIndex === format.rounds.length - 1) {
+            const [firstFinalistId, secondFinalistId] = alive[0];
+            if (firstFinalistId != null) tally.get(firstFinalistId).final++;
+            if (secondFinalistId != null) tally.get(secondFinalistId).final++;
+            tally.get(winners[0]).title++;
+            if (semifinalLosers.length === 2) {
+              const [first, second] = semifinalLosers;
+              const firstScore = total(first);
+              const secondScore = total(second);
+              const thirdPlaceWinner = firstScore > secondScore || (firstScore === secondScore && ranked.indexOf(first) < ranked.indexOf(second)) ? first : second;
+              tally.get(thirdPlaceWinner).thirdPlace++;
+            }
           }
           alive = [];
           for (let i = 0; i < winners.length; i += 2) alive.push([winners[i], winners[i + 1] == null ? null : winners[i + 1]]);
@@ -169,81 +184,83 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
 
       if (draft) {
-        const picks = draftOrder(ids.map((id) => ({ rosterId: id, wins: wins.get(id), max: max.get(id) })), draft);
-        for (const p of picks) {
-          const a = acc.get(p.rosterId);
-          a.picks[p.pick]++;
-          a.pick += p.pick;
+        const picks = draftOrder(ids.map((rosterId) => ({ rosterId: rosterId, wins: wins.get(rosterId), max: max.get(rosterId) })), draft);
+        for (const pick of picks) {
+          const teamTally = tally.get(pick.rosterId);
+          teamTally.picks[pick.pick]++;
+          teamTally.pick += pick.pick;
         }
       }
 
-      for (const id of ids) {
-        const a = acc.get(id);
-        a.wins += wins.get(id);
-        a.losses += losses.get(id);
-        a.pf += pf.get(id);
-        a.max += max.get(id);
+      for (const rosterId of ids) {
+        const teamTally = tally.get(rosterId);
+        teamTally.wins += wins.get(rosterId);
+        teamTally.losses += losses.get(rosterId);
+        teamTally.pf += pointsFor.get(rosterId);
+        teamTally.max += max.get(rosterId);
       }
     }
 
     const out = {};
-    for (const id of ids) {
-      const a = acc.get(id);
-      const t = byId.get(id);
-      out[id] = {
-        rosterId: id,
-        wins: round1(a.wins / sims),
-        losses: round1(a.losses / sims),
-        ties: t.ties || 0,
-        pf: round2(a.pf / sims),
-        max: round2(a.max / sims),
-        avgRank: round2(a.rank / sims),
-        seedOdds: a.seeds.slice(1).map((n) => n / sims),
-        winOdds: [...a.winHist.entries()].sort((x, y) => x[0] - y[0]).map(([w, n]) => ({ wins: w, p: n / sims, make: (a.madeByWins.get(w) || 0) / n })),
-        playoffOdds: a.playoffs / sims,
-        byeOdds: a.bye / sims,
-        finalOdds: a.final / sims,
-        titleOdds: a.title / sims,
-        pickOdds: draft ? a.picks.slice(1).map((n) => n / sims) : null,
-        avgPick: draft ? round2(a.pick / sims) : null
+    for (const rosterId of ids) {
+      const teamTally = tally.get(rosterId);
+      const team = byId.get(rosterId);
+      out[rosterId] = {
+        rosterId: rosterId,
+        wins: round1(teamTally.wins / sims),
+        losses: round1(teamTally.losses / sims),
+        ties: team.ties || 0,
+        pf: round2(teamTally.pf / sims),
+        max: round2(teamTally.max / sims),
+        avgRank: round2(teamTally.rank / sims),
+        seedOdds: teamTally.seeds.slice(1).map((seed) => seed / sims),
+        winOdds: [...teamTally.winHist.entries()].sort((a, b) => a[0] - b[0]).map(([winCount, occurrences]) => ({ wins: winCount, p: occurrences / sims, make: (teamTally.madeByWins.get(winCount) || 0) / occurrences })),
+        playoffOdds: teamTally.playoffs / sims,
+        byeOdds: teamTally.bye / sims,
+        finalOdds: teamTally.final / sims,
+        titleOdds: teamTally.title / sims,
+        firstRoundExitOdds: teamTally.firstRoundExit / sims,
+        thirdPlaceOdds: teamTally.thirdPlace / sims,
+        pickOdds: draft ? teamTally.picks.slice(1).map((pick) => pick / sims) : null,
+        avgPick: draft ? round2(teamTally.pick / sims) : null
       };
     }
-    const order = ids.slice().sort((x, y) => out[x].avgRank - out[y].avgRank || out[y].wins - out[x].wins || x - y);
-    return { teams: out, order, bracket: format ? chalkBracket(format, order.slice(0, playoffTeams), playoff.teams, eff) : null };
+    const order = ids.slice().sort((a, b) => out[a].avgRank - out[b].avgRank || out[b].wins - out[a].wins || a - b);
+    return { teams: out, order, bracket: format ? chalkBracket(format, order.slice(0, playoffTeams), playoff.teams, efficiencyByTeam) : null };
   }
 
-  function chalkBracket(format, seeds, weekly, eff) {
-    const seedOf = (n) => (n <= seeds.length ? { seed: n, rosterId: seeds[n - 1] } : null);
-    let alive = format.firstRound.map(([a, b]) => [seedOf(a), b == null ? null : seedOf(b)]);
+  function chalkBracket(format, seeds, weekly, efficiencyByTeam) {
+    const seedOf = (seedNumber) => (seedNumber <= seeds.length ? { seed: seedNumber, rosterId: seeds[seedNumber - 1] } : null);
+    let alive = format.firstRound.map(([topSeedNumber, bottomSeedNumber]) => [seedOf(topSeedNumber), bottomSeedNumber == null ? null : seedOf(bottomSeedNumber)]);
     const rounds = [];
     for (const round of format.rounds) {
       const stats = (side) => {
         if (!side) return null;
         let mean = 0;
         let variance = 0;
-        for (const w of round.weeks) {
-          const o = weekly[w] && weekly[w][side.rosterId];
-          const e = eff.get(side.rosterId) || DEFAULT_EFFICIENCY;
-          if (o) { mean += o.mean * e; variance += o.variance * e * e; }
+        for (const week of round.weeks) {
+          const teamForecast = weekly[week] && weekly[week][side.rosterId];
+          const efficiency = efficiencyByTeam.get(side.rosterId) || DEFAULT_EFFICIENCY;
+          if (teamForecast) { mean += teamForecast.mean * efficiency; variance += teamForecast.variance * efficiency * efficiency; }
         }
         return { mean: round1(mean), variance };
       };
-      const matches = alive.map(([a, b]) => {
-        const sa = stats(a);
-        const sb = stats(b);
+      const matches = alive.map(([topSide, bottomSide]) => {
+        const topStats = stats(topSide);
+        const bottomStats = stats(bottomSide);
         let pTop = 1;
-        if (a && b) {
-          const sd = Math.sqrt(sa.variance + sb.variance);
-          pTop = sd > 0 ? phi((sa.mean - sb.mean) / sd) : sa.mean >= sb.mean ? 1 : 0;
-        } else if (!a) pTop = 0;
+        if (topSide && bottomSide) {
+          const standardDeviation = Math.sqrt(topStats.variance + bottomStats.variance);
+          pTop = standardDeviation > 0 ? phi((topStats.mean - bottomStats.mean) / standardDeviation) : topStats.mean >= bottomStats.mean ? 1 : 0;
+        } else if (!topSide) pTop = 0;
         return {
-          top: a && Object.assign({}, a, { points: sa.mean }),
-          bottom: b && Object.assign({}, b, { points: sb.mean }),
+          top: topSide && Object.assign({}, topSide, { points: topStats.mean }),
+          bottom: bottomSide && Object.assign({}, bottomSide, { points: bottomStats.mean }),
           pTop: round2(pTop)
         };
       });
       rounds.push(Object.assign({}, round, { matches }));
-      const winners = matches.map((m) => (m.bottom == null ? m.top : m.top == null ? m.bottom : m.pTop >= 0.5 ? m.top : m.bottom));
+      const winners = matches.map((match) => (match.bottom == null ? match.top : match.top == null ? match.bottom : match.pTop >= 0.5 ? match.top : match.bottom));
       alive = [];
       for (let i = 0; i < winners.length; i += 2) alive.push([winners[i] && { seed: winners[i].seed, rosterId: winners[i].rosterId }, winners[i + 1] ? { seed: winners[i + 1].seed, rosterId: winners[i + 1].rosterId } : null]);
     }
@@ -253,7 +270,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function projectedDraft(projection, { method = 'linear', winWeight = DRAFT_WIN_WEIGHT } = {}) {
-    const rows = Object.values(projection.teams).map((t) => ({ rosterId: t.rosterId, wins: t.wins, max: t.max, odds: t.pickOdds, avgPick: t.avgPick }));
+    const rows = Object.values(projection.teams).map((team) => ({ rosterId: team.rosterId, wins: team.wins, max: team.max, odds: team.pickOdds, avgPick: team.avgPick }));
     return draftOrder(rows, { method, winWeight });
   }
 
