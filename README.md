@@ -1,65 +1,56 @@
 <img src="docs/images/header.jpg" alt="Night Owl" width="100%">
 
-<table>
-<tr>
-<td width="52%" valign="top">
+# Night Owl
 
-It's 1 PM on a Sunday and eight games just kicked off. CeeDee Lamb catches a
-15-yarder. He's your starter in one league and your opponent's in two others,
-and all three score catches differently.
+A small Chrome extension for [Sleeper](https://sleeper.com) fantasy football. It adds a
+floating panel to sleeper.com that shows what's happening in all your leagues at once,
+so you don't have to click through them one by one.
 
-So, good catch or bad catch?
+[**Download the latest version**](https://github.com/Treys21/NightOwl/releases/latest/download/night-owl.zip)
 
-Night Owl tells you the moment it happens, for every play in every league.
-It sits in the corner of [sleeper.com](https://sleeper.com) and stays out of the way.
+## What's in it
 
-**[⬇ Download Night Owl](https://github.com/Treys21/NightOwl/releases/latest/download/night-owl.zip)**
+- **Live**: every scoring play by your players and your opponents', with what it did
+  in each league (scoring settings differ), plus your win odds for the week.
+- **Lineups**: the best lineup you can set before each kickoff, and a warning if a
+  starter is on bye or a slot is empty.
+- **Season**: standings, luck, and points left on the bench for every league. It can
+  also play out the rest of the season and your playoff path.
+- **Bets**: lines and hit rates for the players you're starting.
+- **Moves**: waiver pickups, a trade analyzer, a trade finder, trade history with
+  grades, and draft boards. Dynasty values come from KeepTradeCut.
+- **Draft**: your own rankings, shown on the board in a Sleeper draft room.
 
-</td>
-<td width="48%" valign="top">
-<img src="docs/images/plays.gif" alt="A play landing in the Live tab" width="100%">
-</td>
-</tr>
-</table>
+Everything is read-only. Night Owl never changes anything in your leagues.
 
-<table>
-<tr>
-<td width="16%" valign="top"><img src="docs/images/live.png" alt="Live"><br><b>Live</b><br><sub>Every play, with its + or − in each league, and your odds to win.</sub></td>
-<td width="16%" valign="top"><img src="docs/images/lineups.png" alt="Lineups"><br><b>Lineups</b><br><sub>Your best lineup before each kickoff.</sub></td>
-<td width="16%" valign="top"><img src="docs/images/season.png" alt="Season"><br><b>Season</b><br><sub>Every league's standings, luck, and points you left on the bench.</sub></td>
-<td width="16%" valign="top"><img src="docs/images/bets.png" alt="Bets"><br><b>Bets</b><br><sub>Lines and hit rates for your starters.</sub></td>
-<td width="16%" valign="top"><img src="docs/images/moves.png" alt="Moves"><br><b>Moves</b><br><sub>Waivers, a trade analyzer, and trades the other manager would accept.</sub></td>
-<td width="16%" valign="top"><img src="docs/images/draft.png" alt="Draft"><br><b>Draft</b><br><sub>Your rankings, live in the draft room.</sub></td>
-</tr>
-</table>
+## Install
 
-## Set it up
+Night Owl isn't in the Chrome Web Store, so you load it yourself. It takes a couple of minutes.
 
-Takes about two minutes, no tech skills needed. Night Owl isn't in the Chrome Web
-Store yet, so you add it to Chrome yourself.
+1. Download [night-owl.zip](https://github.com/Treys21/NightOwl/releases/latest/download/night-owl.zip)
+   and unzip it (double-click on a Mac; right-click and **Extract All** on Windows).
+   You'll get a folder called `night-owl`.
+2. Go to `chrome://extensions` in Chrome.
+3. Turn on **Developer mode** (top right), click **Load unpacked**, and pick the
+   `night-owl` folder.
+4. Open [sleeper.com](https://sleeper.com) and enter your Sleeper username in the panel.
 
-**1. Download** [night-owl.zip](https://github.com/Treys21/NightOwl/releases/latest/download/night-owl.zip)
-and open it. On a Mac, double-click it. On Windows, right-click it and choose
-**Extract All**. You'll get a folder called `night-owl`.
+Leave the `night-owl` folder where it is, because Chrome runs the extension from it.
+You can drag the panel anywhere and resize it from any edge.
 
-**2. Open Chrome's extensions page.** Type `chrome://extensions` into the address
-bar and press Enter.
+**Updating:** download the new zip, unzip it over the old folder, then click the
+refresh arrow on Night Owl's card in `chrome://extensions`.
 
-**3. Turn on Developer mode** in the top-right corner ①, then click
-**Load unpacked** ② and pick the `night-owl` folder.
+## Privacy
 
-<img src="docs/images/chrome-steps.png" alt="Developer mode switch and Load unpacked button in Chrome" width="100%">
+Everything runs in your browser. There's no account and no tracking. Night Owl only
+reads public data from Sleeper, ESPN, KeepTradeCut and The Ringer (for draft rankings). It can send a desktop
+notification when one of your starters is ruled out before kickoff; you can turn that
+off in the popup.
 
-**4. Open [sleeper.com](https://sleeper.com)** and type your Sleeper username in
-the Night Owl panel. That's it. Drag the panel anywhere, and resize it from any edge.
+## Problems
 
-> Keep the `night-owl` folder where it is. Chrome runs Night Owl from it.
+If something doesn't work, [open an issue](https://github.com/Treys21/NightOwl/issues/new/choose).
+For how the code is organized, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-**Updating:** download the new zip, unzip it over the old folder, and click the
-↻ arrow on Night Owl's card in `chrome://extensions`.
-
-Night Owl runs entirely in your browser: no account, no tracking. It can also
-notify you when one of your starters is ruled out before kickoff (switch it off in the popup).
-Something not working? [Let me know](https://github.com/Treys21/NightOwl/issues/new/choose).
-
-<sub>Made by [Anik Patel](https://github.com/Treys21) · MIT · Not affiliated with Sleeper · [How it works](CONTRIBUTING.md)</sub>
+<sub>Made by [Anik Patel](https://github.com/Treys21) · MIT license · Not affiliated with Sleeper</sub>
