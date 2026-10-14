@@ -193,3 +193,50 @@ test('starts count the weeks an incoming player is in the lineup', () => {
   assert.ok(first.me.starts.length > 0);
   assert.ok(first.me.starts.every((s) => s.weeks >= 1 && s.weeks <= ctx.weeks.length));
 });
+
+// Redraft with a consensus price (KeepTradeCut's fantasy values) alongside projections.
+const redraftPriced = () => {
+  const ctx = base('redraft');
+  const price = { m_qb: 7000, m_rb1: 6000, m_rb2: 5200, m_rb3: 4500, m_rb4: 3800, m_wr1: 5000, m_wr2: 1500, t_qb: 6500, t_rb1: 4800, t_rb2: 1200, t_wr1: 6200, t_wr2: 4800, t_wr3: 4200, t_wr4: 3600 };
+  ctx.consensus = true;
+  ctx.pointValue = 400;
+  ctx.rawOf = (id) => price[id] || 0;
+  ctx.valueOf = (t, id) => price[id] || 0;
+  ctx.sideValue = (vs) => Math.round(Math.pow(vs.reduce((a, b) => a + Math.pow(b, 2), 0), 1 / 2));
+  return { ctx, price };
+};
+
+test('redraft consensus: the other side never loses more than a tenth on price, and you do not overpay by more than a few percent', () => {
+  const { ctx } = redraftPriced();
+  const a = team(1, me, 0.8);
+  const b = team(2, them, 0.8);
+  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  assert.ok(found.length > 0);
+  for (const p of found) {
+    assert.ok(p.rawNetThem >= -finder.FAIR_TOLERANCE_REDRAFT, `they see ${p.rawNetThem}`);
+    assert.ok(p.rawNetThem <= 0.07 + 1e-9, `you overpay by ${p.rawNetThem}`);
+  }
+});
+
+test('redraft consensus: a team out of the race takes a deal on price, not on points', () => {
+  const { ctx } = redraftPriced();
+  const a = team(1, me, 0.9);
+  const eliminated = team(2, them, 0.02);
+  const found = finder.proposeFor(ctx, a, eliminated, finder.dropLosses(a, ctx));
+  assert.ok(found.length > 0, 'an eliminated team still deals');
+  assert.ok(found.every((p) => p.rawNetThem >= 0.03 - 1e-9 || p.them.dPts >= 2), 'it wins on consensus value or gains points');
+  // The same deals do not clear the bar for a contender unless it gains points.
+  const contender = team(3, them, 0.95);
+  assert.ok(finder.proposeFor(ctx, a, contender, finder.dropLosses(a, ctx)).every((p) => p.them.dPts >= 2));
+  assert.equal(finder.worthIt({ mode: 'redraft', consensus: true }, 0.02, 'balanced', -10, 400, 5000, 'them'), true);
+  assert.equal(finder.worthIt({ mode: 'redraft', consensus: true }, 0.02, 'balanced', 10, 20, 5000, 'them'), false);
+  assert.equal(finder.worthIt({ mode: 'redraft', consensus: true }, 0.9, 'balanced', 1, 900, 5000, 'me'), false);
+});
+
+test('playoff weeks count extra when a lineup is priced', () => {
+  const { lineupPoints, restOfSeason } = require('../src/season/value.js');
+  const w = [{ projOf: () => 10, isOut: () => false }, { projOf: () => 10, isOut: () => false, weight: 1.5 }];
+  POS.solo = ['QB']; PTS.solo = 10;
+  assert.deepEqual(lineupPoints(['QB'], ['solo'], w, () => ['QB']).perWeek, [10, 15]);
+  assert.equal(restOfSeason('solo', w), 25);
+});

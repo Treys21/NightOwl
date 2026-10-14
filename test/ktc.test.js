@@ -91,3 +91,19 @@ test('projected draft slots turn into pick tiers: the team projected to finish l
   assert.equal(ktc.pickTier(order[0].pick, 12), 'early');
   assert.equal(ktc.pickTier(order[3].pick, 4), 'late');
 });
+
+test('redraft rankings list defenses and kickers as DST and PK: they match Sleeper DEF and K', () => {
+  const rows = ktc.parse(page([
+    row('Philadelphia Eagles', 'DST', 'PHI', val(3000, 3000, 3000, 3000), val(3000, 3000, 3000, 3000)),
+    row('Brandon Aubrey', 'PK', 'DAL', val(2500, 2500, 2500, 2500), val(2500, 2500, 2500, 2500))
+  ]));
+  const found = ktc.matchAll(rows, [
+    { id: 'PHI', name: 'Philadelphia Eagles', position: 'DEF', team: 'PHI' },
+    { id: '77', name: 'Brandon Aubrey', position: 'K', team: 'DAL' }
+  ]);
+  assert.deepEqual(Object.keys(found).sort(), ['77', 'PHI']);
+});
+
+test('redraft packages are priced harder than dynasty ones: depth is replaceable on the wire', () => {
+  assert.ok(ktc.sideValue([4000, 4000], ktc.EXPONENT_REDRAFT) < ktc.sideValue([4000, 4000]));
+});

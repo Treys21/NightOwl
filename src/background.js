@@ -22,11 +22,11 @@ importScripts(
 
 const ALLOWED = ['https://site.api.espn.com/', 'https://sports.core.api.espn.com/'];
 
-// KeepTradeCut's dynasty values: fetched here (the page is 2.7 MB; only the
+// KeepTradeCut's dynasty and redraft values: fetched here (the page is 2.7 MB; only the
 // trimmed table goes back to the tab).
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || !msg || msg.type !== 'nightowl-ktc') return false;
-  fetch(globalThis.NightOwl.ktc.URL, { credentials: 'omit', signal: AbortSignal.timeout(30000) })
+  fetch(globalThis.NightOwl.ktc.URLS[msg.kind === 'redraft' ? 'redraft' : 'dynasty'], { credentials: 'omit', signal: AbortSignal.timeout(30000) })
     .then((res) => (res.ok ? res.text() : Promise.reject(new Error(`KeepTradeCut ${res.status}`))))
     .then(
       (html) => sendResponse({ ok: true, data: globalThis.NightOwl.ktc.parse(html) }),

@@ -1,20 +1,23 @@
-// KeepTradeCut dynasty values: the crowd-sourced trade values most dynasty
-// players quote ("a 2027 early 1st is worth 6,967"). KTC publishes no API; its
-// rankings page embeds the whole table as JSON, which the background worker
-// fetches (see background.js) and this module trims, matches to Sleeper
-// players and caches for a day (KTC updates daily).
+// KeepTradeCut values: the crowd-sourced trade values most players quote ("a
+// 2027 early 1st is worth 6,967"). Dynasty rankings price players and picks for
+// the long run; the fantasy (redraft) rankings price players for this season.
+// KTC publishes no API; each rankings page embeds the whole table as JSON,
+// which the background worker fetches (see background.js) and this module
+// trims, matches to Sleeper players and caches for a day (KTC updates daily).
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
   'use strict';
 
-  const URL = 'https://keeptradecut.com/dynasty-rankings';
-  const KEY = 'ktc.values.v3';
+  const URLS = { dynasty: 'https://keeptradecut.com/dynasty-rankings', redraft: 'https://keeptradecut.com/fantasy-rankings' };
+  const KEYS = { dynasty: 'ktc.values.v3', redraft: 'ktc.redraft.v1' };
   const TTL_MS = 20 * 3600000;
   const STALE_OK_MS = 7 * 24 * 3600000; // an old table beats none when KTC is down
   // Consolidation: two 4,000s are worth less than one 6,500. A power mean of
   // the pieces reproduces that (close to KTC's own value adjustment).
   const EXPONENT = 1.5;
+  // In redraft the waiver wire replaces depth for free, so consolidation is worth even more.
+  const EXPONENT_REDRAFT = 2;
 
   const tiers = (v) => [v.value, (v.tep || v).value, (v.tepp || v).value, (v.teppp || v).value];
 
@@ -93,24 +96,26 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   /** Value of a trade side: the pieces' power mean, so depth doesn't buy a star. */
-  function sideValue(values) {
+  function sideValue(values, exponent = EXPONENT) {
     const vs = values.filter((v) => v > 0);
     if (!vs.length) return 0;
-    return Math.round(Math.pow(vs.reduce((sum, v) => sum + Math.pow(v, EXPONENT), 0), 1 / EXPONENT));
+    return Math.round(Math.pow(vs.reduce((sum, v) => sum + Math.pow(v, exponent), 0), 1 / exponent));
   }
 
   /**
-   * Today's values, { players: pid -> entry, picks }, from the cache when it is under a day
-   * old. `fetchRows` gets the parsed table (injected: the background relay).
+   * Today's values from the cache when it is under a day old.
+   *   kind         'dynasty' -> { players: pid -> entry, picks } | 'redraft' -> { players }
+   *   fetchRows    (kind) -> the parsed table (injected: the background relay)
    */
-  async function load(sleeperPlayers, fetchRows) {
+  async function load(kind, sleeperPlayers, fetchRows) {
     const storage = NightOwl.storage;
-    const cached = await storage.get(KEY, null);
+    const cached = await storage.get(KEYS[kind], null);
     if (cached && Date.now() - cached.at < TTL_MS) return cached.values;
     try {
-      const rows = await fetchRows();
-      const values = { players: matchAll(rows, sleeperPlayers), picks: pickValues(rows) };
-      await storage.set({ [KEY]: { at: Date.now(), values } });
+      const rows = await fetchRows(kind);
+      const values = { players: matchAll(rows, sleeperPlayers) };
+      if (kind === 'dynasty') values.picks = pickValues(rows);
+      await storage.set({ [KEYS[kind]]: { at: Date.now(), values } });
       return values;
     } catch (err) {
       if (cached && Date.now() - cached.at < STALE_OK_MS) return cached.values;
@@ -118,7 +123,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  NightOwl.ktc = { URL, parse, isSuperflex, pickValues, pickTier, pickValue, tepTier, valueIn, scoringFactor, matchAll, sideValue, load };
+  NightOwl.ktc = { URLS, EXPONENT_REDRAFT, parse, isSuperflex, pickValues, pickTier, pickValue, tepTier, valueIn, scoringFactor, matchAll, sideValue, load };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.ktc;

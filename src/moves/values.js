@@ -11,6 +11,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const PICK_ROUNDS = 4; // rounds KeepTradeCut prices
   const PICK_YEARS = 3; // drafts ahead that can be traded
+  const REDRAFT_UNLISTED_CAP = 1200; // consensus value given to a player the redraft rankings don't list
 
   // A pick is traded like a player: its id carries the draft year, the round
   // and the roster it originally belonged to ("pick:2027:1:4").
@@ -73,10 +74,28 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         return v;
       }
       const entry = state.ktc && state.ktc.players[pid];
-      const out = entry ? Math.round(ktc.valueIn(entry, lg) * scoringFactor(lg, pid)) : 0;
+      const out = entry ? Math.round(ktc.valueIn(entry, lg) * scoringFactor(lg, pid, state.ktc.players, 'dynasty')) : 0;
       lg.dyn.set(pid, out);
       return out;
     }
+
+    // Redraft leagues price players on KeepTradeCut's fantasy rankings: what the
+    // season-long crowd would pay for the rest of this season. The few players
+    // it doesn't list are priced off their projection, capped low.
+    const consensus = (lg) => lg.kind === 'redraft' && !!state.ktcRedraft;
+    function redraftValue(lg, pid) {
+      lg.red = lg.red || new Map();
+      if (lg.red.has(pid)) return lg.red.get(pid);
+      const entry = state.ktcRedraft && state.ktcRedraft.players[pid];
+      let out = 0;
+      if (entry) out = Math.round(ktc.valueIn(entry, lg) * scoringFactor(lg, pid, state.ktcRedraft.players, 'redraft'));
+      else if (state.ktcRedraft) out = Math.min(REDRAFT_UNLISTED_CAP, Math.round(rosPoints(lg, pid) * pointValue(lg) * 0.6));
+      lg.red.set(pid, out);
+      return out;
+    }
+
+    /** What the market says a player is worth in this league: dynasty values for keeper and dynasty leagues, fantasy (redraft) values for redraft. 0 when the market is not loaded. */
+    const marketValue = (lg, pid) => (consensus(lg) ? redraftValue(lg, pid) : usesKtc(lg) ? dynastyValue(lg, pid) : 0);
 
     // League points over PPR points for the rest of the season, unadjusted.
     function scoringRatio(lg, pid) {
@@ -96,13 +115,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     // alike and says nothing about who is worth more. What matters is a player's
     // ratio against the league's typical one, so a receiver loses to a runner in
     // standard scoring but picks keep their value against players.
-    function scoringFactor(lg, pid) {
-      if (lg.ratioBase === undefined) {
-        const ratios = Object.keys(state.ktc.players).map((id) => scoringRatio(lg, id)).filter((r) => r !== null).sort((a, b) => a - b);
-        lg.ratioBase = ratios.length ? ratios[Math.floor(ratios.length / 2)] : null;
+    function scoringFactor(lg, pid, listed, kind) {
+      lg.ratioBase = lg.ratioBase || {};
+      if (lg.ratioBase[kind] === undefined) {
+        const ratios = Object.keys(listed).map((id) => scoringRatio(lg, id)).filter((r) => r !== null).sort((a, b) => a - b);
+        lg.ratioBase[kind] = ratios.length ? ratios[Math.floor(ratios.length / 2)] : null;
       }
       const ratio = scoringRatio(lg, pid);
-      return lg.ratioBase && ratio ? ktc.scoringFactor(ratio, lg.ratioBase) : 1;
+      return lg.ratioBase[kind] && ratio ? ktc.scoringFactor(ratio, lg.ratioBase[kind]) : 1;
     }
     const worth = (n) => Math.round(n).toLocaleString();
 
@@ -127,10 +147,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     /** Value units one rest-of-season lineup point is worth in this league (market value per projected point of players who matter). */
     function pointValue(lg) {
       if (lg.pointPrice !== undefined) return lg.pointPrice;
+      const listed = consensus(lg) ? state.ktcRedraft.players : state.ktc && state.ktc.players;
       const prices = [];
       for (const ro of lg.raw.rosters) {
         for (const id of ro.players || []) {
-          const v = dynastyValue(lg, id);
+          if (!listed || !listed[id]) continue;
+          const v = consensus(lg) ? redraftValue(lg, id) : dynastyValue(lg, id);
           const pts = rosPoints(lg, id);
           if (v >= 3000 && pts >= 25) prices.push(v / pts);
         }
@@ -142,7 +164,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     return {
       isPick, pickOf, standingsRanks, ownedPicks, pickSlot, pickTierOf, ordinalRound,
-      rosPoints, usesKtc, dynastyValue, valueFor, windowFactor, pointValue, worth
+      rosPoints, usesKtc, consensus, dynastyValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
     };
   }
 

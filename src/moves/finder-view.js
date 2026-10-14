@@ -61,18 +61,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     function context(lg) {
       const dyn = dynasty(lg);
+      const cons = V.consensus(lg); // redraft with KeepTradeCut's fantasy values loaded
       return {
         mode: dyn ? 'dynasty' : 'redraft',
+        consensus: cons,
         slots: lg.raw.slots,
         weeks: lg.weeks,
         positionsOf,
         isPick,
         // Who a full roster may cut to make room: anyone outside the lineup in dynasty (the cut is charged at his value), only throwaways in redraft.
         canCut: dyn ? () => true : (id) => V.rosPoints(lg, id) <= 25,
-        rawOf: dyn ? (id) => V.dynastyValue(lg, id) : (id) => V.rosPoints(lg, id),
-        valueOf: (team, id, w) => V.valueFor(lg, id, w),
-        sideValue: dyn ? ktc.sideValue : sum,
-        pointValue: dyn ? V.pointValue(lg) : 1,
+        rawOf: dyn ? (id) => V.dynastyValue(lg, id) : cons ? (id) => V.redraftValue(lg, id) : (id) => V.rosPoints(lg, id),
+        valueOf: dyn ? (team, id, w) => V.valueFor(lg, id, w) : (team, id) => V.redraftValue(lg, id),
+        sideValue: dyn ? ktc.sideValue : cons ? (values) => ktc.sideValue(values, ktc.EXPONENT_REDRAFT) : sum,
+        pointValue: dyn || cons ? V.pointValue(lg) : 1,
         stats: (fs.stats = {}),
         goal: fs.goal,
         focus: { shop: fs.shop, target: fs.target }
@@ -131,7 +133,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         }
         const items = await rankByOdds(lg, shortlist, ctx.mode, token);
         if (!items || token !== fs.token) return;
-        fs.results = { items: items.slice(0, SHOWN), windows: win, mode: ctx.mode, leagueId: lg.leagueId };
+        fs.results = { items: items.slice(0, SHOWN), windows: win, mode: ctx.mode, consensus: !!ctx.consensus, leagueId: lg.leagueId };
         fs.running = false;
         render();
       } catch (err) {
@@ -201,6 +203,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       else if (dyn) out.push(`<b>You:</b> little change this season (${signed(item.me.dPts)} pts), more long-term value.`);
       if (item.them.starts.length) out.push(`<b>${esc(them)}:</b> ${esc(starts(item.them))} (${signed(item.them.dPts)} pts).`);
       else if (item.them.dPts > 0.5) out.push(`<b>${esc(them)}:</b> ${signed(item.them.dPts)} pts of depth.`);
+      const market = dyn || fs.results.consensus;
       if (dyn) {
         const ageGive = avg(item.give.filter((id) => !isPick(id)).map(ageOf).filter(Boolean));
         const ageGet = avg(item.get.filter((id) => !isPick(id)).map(ageOf).filter(Boolean));
@@ -209,12 +212,30 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (w.w < 0.3 && (picksGive || (ageGive && ageGet && ageGive < ageGet - 1))) out.push(`<b>Fit:</b> ${esc(them)} is rebuilding (${w.odds != null ? `${oddsLabel(w.odds)} playoff odds` : 'bottom of the standings'}) and gets ${picksGive ? 'draft capital' : 'younger players'}.`);
         else if (w.w >= 0.7 && (picksGet || (ageGive && ageGet && ageGet < ageGive - 1))) out.push(`<b>Fit:</b> ${esc(them)} is contending and is paid in production, not futures.`);
         else if (w.w >= 0.7) out.push(`<b>Fit:</b> ${esc(them)} is contending (${w.odds != null ? `${oddsLabel(w.odds)} playoff odds` : 'top of the standings'}) and wants points now.`);
-        const gap = item.rawNetThem;
-        if (Math.abs(gap) < 0.04) out.push('<b>Value:</b> within 4% on KeepTradeCut, an easy sell.');
-        else if (gap > 0) out.push(`<b>Value:</b> they win by ${Math.round(gap * 100)}% on KeepTradeCut, so it reads as a good deal for them.`);
-        else out.push(`<b>Value:</b> they give up ${Math.round(-gap * 100)}% on KeepTradeCut and get the fit in return.`);
-      } else {
+      } else if (fs.results.consensus && w.w < 0.25) {
+        out.push(`<b>Fit:</b> ${esc(them)} is out of the race${w.odds != null ? ` (${oddsLabel(w.odds)} playoff odds)` : ''}, so what counts for them is a fair price.`);
+      } else if (!market) {
         out.push('<b>Pitch:</b> both lineups improve, so neither side is giving ground.');
+      }
+      if (market) {
+        const gap = item.rawNetThem;
+        const name = dyn ? 'KeepTradeCut' : 'consensus value';
+        if (Math.abs(gap) < 0.04) out.push(`<b>Value:</b> within 4% on ${name}, an easy sell.`);
+        else if (gap > 0) out.push(`<b>Value:</b> they win by ${Math.round(gap * 100)}% on ${name}, so it reads as a good deal for them.`);
+        else out.push(`<b>Value:</b> they give up ${Math.round(-gap * 100)}% on ${name}${dyn ? ' and get the fit in return' : ' but gain real points'}.`);
+      }
+      if (!dyn && fs.results.consensus) {
+        // Where the market and the projections disagree: what to buy low and sell high.
+        const K = V.pointValue(lg);
+        // Only players the market actually prices, and who matter: a throw-in's "edge" is noise.
+        const priced = (id) => state.ktcRedraft.players[id] && V.redraftValue(lg, id) >= 1500 && V.rosPoints(lg, id) >= 30;
+        const edge = (id) => (priced(id) ? (V.rosPoints(lg, id) * K) / V.redraftValue(lg, id) - 1 : 0);
+        // A buy only counts as an edge if he is in your lineup most weeks.
+        const regular = new Set(item.me.starts.filter((st) => st.weeks >= 0.4 * lg.weeks.length).map((st) => st.id));
+        const buy = item.get.filter((id) => regular.has(id)).map((id) => [id, edge(id)]).sort((a, b) => b[1] - a[1])[0];
+        const sell = item.give.filter((id) => !isPick(id)).map((id) => [id, edge(id)]).sort((a, b) => a[1] - b[1])[0];
+        if (buy && buy[1] >= 0.15) out.push(`<b>Edge:</b> ${esc(players.info(buy[0]).name)} projects ${Math.round(Math.min(buy[1], 0.6) * 100)}%${buy[1] > 0.6 ? '+' : ''} more points than his price suggests.`);
+        else if (sell && sell[1] <= -0.15) out.push(`<b>Edge:</b> you are selling ${esc(players.info(sell[0]).name)} above what he projects (${Math.round(Math.min(-sell[1], 0.6) * 100)}% less production than his price).`);
       }
       if (item.drops.me.length) out.push(`<b>Roster:</b> you would cut ${esc(item.drops.me.map((id) => players.info(id).name).join(', '))}.`);
       if (item.drops.them.length) out.push(`<b>Roster:</b> ${esc(them)} would cut ${esc(item.drops.them.map((id) => players.info(id).name).join(', '))}.`);
@@ -232,7 +253,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     function assetRow(lg, id, ownerRo, dyn) {
       const v = dyn ? V.worth(V.dynastyValue(lg, id)) : `${Math.round(V.rosPoints(lg, id))} pts`;
-      const title = dyn ? 'KeepTradeCut value, for this league\'s format and scoring' : 'Projected points rest of season';
+      const title = dyn ? 'KeepTradeCut value, for this league\'s format and scoring' : `Projected points rest of season${fs.results.consensus ? `; consensus value ${V.worth(V.redraftValue(lg, id))}` : ''}`;
       const who = isPick(id) ? deps.pickLabel(lg, id, ownerRo) : deps.label(id);
       const age = !isPick(id) && ageOf(id) ? `<i class="mv-age">${Math.round(ageOf(id))}y</i>` : '';
       return `<li>${who}${age}<span class="mv-ros" title="${title}">${v}</span></li>`;
@@ -253,8 +274,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const part = (key, name) => `${name} ${oddsLabel(b[key])} → <b>${oddsLabel(a[key])}</b>`;
         return `<span>${who}: ${lg.playoffTeams ? part('playoffOdds', 'playoffs') : ''}${o.after.bracket ? ` · ${part('titleOdds', 'title')}` : ''}</span>`;
       };
-      const rawGive = ktc.sideValue(item.give.map((id) => V.dynastyValue(lg, id)));
-      const rawGet = ktc.sideValue(item.get.map((id) => V.dynastyValue(lg, id)));
+      const marketOf = dyn ? V.dynastyValue : V.redraftValue;
+      const exponent = dyn ? undefined : ktc.EXPONENT_REDRAFT;
+      const rawGive = ktc.sideValue(item.give.map((id) => marketOf(lg, id)), exponent);
+      const rawGet = ktc.sideValue(item.get.map((id) => marketOf(lg, id)), exponent);
       return `<article class="mv-card">
         <div class="mv-card-h">
           <div><b>${esc(them)}</b> <span class="mv-win ${w.w >= 0.7 ? 'hot' : w.w < 0.3 ? 'cold' : ''}">${outlook(w.w)}${w.odds != null ? ` · ${oddsLabel(w.odds)}` : ''}</span></div>
@@ -268,7 +291,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <div class="mv-stats">
           <span>You: <b class="${item.me.dPts >= 0 ? 'up' : 'down'}">${signed(item.me.dPts)}</b> pts</span>
           <span>${esc(them)}: <b class="${item.them.dPts >= 0 ? 'up' : 'down'}">${signed(item.them.dPts)}</b> pts</span>
-          ${dyn ? `<span title="KeepTradeCut value, packages adjusted">Value: give ${V.worth(rawGive)} · get ${V.worth(rawGet)}</span>` : ''}
+          ${dyn || fs.results.consensus ? `<span title="KeepTradeCut ${dyn ? '' : 'redraft '}value, packages adjusted">Value: give ${V.worth(rawGive)} · get ${V.worth(rawGet)}</span>` : ''}
         </div>
         ${o ? `<div class="mv-stats mv-odds">${oddsLine(lg.mine.roster_id, 'You')}${oddsLine(partner.roster_id, esc(them))}</div>` : ''}
         <ul class="mv-why">${reasons(lg, item, partner, win).map((r) => `<li>${r}</li>`).join('')}</ul>
@@ -305,7 +328,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const dyn = dynasty(lg);
       const deadline = lg.tradeDeadline && state.nfl && state.nfl.week > lg.tradeDeadline
         ? `<p class="mv-warn small">This league's trade deadline (week ${lg.tradeDeadline}) has passed.</p>` : '';
-      const kind = dyn ? 'Dynasty: priced on KeepTradeCut and each team\'s window.' : 'Redraft: priced on lineup points for the rest of the season.';
+      const kind = dyn ? 'Dynasty: priced on KeepTradeCut and each team\'s window.' : V.consensus(lg) ? 'Redraft: lineup points for the rest of the season (playoffs weighted), with KeepTradeCut\'s redraft values as the price.' : 'Redraft: priced on lineup points for the rest of the season.';
       let body;
       if (fs.running && !fs.results) body = `<div class="skel" role="status"><i></i><i></i></div><p class="muted small mv-note">${esc(fs.progress || '')}</p>`;
       else if (fs.error) body = `<p class="error">${esc(fs.error)}</p>`;

@@ -36,7 +36,7 @@ export function startServer(port = 8765) {
       }
       if (url.pathname === '/ktc') {
         // What the background worker does: fetch the page, send the trimmed table.
-        const html = await (await fetch('https://keeptradecut.com/dynasty-rankings')).text();
+        const html = await (await fetch(ktc.URLS[url.searchParams.get('kind') === 'redraft' ? 'redraft' : 'dynasty'])).text();
         const rows = ktc.parse(html);
         res.writeHead(200, { 'content-type': 'application/json' });
         return res.end(JSON.stringify(rows));

@@ -3,7 +3,8 @@
 // lineup every remaining week, compare". Pure: no DOM, no network.
 //
 //   weeks   one entry per remaining week, index 0 = the next one:
-//           { projOf: pid -> projected points, isOut: pid -> true when he won't play }
+//           { projOf: pid -> projected points, isOut: pid -> true when he won't play,
+//             weight?: how much the week counts (playoff weeks count extra) }
 //   pool    the players who can start (roster minus IR and taxi)
 globalThis.NightOwl = globalThis.NightOwl || {};
 
@@ -22,12 +23,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   /** Starter points per remaining week, and their sum, for the best lineup this pool can set. */
   function lineupPoints(slots, pool, weeks, positionsOf) {
-    const perWeek = weeks.map((w) => optimal(slots, pool, (pid) => (w.isOut(pid) ? 0 : w.projOf(pid)), positionsOf).points);
+    const perWeek = weeks.map((w) => optimal(slots, pool, (pid) => (w.isOut(pid) ? 0 : w.projOf(pid)), positionsOf).points * (w.weight || 1));
     return { total: perWeek.reduce((a, b) => a + b, 0), perWeek };
   }
 
   /** A player's projected points over the remaining weeks (zero while he's out). */
-  const restOfSeason = (pid, weeks) => weeks.reduce((sum, w) => sum + (w.isOut(pid) ? 0 : w.projOf(pid)), 0);
+  const restOfSeason = (pid, weeks) => weeks.reduce((sum, w) => sum + (w.isOut(pid) ? 0 : w.projOf(pid) * (w.weight || 1)), 0);
 
   /**
    * Free agents who would raise your lineup, best first.

@@ -30,7 +30,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     nfl: null,
     stats: {},
     remainingOf: null,
-    ktc: null, // pid -> KeepTradeCut entry, once loaded (dynasty and keeper leagues)
+    ktc: null, // KeepTradeCut dynasty values { players, picks }, once loaded (dynasty and keeper leagues)
+    ktcRedraft: null, // KeepTradeCut fantasy (redraft) values { players }, for redraft leagues
     ktcError: null,
     leagues: [], // see load()
     targets: new Map(), // league id -> waiver targets
@@ -133,10 +134,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.ktcError = null;
     if (leagues.some((lg) => lg.kind !== 'redraft')) {
       // Dynasty values update daily; a failure only costs the dynasty view.
-      try { state.ktc = await ktc.load(players.list(), api.ktcRows); } catch (err) {
+      try { state.ktc = await ktc.load('dynasty', players.list(), api.ktcRows); } catch (err) {
         console.warn('[Night Owl moves] KeepTradeCut unavailable', err);
         state.ktc = null;
         state.ktcError = err.message || String(err);
+      }
+    }
+
+    if (leagues.some((lg) => lg.kind === 'redraft')) {
+      // Redraft consensus is only for judging fairness; without it, deals are judged on projections alone.
+      try { state.ktcRedraft = await ktc.load('redraft', players.list(), api.ktcRows); } catch (err) {
+        console.warn('[Night Owl moves] KeepTradeCut redraft values unavailable', err);
+        state.ktcRedraft = null;
       }
     }
 
@@ -332,25 +341,26 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </div>`;
   }
 
-  // Dynasty value of both sides, packages priced so depth doesn't buy a star.
-  function dynastyLine(lg, partner, them) {
+  // The market's value of both sides (dynasty values, or redraft consensus), packages priced so depth doesn't buy a star.
+  function marketLine(lg, partner, them) {
     const t = state.trade;
     const send = sideValueOf(lg, [...t.give]);
     const get = sideValueOf(lg, [...t.get]);
     const net = get - send;
     const big = Math.max(send, get, 1);
-    const unpriced = [...t.give, ...t.get].filter((pid) => !dynastyValue(lg, pid)).length;
+    const redraft = V.consensus(lg);
+    const unpriced = [...t.give, ...t.get].filter((pid) => !V.marketValue(lg, pid)).length;
     const format = `${lg.superflex ? 'Superflex' : '1QB'}${lg.tep ? ` TE${'+'.repeat(lg.tep)}` : ''}`;
-    let call = 'Even by dynasty value.';
+    let call = redraft ? 'Even on consensus value.' : 'Even by dynasty value.';
     if (Math.abs(net) / big >= 0.05) call = net > 0 ? `Favors you by ${worth(net)} (${Math.round(Math.abs(net) / big * 100)}%).` : `Favors ${esc(them)} by ${worth(-net)} (${Math.round(Math.abs(net) / big * 100)}%).`;
     return { net, html: `<div class="mv-dyn">
-      <div class="mv-dyn-h">Dynasty value <small class="muted">KeepTradeCut · ${format} · this league's scoring</small></div>
+      <div class="mv-dyn-h">${redraft ? 'Consensus value' : 'Dynasty value'} <small class="muted">KeepTradeCut ${redraft ? 'redraft' : ''} · ${format} · this league's scoring</small></div>
       <div class="mv-dyn-n"><span>You send <b>${worth(send)}</b></span><span>You get <b>${worth(get)}</b></span>${delta2(net)}</div>
       <p class="mv-verdict">${call}</p>
       ${unpriced ? `<p class="muted small">${unpriced} player${unpriced === 1 ? ' has' : 's have'} no KeepTradeCut value (counted as zero).</p>` : ''}
     </div>` };
   }
-  const sideValueOf = (lg, pids) => ktc.sideValue(pids.map((pid) => dynastyValue(lg, pid)));
+  const sideValueOf = (lg, pids) => ktc.sideValue(pids.map((pid) => V.marketValue(lg, pid)), V.consensus(lg) ? ktc.EXPONENT_REDRAFT : undefined);
   const delta2 = (n) => `<b class="${n > 0 ? 'up' : n < 0 ? 'down' : ''}">${n > 0 ? '+' : n < 0 ? '−' : ''}${worth(Math.abs(n))}</b>`;
 
   function verdict(me, them, names) {
@@ -377,8 +387,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (theirCount > slots) warn.push(`${esc(them)} would need to drop ${theirCount - slots}.`);
     return `<div class="mv-result">
       <div class="mv-sides">${sideCard(lg, 'You', lg.mine, r.impact.a, r.base, r.after)}${sideCard(lg, them, partner, r.impact.b, r.base, r.after)}</div>
-      ${usesKtc(lg) ? dynastyLine(lg, partner, them).html : ''}
-      <p class="mv-verdict">${usesKtc(lg) ? 'This season: ' : 'For this season: '}${verdict(r.impact.a, r.impact.b, them)}</p>
+      ${usesKtc(lg) || V.consensus(lg) ? marketLine(lg, partner, them).html : ''}
+      <p class="mv-verdict">${usesKtc(lg) || V.consensus(lg) ? 'Lineups: ' : 'For this season: '}${verdict(r.impact.a, r.impact.b, them)}</p>
       ${lg.kind !== 'redraft' && state.ktcError ? '<p class="muted small">Dynasty values unavailable right now (KeepTradeCut could not be reached).</p>' : ''}
       ${warn.length ? `<p class="mv-warn small">${warn.join(' ')}</p>` : ''}
       <p class="muted small mv-note">Each lineup is re-set every remaining week on Sleeper's projections${lg.kind !== 'redraft' ? '; age is not counted here' : ''}. Odds replay the season ${model.SIMS.toLocaleString()} times with the trade done.</p>

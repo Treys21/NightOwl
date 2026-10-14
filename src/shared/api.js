@@ -85,11 +85,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }));
   }
 
-  // KeepTradeCut's dynasty values, parsed by the background worker.
-  function ktcRows() {
+  // KeepTradeCut's dynasty ('dynasty') or redraft ('redraft') values, parsed by the background worker.
+  function ktcRows(kind) {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('timed out: KeepTradeCut')), 40000);
-      chrome.runtime.sendMessage({ type: 'nightowl-ktc' }, (res) => {
+      chrome.runtime.sendMessage({ type: 'nightowl-ktc', kind }, (res) => {
         clearTimeout(timer);
         if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
         else if (!res || !res.ok) reject(new Error((res && res.error) || 'KeepTradeCut unavailable'));
@@ -141,7 +141,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     // Sleeper Picks player over/unders (every sport; NightOwl.bets keeps the NFL).
     lines: () => getJson(`${SLEEPER_APP}/lines/available?sport=nfl`),
 
-    // KeepTradeCut dynasty values: [{ n, p, t, a, v, s }] (see shared/ktc.js)
+    // KeepTradeCut values: [{ n, p, t, a, v, s }] (see shared/ktc.js)
     ktcRows,
 
     // ESPN (via the background worker)

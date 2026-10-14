@@ -3,10 +3,17 @@
 ## Unreleased
 **Trade finder** (Moves → Finder). For one league, it searches every team for
 trades they would plausibly accept and you would actually want, and says why.
-- **Redraft:** priced on lineup points for the rest of the season, nothing
-  else. Both lineups must improve (you by 3+ points, them by 2+), a team out of
-  the race counts for less, and a deal that lowers your own playoff or title
-  odds (it fed a rival) is dropped.
+- **Redraft:** judged on lineup points for the rest of the season, with the
+  playoff weeks counted extra (a title is won there), and priced on
+  KeepTradeCut's redraft (fantasy) values so the other manager sees a fair deal.
+  Contenders must come out ahead in points (you by 3+, them by 2+), never lose
+  more than a tenth on price, and you never overpay by more than ~7%: the edge
+  is production and fit, not a premium. A team out of the race takes a deal that
+  wins on price instead of points. Packages are priced harder than in dynasty
+  (depth is free on the waiver wire). Cards flag where the market and the
+  projections disagree ("X projects 25% more points than his price suggests").
+  A deal that lowers your own playoff or title odds (it fed a rival) is dropped.
+  The trade analyzer shows the same consensus line.
 - **Dynasty and keeper:** priced on KeepTradeCut as each team sees it, with a
   window per team from its playoff odds. Contenders pay in picks and youth for
   points this season and must come out ahead in points; rebuilders sell

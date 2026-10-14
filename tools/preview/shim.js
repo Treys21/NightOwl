@@ -90,7 +90,7 @@
       id: 'preview',
       lastError: null,
       getURL: (path) => `/${path}`,
-      sendMessage: (msg, cb) => realFetch(msg.type === 'nightowl-ktc' ? '/ktc' : `/relay?url=${encodeURIComponent(msg.url)}`)
+      sendMessage: (msg, cb) => realFetch(msg.type === 'nightowl-ktc' ? `/ktc?kind=${msg.kind || 'dynasty'}` : `/relay?url=${encodeURIComponent(msg.url)}`)
         .then((r) => r.json())
         .then((data) => cb({ ok: true, data }), (err) => cb({ ok: false, error: String(err) }))
     },

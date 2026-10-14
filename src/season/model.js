@@ -13,6 +13,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const PROJECTION_TTL_MS = 6 * 3600000; // weekly projections, per week
   const SIMS = 2000;
   const LAST_WEEK = 18;
+  // A title is won in the playoff weeks, so a player's points there count extra when pricing a roster move.
+  const PLAYOFF_WEIGHT = 1.5;
   const PROJECTION_KEY = (year) => `season.projections.v2.${year}`;
 
   /**
@@ -117,19 +119,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   };
 
   /**
-   * One entry per remaining regular-season week for the value engine
-   * (season/value.js): projected points under the league's scoring, and who
-   * is out. Index 0 is the next week to play (the one in progress counts as
-   * played: it has real lineups).
+   * One entry per remaining week for the value engine (season/value.js): the
+   * regular season still to play, then the playoff weeks (weighted extra):
+   * projected points under the league's scoring, and who is out. Index 0 is the
+   * next week to play (the one in progress counts as played: it has real lineups).
    */
   function valueWeeks(lg, stats) {
     const r = lg.raw;
     const outIn = projection.availability((pid) => players.info(pid).injury);
     const first = r.inProgress ? r.next + 1 : r.next;
     const out = [];
-    for (let w = first; w < r.playoffStart; w++) {
-      out.push({ week: w, projOf: (pid) => fantasyPoints(stats[w] && stats[w][pid], r.scoring), isOut: outIn(out.length) });
-    }
+    const add = (w, weight) => out.push({ week: w, weight, projOf: (pid) => fantasyPoints(stats[w] && stats[w][pid], r.scoring), isOut: outIn(out.length) });
+    for (let w = first; w < r.playoffStart; w++) add(w, 1);
+    const format = projection.bracketFormat(lg.playoffTeams, r.playoffStart, r.roundType);
+    for (const w of projection.playoffWeeks(format)) if (w <= LAST_WEEK && stats[w]) add(w, PLAYOFF_WEIGHT);
     return out;
   }
 
