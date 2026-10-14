@@ -108,7 +108,7 @@
 .mv-hist-who { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
 .mv-hist-who b { font: 700 12px Poppins, sans-serif; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mv-hist-side ul { list-style: none; margin: 0 0 4px; padding: 0; display: grid; gap: 2px; font-size: 12px; color: var(--sub); }
-.mv-grade { flex: none; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 7px; font: 700 12px Poppins, sans-serif; background: var(--raised); color: var(--sub); }
+.mv-grade { flex: none; min-width: 26px; height: 22px; padding: 0 3px; box-sizing: border-box; display: grid; place-items: center; border-radius: 7px; font: 700 12px Poppins, sans-serif; background: var(--raised); color: var(--sub); }
 .mv-grade.g-A { color: #0e1018; background: var(--teal); }
 .mv-grade.g-B { color: var(--teal); background: var(--teal-soft); }
 .mv-grade.g-D { color: #feae58; background: rgba(254, 174, 88, .14); }
@@ -116,3 +116,22 @@
 .mv-managers { margin-bottom: 10px; }
 .mv-managers tr.me td { background: var(--teal-soft); }
 @media (max-width: 360px) { .mv-hist-sides { grid-template-columns: 1fr; } }
+
+/* ---- drafts board ---- */
+.dv-wrap { overflow: auto; max-height: 62vh; margin: 0 8px 6px; border-radius: 10px; border: 1px solid var(--hair); }
+.dv-grid { display: grid; grid-template-columns: 24px repeat(var(--teams), minmax(76px, 1fr)); min-width: calc(24px + var(--teams) * 76px); gap: 2px; background: var(--bg); }
+.dv-corner, .dv-head, .dv-round { background: var(--panel); position: sticky; z-index: 1; }
+.dv-head { top: 0; font: 600 10px Poppins, sans-serif; color: var(--sub); padding: 5px 3px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dv-corner { top: 0; left: 0; z-index: 2; }
+.dv-round { left: 0; display: grid; place-items: center; font: 600 10px Poppins, sans-serif; color: var(--muted); }
+.dv-cell { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "no pos" "name name" "val val"; align-content: center; gap: 0 4px; padding: 5px 6px; min-height: 52px; font-size: 11px; background: var(--card); color: var(--text); min-width: 0; }
+.dv-cell.empty { background: transparent; }
+.dv-no { grid-area: no; font-size: 9px; color: var(--sub); }
+.dv-no b { color: var(--teal); font-weight: 700; }
+.dv-name { grid-area: name; font: 600 11px Poppins, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dv-pos { grid-area: pos; font-size: 9px; color: var(--sub); }
+.dv-val { grid-area: val; font-size: 10px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.dv-legend .dv-key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin: 0 3px 0 6px; }
+.dv-legend .dv-key.up { background: rgba(0, 206, 184, .5); }
+.dv-legend .dv-key.down { background: rgba(247, 92, 141, .5); }
+.mv-managers th:first-child, .mv-managers td:first-child { text-align: left; }

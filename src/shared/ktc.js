@@ -20,6 +20,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // replaces depth for free, so it is priced a little harder still.
   const EXPONENT = 2.5;
   const EXPONENT_REDRAFT = 3;
+  // A package is priced differently from a sum: past his best player, each extra body is worth only what he
+  // adds over the free agent a team would roster instead (he takes a roster spot and bumps one), and what
+  // is left is consolidated by a power mean. Dynasty bench players below this are free to find; a pick
+  // takes no roster spot and counts in full.
+  const EXPONENT_PACKAGE = 2;
+  const REPLACEMENT_DYNASTY = 2000;
+  const REPLACEMENT_REDRAFT = 1000;
 
   const tiers = (v) => [v.value, (v.tep || v).value, (v.tepp || v).value, (v.teppp || v).value];
 
@@ -105,6 +112,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   /**
+   * What a package is worth. items: [{ v, pick }]. The best player counts in full; every other player
+   * counts only above `replacement`; picks count in full. Then the power mean, so depth doesn't buy a star.
+   * With no replacement it is sideValue.
+   */
+  function packageValue(items, { exponent = EXPONENT_PACKAGE, replacement = 0 } = {}) {
+    const priced = items.filter((i) => i.v > 0);
+    const players = priced.filter((i) => !i.pick).sort((a, b) => b.v - a.v);
+    const parts = priced.filter((i) => i.pick).map((i) => i.v)
+      .concat(players.map((i, n) => (n === 0 ? i.v : Math.max(0, i.v - replacement))));
+    return sideValue(parts, exponent);
+  }
+
+  /**
    * Today's values from the cache when it is under a day old.
    *   kind         'dynasty' -> { players: pid -> entry, picks } | 'redraft' -> { players }
    *   fetchRows    (kind) -> the parsed table (injected: the background relay)
@@ -125,7 +145,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  NightOwl.ktc = { URLS, EXPONENT_REDRAFT, parse, isSuperflex, pickValues, pickTier, pickValue, tepTier, valueIn, scoringFactor, matchAll, sideValue, load };
+  NightOwl.ktc = { URLS, EXPONENT_REDRAFT, EXPONENT_PACKAGE, REPLACEMENT_DYNASTY, REPLACEMENT_REDRAFT, packageValue, parse, isSuperflex, pickValues, pickTier, pickValue, tepTier, valueIn, scoringFactor, matchAll, sideValue, load };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.ktc;

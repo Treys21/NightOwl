@@ -1,5 +1,25 @@
 # Changelog
 
+## 3.12.0
+**Drafts board, picks graded as the players they became, full trade history, and a blended price.**
+- **Moves → Drafts.** Each of a league's drafts as a board (rounds down, draft slots
+  across), every pick coloured by how it has turned out against the picks around it,
+  traded picks marked, and a letter grade per team's draft.
+- **Spent picks are the players they became.** A traded pick whose draft has happened
+  is valued as the player taken with it (matched by season, round and original owner),
+  and the History card names him. Before, it counted as nothing, so a deal built on
+  2025 picks graded as a robbery for whoever held the players.
+- **Trade history covers the whole league**, back through every season, with points
+  for finished seasons too. The league's "typical gap" that sets what the finder
+  tolerates is read from the last two seasons only (older deals carry hindsight).
+- **Finer trade grades.** Twelve steps (A+ to F) with wider bands: a near-even deal is
+  a C, a typical 12% deal a B and a D+, and it takes a lopsided one to reach A+ or F.
+- **A blended dynasty price.** A player's value mixes KeepTradeCut with his projected
+  points over replacement (15% production for rebuilders, 30% in between, 45% for
+  contenders), with a small haircut for young players KeepTradeCut prices on hope.
+  Packages count the best player in full and each extra player only above replacement,
+  so two mid pieces no longer add up to a star.
+
 ## 3.11.0
 **Trade finder and waiver tuning: value over replacement, real byes, league-specific thresholds.**
 - **Replacement level.** Lineups are now measured against the free agent a team

@@ -97,7 +97,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   /** The value a team gains in its own eyes, window and all (dynasty). */
   function valueGain(ctx, team, w, give, get) {
     const v = (id) => ctx.valueOf(team, id, w);
-    return ctx.sideValue(get.map(v)) - ctx.sideValue(give.map(v));
+    return ctx.sideValue(get.map(v), get.map(ctx.isPick)) - ctx.sideValue(give.map(v), give.map(ctx.isPick));
   }
 
   /** What a team gets out of a deal, in its own currency. */
@@ -187,7 +187,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const wMe = goal === 'now' ? 1 : goal === 'future' ? 0 : me.w;
     const wThem = other.w;
     const players = (ids) => ids.filter((id) => !ctx.isPick(id));
-    const raw = (ids) => ctx.sideValue(ids.map((id) => ctx.rawOf(id)));
+    const raw = (ids) => ctx.sideValue(ids.map((id) => ctx.rawOf(id)), ids.map(ctx.isPick));
     const rawGive = raw(give);
     const rawGet = raw(get);
     const size = Math.max(rawGive, rawGet, 1);
@@ -208,7 +208,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   /**
    * Plausible deals with one partner, best first.
-   *   ctx    { mode, slots, weeks, positionsOf, valueOf(team, id, w), rawOf(id), sideValue(values),
+   *   ctx    { mode, slots, weeks, positionsOf, valueOf(team, id, w), rawOf(id), sideValue(values, picks),
    *            pointValue, isPick(id), canCut(id), goal, focus: { shop, target }, fairTolerance? }
    *   me, other   { id, pool, assets, players, count, capacity, w, appetite? }
    *   mine   dropLosses() of my team, computed once per search
@@ -258,7 +258,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const dustMe = spare(me, dropMe);
     const dustThem = spare(other, dropThem);
     const cutCost = (team, w, ids) => (ctx.mode === 'dynasty' ? ids.reduce((acc, id) => acc + ctx.valueOf(team, id, w), 0) : 0);
-    const raw = (ids) => ctx.sideValue(ids.map((id) => ctx.rawOf(id)));
+    const raw = (ids) => ctx.sideValue(ids.map((id) => ctx.rawOf(id)), ids.map(ctx.isPick));
     const approx = [];
     for (const give of subsets(gives, 2)) {
       if (shop && !give.includes(shop)) continue;

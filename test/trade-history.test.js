@@ -48,7 +48,7 @@ test('grade: the side that got more on the market gets the better letter; points
   assert.ok(g[1].valuePct > 0 && g[2].valuePct < 0);
   assert.equal(g[1].valueNet, 2000);
   assert.equal(g[1].ptsNet, 10);
-  assert.ok(['A', 'B'].includes(g[1].letter) && ['D', 'F'].includes(g[2].letter), `${g[1].letter}/${g[2].letter}`);
+  assert.ok(/^[AB]/.test(g[1].letter) && /^[DF]/.test(g[2].letter), `${g[1].letter}/${g[2].letter}`);
 });
 
 test('grade: an even trade is a C each, and with no market price the points decide', () => {
@@ -56,7 +56,7 @@ test('grade: an even trade is a C each, and with no market price the points deci
   const even = h.grade(trade, ctx({ A: 5000, B: 5000 }), null);
   assert.deepEqual([even[1].letter, even[2].letter], ['C', 'C']);
   const redraft = h.grade(trade, ctx({}), { 1: { started: 60, bench: 0 }, 2: { started: 10, bench: 0 } });
-  assert.ok(redraft[1].ptsNet === 50 && ['A', 'B'].includes(redraft[1].letter) && ['D', 'F'].includes(redraft[2].letter));
+  assert.ok(redraft[1].ptsNet === 50 && /^[AB]/.test(redraft[1].letter) && /^[DF]/.test(redraft[2].letter));
 });
 
 test('profiles and league band: how often, how fair, and what a league tolerates', () => {
@@ -76,6 +76,8 @@ test('profiles and league band: how often, how fair, and what a league tolerates
   assert.equal(h.league(graded.slice(0, 2), 1).tolerance, null); // two trades say nothing
 });
 
-test('letters run A to F around an even trade', () => {
-  assert.deepEqual([0.3, 0.1, 0, -0.1, -0.3].map(h.letterFor), ['A', 'B', 'C', 'D', 'F']);
+test('letters run A to F around an even trade, in small steps', () => {
+  assert.deepEqual([0.5, 0.3, 0.12, 0.05, 0, -0.05, -0.12, -0.3].map(h.letterFor), ['A+', 'A', 'B', 'C+', 'C', 'C-', 'D', 'F']);
+  assert.strictEqual(h.letterFor(0.12), 'B', 'a 12% edge, the typical real deal, is a B and not an A');
+  assert.strictEqual(h.toneOf('B+'), 'B');
 });

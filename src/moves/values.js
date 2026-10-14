@@ -146,8 +146,35 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return 1;
     }
 
-    /** KeepTradeCut value a team sees in an asset, given its window. */
-    const valueFor = (lg, id, w) => dynastyValue(lg, id) * windowFactor(lg, id, w);
+    // KeepTradeCut overvalues the young at the low end (a 22-year-old is priced for what he may become) and
+    // undervalues vets who produce now. So a player's price mixes the two: his KeepTradeCut value and what
+    // his projected points over replacement are worth at this league's price per point. Contenders lean on
+    // production, rebuilders on the market.
+    const MIX = { now: 0.45, mixed: 0.3, rebuild: 0.15 };
+    const mixFor = (w) => (w > 0.6 ? MIX.now : w < 0.3 ? MIX.rebuild : MIX.mixed);
+    const YOUTH_AGE = 23;
+    const YOUTH_CAP = 4500; // KeepTradeCut value under which a young player's price is mostly hope
+    const YOUTH_HAIRCUT = 0.92;
+    const PRODUCTION_CAP = 1.5; // production never prices a player above this multiple of his market value
+
+    /** Market value mixed with production, at a given weight on production (0 = pure KeepTradeCut). Picks and players out for the year stay at market. */
+    function blendedValue(lg, pid, mix = MIX.mixed) {
+      const market = dynastyValue(lg, pid);
+      if (!market || isPick(pid) || !lg.rep || !lg.rep.weeks.some((w) => !w.isOut(pid))) return market;
+      lg.blend = lg.blend || new Map();
+      const key = `${pid}:${mix}`;
+      if (lg.blend.has(key)) return lg.blend.get(key);
+      const production = Math.min(market * PRODUCTION_CAP, overReplacement(lg, pid) * pointValue(lg));
+      let v = (1 - mix) * market + mix * production;
+      const age = state.ktc && state.ktc.players[pid] && state.ktc.players[pid].a;
+      if (age && age <= YOUTH_AGE && market < YOUTH_CAP) v *= YOUTH_HAIRCUT;
+      v = Math.round(v);
+      lg.blend.set(key, v);
+      return v;
+    }
+
+    /** The value a team sees in an asset, given its window: the blend it leans on, then its age preference. */
+    const valueFor = (lg, id, w) => blendedValue(lg, id, mixFor(w)) * windowFactor(lg, id, w);
 
     /** Value units one rest-of-season lineup point over replacement is worth in this league (market value per point above a free agent, for players who matter). */
     function pointValue(lg) {
@@ -169,7 +196,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     return {
       isPick, pickOf, standingsRanks, ownedPicks, pickSlot, pickTierOf, ordinalRound,
-      rosPoints, overReplacement, usesKtc, consensus, dynastyValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
+      rosPoints, overReplacement, usesKtc, consensus, dynastyValue, blendedValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
     };
   }
 

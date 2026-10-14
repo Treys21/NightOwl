@@ -25,7 +25,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const $ = (id) => root.querySelector(`#${id}`);
 
   const state = {
-    mode: 'waivers', // or 'trade', 'finder' or 'history'
+    mode: 'waivers', // or 'trade', 'finder', 'history' or 'drafts'
     draftMethod: 'linear', // how the league sorts its draft order (see season.draftOrder); the Season tab's setting
     nfl: null,
     stats: {},
@@ -37,6 +37,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     targets: new Map(), // league id -> waiver targets
     open: new Set(), // league ids expanded
     history: { all: false }, // the trade history pane: whether the whole list is open
+    drafts: { draftId: null }, // the drafts pane: which draft is showing
     finder: { leagueId: null, goal: 'balanced', shop: null, target: null, results: null, running: false, progress: '', error: null, token: 0 },
     trade: { leagueId: null, partner: null, give: new Set(), get: new Set(), result: null, token: 0 },
     base: new Map(), // league id -> projection with today's rosters
@@ -61,6 +62,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           <button type="button" class="tab" data-mode="trade" title="What a trade does to both teams">Trade</button>
           <button type="button" class="tab" data-mode="finder" title="Trades the other manager would accept and you would want">Finder</button>
           <button type="button" class="tab" data-mode="history" title="Every trade in the league, graded">History</button>
+          <button type="button" class="tab" data-mode="drafts" title="Each draft as a board, every pick graded against the picks around it">Drafts</button>
         </div>
         <button id="mv-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button>
       </div>
@@ -207,6 +209,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         state.base.set(lg.leagueId, base);
         lg.slots = new Map(projection.projectedDraft(base, { method: state.draftMethod }).map((t) => [t.rosterId, t.pick]));
         lg.dyn = new Map(); // pick values were priced on standings alone
+        lg.blend = new Map();
         render();
       } catch (err) {
         console.warn('[Night Owl moves] draft order projection failed', lg.name, err);
@@ -525,6 +528,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return historyPane;
   }
 
+  let draftsPane = null;
+  function drafts() {
+    draftsPane = draftsPane || NightOwl.movesDrafts.create({
+      state, V, render, active: () => !!root, ensureHistory: (lg) => history().ensure(lg),
+      league: () => { const lg = finderLeague(); state.finder.leagueId = lg && lg.leagueId; return lg; }
+    });
+    return draftsPane;
+  }
+
   // Trade history for every league, one at a time and in the background: the
   // finder uses it to judge who deals and how far off an even price they go.
   async function loadHistories() {
@@ -534,7 +546,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       await tick();
       if (!root || generation !== state.generation) return;
       await history().ensure(lg);
-      if (root && generation === state.generation && state.mode === 'history') render();
+      if (root && generation === state.generation && (state.mode === 'history' || state.mode === 'drafts')) render();
     }
   }
 
@@ -552,6 +564,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       dom.setHtml($('mv-body'), '<p class="empty muted">No league with a regular season left to play.</p>');
     } else if (state.mode === 'history') {
       dom.setHtml($('mv-body'), history().pane());
+    } else if (state.mode === 'drafts') {
+      dom.setHtml($('mv-body'), drafts().pane());
     } else if (state.mode === 'finder') {
       dom.setHtml($('mv-body'), finder().pane());
     } else if (state.mode === 'waivers') {
@@ -576,7 +590,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       render();
       if (state.mode === 'trade') analyzeTrade();
       if (state.mode === 'finder' && !state.finder.results && !state.finder.running) finder().run();
-      if (state.mode === 'history') { const lg = finderLeague(); if (lg && !lg.history) history().ensure(lg).then(() => root && render()); }
+      if (state.mode === 'history' || state.mode === 'drafts') { const lg = finderLeague(); if (lg && !lg.history) history().ensure(lg).then(() => root && render()); }
     });
     body.addEventListener('toggle', (e) => {
       const id = e.target.dataset && e.target.dataset.id;
@@ -590,6 +604,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     body.addEventListener('change', (e) => {
       if (state.mode === 'finder') { finder().change(e); return; }
       if (state.mode === 'history') { history().change(e); return; }
+      if (state.mode === 'drafts') { drafts().change(e); return; }
       const t = state.trade;
       const el = e.target;
       if (el.id === 'mv-league') {

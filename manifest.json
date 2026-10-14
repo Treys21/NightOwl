@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Night Owl",
-  "version": "3.11.0",
+  "version": "3.12.0",
   "description": "Night Owl for Sleeper fantasy football: draft big board, live cross-league scoring feed, start/sit lineup checks, and betting lines for your starters.",
   "minimum_chrome_version": "116",
   "icons": {
@@ -64,6 +64,7 @@
         "src/season/recap.js",
         "src/season/finder.js",
         "src/trades/history.js",
+        "src/trades/drafts.js",
         "src/trades/loader.js",
         "src/moves/values.js",
         "src/bets/core.js",
@@ -71,6 +72,7 @@
         "src/draft/draft-order.js",
         "src/moves/finder-view.js",
         "src/moves/history-view.js",
+        "src/moves/drafts-view.js",
         "src/moves/view.js",
         "src/live/view.js",
         "src/lineups/view.js",

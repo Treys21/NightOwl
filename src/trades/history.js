@@ -72,15 +72,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  const LETTERS = [[0.15, 'A'], [0.06, 'B'], [-0.06, 'C'], [-0.15, 'D']];
+  // Twelve steps, not five. The two sides of a trade are mirrors, and a typical real deal is
+  // 10-15% off an even price, so wide letters made nine deals in ten an A for one side and
+  // an F for the other. A near-even deal is a C; it takes a lopsided one to reach the ends.
+  const LETTERS = [[0.4, 'A+'], [0.3, 'A'], [0.22, 'A-'], [0.16, 'B+'], [0.11, 'B'], [0.07, 'B-'], [0.035, 'C+'], [-0.035, 'C'], [-0.07, 'C-'], [-0.11, 'D+'], [-0.16, 'D'], [-0.22, 'D-']];
   const letterFor = (score) => (LETTERS.find(([min]) => score >= min) || [0, 'F'])[1];
+  /** The letter without its sign: what colours the chip. */
+  const toneOf = (letter) => letter[0];
 
   /**
    * Grade both sides of a two-team trade.
    *   ctx.assetValue(side asset) -> market value now (0 when the market has no price)
    *   ctx.sideValue(values)      -> package value
    *   real                       -> realized(trade, weekly) for the points half
-   * -> { [rosterId]: { valueNet, valuePct, ptsNet, ptsPct, score, letter } }
+   * -> { [rosterId]: { valueNet, valuePct, ptsNet, ptsPct, score, letter, tone } }
    */
   function grade(trade, ctx, real) {
     const ids = Object.keys(trade.sides);
@@ -106,7 +111,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const ptsPct = ptsNet / ptsSize;
       // The market's read when there is one, blended with what the players actually did.
       const score = hasValue ? 0.85 * valuePct + 0.15 * ptsPct : ptsPct;
-      out[rid] = { valueNet, valuePct, ptsNet: Math.round(ptsNet * 10) / 10, ptsPct, score, letter: letterFor(score) };
+      out[rid] = { valueNet, valuePct, ptsNet: Math.round(ptsNet * 10) / 10, ptsPct, score, letter: letterFor(score), tone: toneOf(letterFor(score)) };
     }
     return out;
   }
@@ -165,7 +170,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     };
   }
 
-  NightOwl.tradeHistory = { parse, realized, grade, profiles, league, letterFor };
+  NightOwl.tradeHistory = { parse, realized, grade, profiles, league, letterFor, toneOf };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.tradeHistory;

@@ -84,6 +84,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const dynasty = (lg) => lg.kind !== 'redraft' && V.usesKtc(lg);
 
+    // A package's price: the best player in full, the rest over replacement (see ktc.packageValue).
+    const packageOf = (dyn) => (values, picks) => ktc.packageValue(values.map((v, i) => ({ v, pick: !!(picks && picks[i]) })), dyn
+      ? { exponent: ktc.EXPONENT_PACKAGE, replacement: ktc.REPLACEMENT_DYNASTY }
+      : { exponent: ktc.EXPONENT_REDRAFT, replacement: ktc.REPLACEMENT_REDRAFT });
+
     function context(lg) {
       const dyn = dynasty(lg);
       const cons = V.consensus(lg); // redraft with KeepTradeCut's fantasy values loaded
@@ -97,9 +102,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         isPick,
         // Who a full roster may cut to make room: anyone outside the lineup in dynasty (the cut is charged at his value), only throwaways in redraft.
         canCut: dyn ? () => true : (id) => V.rosPoints(lg, id) <= 25,
-        rawOf: dyn ? (id) => V.dynastyValue(lg, id) : cons ? (id) => V.redraftValue(lg, id) : (id) => V.overReplacement(lg, id),
+        rawOf: dyn ? (id) => V.blendedValue(lg, id) : cons ? (id) => V.redraftValue(lg, id) : (id) => V.overReplacement(lg, id),
         valueOf: dyn ? (team, id, w) => V.valueFor(lg, id, w) : (team, id) => V.redraftValue(lg, id),
-        sideValue: dyn ? ktc.sideValue : cons ? (values) => ktc.sideValue(values, ktc.EXPONENT_REDRAFT) : sum,
+        sideValue: dyn || cons ? packageOf(dyn) : sum,
         pointValue: dyn || cons ? V.pointValue(lg) : 1,
         // What this league's own trades say other managers will accept (dynasty prices only).
         fairTolerance: dyn && lg.trade ? lg.trade.band.tolerance : null,
@@ -113,7 +118,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     // Everything on a roster that could change hands (priced players and picks).
     function teamOf(lg, ro, w, dyn) {
       const pool = model.activePool(ro);
-      const priced = (id) => (dyn ? V.dynastyValue(lg, id) > 0 : V.rosPoints(lg, id) > 0);
+      const priced = (id) => (dyn ? V.blendedValue(lg, id) > 0 : V.rosPoints(lg, id) > 0);
       const assets = (dyn ? (ro.players || []) : pool).filter(priced).concat(dyn ? (lg.picks.get(ro.roster_id) || []).filter(priced) : []);
       const appetite = lg.trade ? lg.trade.appetite.get(ro.roster_id) : null;
       return { id: ro.roster_id, pool: lg.rep.pool(pool), assets, players: ro.players || [], count: (ro.players || []).length, capacity: lg.capacity, w, appetite };
@@ -247,7 +252,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
       if (market) {
         const gap = item.rawNetThem;
-        const name = dyn ? 'KeepTradeCut' : 'consensus value';
+        const name = dyn ? 'blended value' : 'consensus value';
         if (Math.abs(gap) < 0.04) out.push(`<b>Value:</b> within 4% on ${name}, an easy sell.`);
         else if (gap > 0) out.push(`<b>Value:</b> they win by ${Math.round(gap * 100)}% on ${name}, so it reads as a good deal for them.`);
         else out.push(`<b>Value:</b> they give up ${Math.round(-gap * 100)}% on ${name}${dyn ? ' and get the fit in return' : ' but gain real points'}.`);
@@ -290,8 +295,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     // ---- markup ----------------------------------------------------------
 
     function assetRow(lg, id, ownerRo, dyn) {
-      const v = dyn ? V.worth(V.dynastyValue(lg, id)) : `${Math.round(V.rosPoints(lg, id))} pts`;
-      const title = dyn ? 'KeepTradeCut value, for this league\'s format and scoring' : `Projected points rest of season${fs.results.consensus ? `; consensus value ${V.worth(V.redraftValue(lg, id))}` : ''}`;
+      const v = dyn ? V.worth(V.blendedValue(lg, id)) : `${Math.round(V.rosPoints(lg, id))} pts`;
+      const title = dyn ? `Value: KeepTradeCut (${V.worth(V.dynastyValue(lg, id))}, for this league's format and scoring) mixed with projected points over a free agent` : `Projected points rest of season${fs.results.consensus ? `; consensus value ${V.worth(V.redraftValue(lg, id))}` : ''}`;
       const who = isPick(id) ? deps.pickLabel(lg, id, ownerRo) : deps.label(id);
       const age = !isPick(id) && ageOf(id) ? `<i class="mv-age">${Math.round(ageOf(id))}y</i>` : '';
       return `<li>${who}${age}<span class="mv-ros" title="${title}">${v}</span></li>`;
@@ -312,10 +317,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const part = (key, name) => `${name} ${oddsLabel(b[key])} → <b>${oddsLabel(a[key])}</b>`;
         return `<span>${who}: ${lg.playoffTeams ? part('playoffOdds', 'playoffs') : ''}${o.after.bracket ? ` · ${part('titleOdds', 'title')}` : ''}</span>`;
       };
-      const marketOf = dyn ? V.dynastyValue : V.redraftValue;
-      const exponent = dyn ? undefined : ktc.EXPONENT_REDRAFT;
-      const rawGive = ktc.sideValue(item.give.map((id) => marketOf(lg, id)), exponent);
-      const rawGet = ktc.sideValue(item.get.map((id) => marketOf(lg, id)), exponent);
+      const marketOf = dyn ? V.blendedValue : V.redraftValue;
+      const price = packageOf(dyn);
+      const rawGive = price(item.give.map((id) => marketOf(lg, id)), item.give.map(isPick));
+      const rawGet = price(item.get.map((id) => marketOf(lg, id)), item.get.map(isPick));
       return `<article class="mv-card">
         <div class="mv-card-h">
           <div><b>${esc(them)}</b> <span class="mv-win ${w.w >= 0.7 ? 'hot' : w.w < 0.3 ? 'cold' : ''}">${outlook(w.w)}${w.odds != null ? ` · ${oddsLabel(w.odds)}` : ''}</span></div>
