@@ -27,7 +27,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
    *         render(), openTrade(item), positionsOf }
    */
   function create(deps) {
-    const { state, V, nameOf, league, render, openTrade, positionsOf } = deps;
+    const { state, V, nameOf, league, render, openTrade, positionsOf, active } = deps;
     const fs = state.finder;
 
     // ---- windows ---------------------------------------------------------
@@ -101,7 +101,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       render();
       try {
         const base = await ensureBase(lg).catch((err) => { console.warn('[Night Owl finder] no projection, using standings', err); return null; });
-        if (token !== fs.token) return;
+        if (token !== fs.token || !active()) return;
         const win = windows(lg, base);
         const dyn = dynasty(lg);
         const ctx = context(lg);
@@ -114,7 +114,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           fs.progress = `Checking ${nameOf(lg, others[i])} (${i + 1} of ${others.length})…`;
           render();
           await tick();
-          if (token !== fs.token) return;
+          if (token !== fs.token || !active()) return; // a newer search took over, or the tab was closed
           const other = teamOf(lg, others[i], win.get(others[i].roster_id).w, dyn);
           found.push(...finder.proposeFor(ctx, me, other, mine));
         }
@@ -157,7 +157,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         fs.progress = `Replaying the season with each deal (${i + 1} of ${items.length})…`;
         render();
         await tick();
-        if (token !== fs.token) return null;
+        if (token !== fs.token || !active()) return null;
         const item = items[i];
         try {
           const rosters = value.applyTrade(lg.raw.rosters, mineId, item.partnerId, item.give.filter((id) => !isPick(id)), item.get.filter((id) => !isPick(id)));

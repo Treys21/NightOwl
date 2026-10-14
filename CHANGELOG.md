@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.9.0
 **Trade finder** (Moves → Finder). For one league, it searches every team for
 trades they would plausibly accept and you would actually want, and says why.
 - **Redraft:** judged on lineup points for the rest of the season, with the
@@ -26,6 +26,8 @@ trades they would plausibly accept and you would actually want, and says why.
 - **Ranking:** each deal is scored on how much both sides gain, then the season
   is replayed with the trade done and deals are re-ordered by what they do to
   your playoff and title odds.
+- **Playoff weeks count extra** (1.5×) when any roster move is priced, in
+  Waivers, the trade analyzer and the finder: a title is won there.
 - **Controls:** shop one of your players, go after a specific player, or pick
   Win now / Balanced / Rebuild. Each card says how likely a yes is, and why each
   side wants it ("Brock Bowers starts at TE in 7 of 8 weeks"). Open any deal in

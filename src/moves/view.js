@@ -223,6 +223,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         keepTradeValid();
         render();
         analyze().then(projectPicks).then(() => state.mode === 'trade' && analyzeTrade());
+        // Whatever search was under way used the old data: drop it, so the tab can start a fresh one.
+        state.finder.token++;
+        state.finder.running = false;
         state.finder.results = null;
         if (state.mode === 'finder') finder().run();
         if (state.mode === 'trade') analyzeTrade();
@@ -462,7 +465,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const finderLeague = () => state.leagues.find((lg) => lg.leagueId === state.finder.leagueId) || state.leagues[0] || null;
   function finder() {
     finderPane = finderPane || NightOwl.movesFinder.create({
-      state, V, label, pickLabel, nameOf, positionsOf, render,
+      state, V, label, pickLabel, nameOf, positionsOf, render, active: () => !!root,
       league: () => { const lg = finderLeague(); state.finder.leagueId = lg && lg.leagueId; return lg; },
       openTrade
     });
@@ -565,6 +568,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function unmount() {
+    state.finder.token++; // stops a search in progress
+    state.finder.running = false;
     clearInterval(state.timer);
     state.timer = null;
     root = null;
