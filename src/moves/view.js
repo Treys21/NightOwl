@@ -12,22 +12,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { api, teams, players, storage, account, dom, season, projection, value, model, ktc } = NightOwl;
+  const { api, teams, players, storage, account, dom, projection, value, model, ktc } = NightOwl;
   const { isPlaying, mine: rosterOf, teamNames, teamUrl } = NightOwl.leagues;
   const { escape: esc, percent } = NightOwl.format;
 
   const REFRESH_MS = 15 * 60000;
   const SHOWN = 6; // adds listed per league
   const STREAMERS = 3; // next-week adds listed per league
-  const PICK_ROUNDS = 4; // rounds KeepTradeCut prices
-const PICK_YEARS = 3; // drafts ahead that can be traded
-const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
+  const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
 
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
 
   const state = {
-    mode: 'waivers', // or 'trade'
+    mode: 'waivers', // or 'trade' or 'finder'
     draftMethod: 'linear', // how the league sorts its draft order (see season.draftOrder); the Season tab's setting
     nfl: null,
     stats: {},
@@ -37,6 +35,7 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
     leagues: [], // see load()
     targets: new Map(), // league id -> waiver targets
     open: new Set(), // league ids expanded
+    finder: { leagueId: null, goal: 'balanced', shop: null, target: null, results: null, running: false, progress: '', error: null, token: 0 },
     trade: { leagueId: null, partner: null, give: new Set(), get: new Set(), result: null, token: 0 },
     base: new Map(), // league id -> projection with today's rosters
     loadedAt: 0,
@@ -47,6 +46,10 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
     error: null
   };
 
+  const { isPick, pickOf, standingsRanks, PICK_ROUNDS } = NightOwl.moveValues;
+  const V = NightOwl.moveValues.create(state);
+  const { pickSlot, pickTierOf, ownedPicks, ordinalRound, rosPoints, usesKtc, dynastyValue, worth } = V;
+
   const MARKUP = `
     <header class="bar">
       <div class="title"><strong>Moves</strong></div>
@@ -54,6 +57,7 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
         <div class="tabs mv-mode" role="group" aria-label="Moves">
           <button type="button" class="tab" data-mode="waivers" title="Free agents who would improve your lineups">Waivers</button>
           <button type="button" class="tab" data-mode="trade" title="What a trade does to both teams">Trade</button>
+          <button type="button" class="tab" data-mode="finder" title="Trades the other manager would accept and you would want">Finder</button>
         </div>
         <button id="mv-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button>
       </div>
@@ -68,47 +72,6 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
   const positionsOf = (pid) => players.info(pid).positions;
   const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(1)}`;
   const oddsLabel = (p) => (p >= 0.995 ? '>99%' : p > 0 && p < 0.005 ? '<1%' : percent(p));
-
-  // ---- draft picks --------------------------------------------------------
-
-  // A pick is traded like a player: its id carries the draft year, the round
-  // and the roster it originally belonged to ("pick:2027:1:4").
-  const isPick = (pid) => String(pid).startsWith('pick:');
-  const pickOf = (pid) => { const [, year, round, from] = String(pid).split(':'); return { year: Number(year), round: Number(round), from: Number(from) }; };
-
-  /** Standings order, worst first (rank 1 picks first): wins, then points. */
-  function standingsRanks(rosters) {
-    const pts = (ro) => ((ro.settings && ro.settings.fpts) || 0) + ((ro.settings && ro.settings.fpts_decimal) || 0) / 100;
-    const order = rosters.slice().sort((a, b) => ((a.settings && a.settings.wins) || 0) - ((b.settings && b.settings.wins) || 0) || pts(a) - pts(b));
-    return new Map(order.map((ro, i) => [ro.roster_id, i + 1]));
-  }
-
-  /**
-   * Where a team's pick will land in the next draft (1 = first). The best
-   * guess is the season played out 2,000 times (standings, then every
-   * remaining week's projected lineups and the playoffs) and sorted by the
-   * league's draft formula; until that runs, today's standings stand in.
-   */
-  const pickSlot = (lg, rosterId) => (lg.slots && lg.slots.get(rosterId)) || lg.ranks.get(rosterId) || 1;
-
-  /** Early, mid or late for a pick. Only the next draft has a guessable slot; later ones are priced mid. */
-  const pickTierOf = (lg, pick) => (pick.year === Number(lg.raw.season) + 1 ? ktc.pickTier(pickSlot(lg, pick.from), lg.raw.rosters.length) : 'mid');
-
-  /** roster id -> the future picks that roster holds right now, after trades. */
-  function ownedPicks(lg) {
-    const held = new Map(lg.raw.rosters.map((ro) => [ro.roster_id, []]));
-    const rounds = Math.min(PICK_ROUNDS, (lg.draftRounds || PICK_ROUNDS));
-    for (let year = Number(lg.raw.season) + 1; year <= Number(lg.raw.season) + PICK_YEARS; year++) {
-      const owner = season.pickOwners(lg.traded, year);
-      for (let round = 1; round <= rounds; round++) {
-        for (const ro of lg.raw.rosters) {
-          const to = owner(round, ro.roster_id);
-          if (held.has(to)) held.get(to).push(`pick:${year}:${round}:${ro.roster_id}`);
-        }
-      }
-    }
-    return held;
-  }
 
   // ---- data -------------------------------------------------------------
 
@@ -143,6 +106,7 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
         // Roster spots: the lineup and bench, plus the separate IR and taxi slots.
         capacity: (lg.roster_positions || []).length + ((lg.settings && lg.settings.reserve_slots) || 0) + ((lg.settings && lg.settings.taxi_slots) || 0),
         traded,
+        tradeDeadline: (lg.settings && lg.settings.trade_deadline) || 0,
         kind: KIND[(lg.settings && lg.settings.type) || 0] || 'redraft',
         mine,
         names: teamNames(users),
@@ -250,6 +214,8 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
         keepTradeValid();
         render();
         analyze().then(projectPicks).then(() => state.mode === 'trade' && analyzeTrade());
+        state.finder.results = null;
+        if (state.mode === 'finder') finder().run();
         if (state.mode === 'trade') analyzeTrade();
       }
     }
@@ -263,7 +229,6 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
     return `<span class="mv-who"><img src="${teams.photo(pid, p.team)}" alt="" loading="lazy"><span class="mv-nm"><b>${esc(p.name)}</b><small>${esc(p.pos)}${p.team ? ` · ${esc(p.team)}` : ''}${injury}</small></span></span>`;
   };
 
-  const ordinalRound = (n) => `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n] || 'th'}`;
 
   function pickLabel(lg, pid, owner) {
     const pick = pickOf(pid);
@@ -332,57 +297,6 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
     for (const pid of [...t.get]) if (!partner || !holds(partner, pid)) t.get.delete(pid);
   }
 
-  const rosPoints = (lg, pid) => value.restOfSeason(pid, lg.weeks);
-
-  // Dynasty and keeper leagues price players for the long run: KeepTradeCut's
-  // value in the league's format (superflex or 1QB, tight-end premium), scaled
-  // by how this league's scoring treats the player against KTC's PPR baseline
-  // (projected points in the league over projected PPR points). Redraft has no
-  // long run: a player is worth the points he scores here.
-  const usesKtc = (lg) => lg.kind !== 'redraft' && !!state.ktc;
-  function dynastyValue(lg, pid) {
-    lg.dyn = lg.dyn || new Map();
-    if (lg.dyn.has(pid)) return lg.dyn.get(pid);
-    if (isPick(pid)) {
-      const pick = pickOf(pid);
-      const tier = pickTierOf(lg, pick);
-      const v = state.ktc ? ktc.pickValue(state.ktc.picks, { year: pick.year, round: pick.round, tier, superflex: lg.superflex }) : 0;
-      lg.dyn.set(pid, v);
-      return v;
-    }
-    const entry = state.ktc && state.ktc.players[pid];
-    const out = entry ? Math.round(ktc.valueIn(entry, lg) * scoringFactor(lg, pid)) : 0;
-    lg.dyn.set(pid, out);
-    return out;
-  }
-
-  // League points over PPR points for the rest of the season, unadjusted.
-  function scoringRatio(lg, pid) {
-    // Tight-end premium is already in KTC's TE+ columns: score without it.
-    const plain = Object.assign({}, lg.raw.scoring, { bonus_rec_te: 0 });
-    let mine = 0;
-    let ppr = 0;
-    for (const w of lg.weeks) {
-      const row = state.stats[w.week] && state.stats[w.week][pid];
-      mine += NightOwl.scoring.points(row, plain);
-      ppr += (row && row.pts_ppr) || 0;
-    }
-    return mine > 0 && ppr > 0 ? mine / ppr : null;
-  }
-
-  // A standard league scores every skill player below PPR; that lowers everyone
-  // alike and says nothing about who is worth more. What matters is a player's
-  // ratio against the league's typical one, so a receiver loses to a runner in
-  // standard scoring but picks keep their value against players.
-  function scoringFactor(lg, pid) {
-    if (lg.ratioBase === undefined) {
-      const ratios = Object.keys(state.ktc.players).map((id) => scoringRatio(lg, id)).filter((r) => r !== null).sort((a, b) => a - b);
-      lg.ratioBase = ratios.length ? ratios[Math.floor(ratios.length / 2)] : null;
-    }
-    const ratio = scoringRatio(lg, pid);
-    return lg.ratioBase && ratio ? ktc.scoringFactor(ratio, lg.ratioBase) : 1;
-  }
-  const worth = (n) => Math.round(n).toLocaleString();
 
   function pickList(lg, ro, chosen, kind) {
     const away = new Set([...(ro.reserve || []), ...(ro.taxi || [])]);
@@ -532,6 +446,34 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
     }
   }
 
+  // ---- finder ----
+
+  let finderPane = null;
+  const finderLeague = () => state.leagues.find((lg) => lg.leagueId === state.finder.leagueId) || state.leagues[0] || null;
+  function finder() {
+    finderPane = finderPane || NightOwl.movesFinder.create({
+      state, V, label, pickLabel, nameOf, positionsOf, render,
+      league: () => { const lg = finderLeague(); state.finder.leagueId = lg && lg.leagueId; return lg; },
+      openTrade
+    });
+    return finderPane;
+  }
+
+  // Send a proposal to the trade analyzer, ready to adjust.
+  function openTrade(item) {
+    const lg = finderLeague();
+    const t = state.trade;
+    t.leagueId = lg.leagueId;
+    t.partner = item.partnerId;
+    t.give = new Set(item.give);
+    t.get = new Set(item.get);
+    t.result = null;
+    state.mode = 'trade';
+    storage.set({ 'moves.settings': { mode: state.mode } });
+    render();
+    analyzeTrade();
+  }
+
   // ---- view -------------------------------------------------------------
 
   function render() {
@@ -544,6 +486,8 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
 
     if (!state.leagues.length) {
       dom.setHtml($('mv-body'), '<p class="empty muted">No league with a regular season left to play.</p>');
+    } else if (state.mode === 'finder') {
+      dom.setHtml($('mv-body'), finder().pane());
     } else if (state.mode === 'waivers') {
       dom.setHtml($('mv-body'), state.leagues.map(waiverBlock).join(''));
     } else {
@@ -565,13 +509,16 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
       keepTradeValid();
       render();
       if (state.mode === 'trade') analyzeTrade();
+      if (state.mode === 'finder' && !state.finder.results && !state.finder.running) finder().run();
     });
     body.addEventListener('toggle', (e) => {
       const id = e.target.dataset && e.target.dataset.id;
       if (!id) return;
       if (e.target.open) state.open.add(id); else state.open.delete(id);
     }, true);
+    body.addEventListener('click', (e) => { if (state.mode === 'finder') finder().click(e); });
     body.addEventListener('change', (e) => {
+      if (state.mode === 'finder') { finder().change(e); return; }
       const t = state.trade;
       const el = e.target;
       if (el.id === 'mv-league') {
@@ -614,5 +561,5 @@ const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
   }
 
   NightOwl.views = NightOwl.views || {};
-  NightOwl.views.moves = { mount, unmount };
+  NightOwl.views.moves = { mount, unmount, state }; // state is exposed for the preview tools
 })(globalThis.NightOwl);

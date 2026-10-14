@@ -64,8 +64,10 @@ src/
                        live week, draft order, power rating), project.js
                        (rest-of-season simulation), value.js (what a roster
                        move is worth in lineup points), model.js (calendar,
-                       schedule, projections, shared by Season and Moves)
-  moves/               view.js (waiver wire and trade analyzer)
+                       schedule, projections, shared by Season and Moves),
+                       finder.js (trade proposals: how each side judges a deal)
+  moves/               view.js (waivers, trade analyzer), finder-view.js (trade
+                       finder), values.js (picks, KTC values, windows)
   styles/              panel, draft, common, live, bets, lineups, season, moves (.css)
   shared/ktc.js        KeepTradeCut dynasty values (page parsed in the background worker)
   popup/               username, rankings editor, Ringer sync

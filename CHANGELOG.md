@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+**Trade finder** (Moves → Finder). For one league, it searches every team for
+trades they would plausibly accept and you would actually want, and says why.
+- **Redraft:** priced on lineup points for the rest of the season, nothing
+  else. Both lineups must improve (you by 3+ points, them by 2+), a team out of
+  the race counts for less, and a deal that lowers your own playoff or title
+  odds (it fed a rival) is dropped.
+- **Dynasty and keeper:** priced on KeepTradeCut as each team sees it, with a
+  window per team from its playoff odds. Contenders pay in picks and youth for
+  points this season and must come out ahead in points; rebuilders sell
+  production for picks and youth and must come out ahead in value. Nobody does
+  a deal because the calculator reads 2% their way, and the other side is never
+  asked to lose more than 8% on consensus value.
+- **Real-roster logic:** kickers and defenses are never trade chips; full
+  rosters can cut a spare part (charged at his value in dynasty); picks are
+  tracked per owner and priced by projected draft slot.
+- **Ranking:** each deal is scored on how much both sides gain, then the season
+  is replayed with the trade done and deals are re-ordered by what they do to
+  your playoff and title odds.
+- **Controls:** shop one of your players, go after a specific player, or pick
+  Win now / Balanced / Rebuild. Each card says how likely a yes is, and why each
+  side wants it ("Brock Bowers starts at TE in 7 of 8 weeks"). Open any deal in
+  the analyzer, or copy a ready-to-send offer.
+
 ## 3.8.0
 **New: Moves tab** (Alt+Shift+6). Waivers and a trade analyzer, priced in what
 each league actually scores.
