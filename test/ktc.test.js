@@ -9,13 +9,13 @@ const val = (v, tep, tepp, teppp) => ({ value: v, tep: { value: tep }, tepp: { v
 const row = (playerName, position, team, one, sf, age = 25) => ({ playerName, position, team, age, oneQBValues: one, superflexValues: sf });
 const page = (rows) => `<html><script id="ktc-players" type="application/json">${JSON.stringify(rows)}</script></html>`;
 
-test('parsing keeps players, drops draft picks, and reads every tight-end tier', () => {
+test('parsing reads players, draft picks and every tight-end tier', () => {
   const rows = ktc.parse(page([
     row('Josh Allen', 'QB', 'BUF', val(7000, 7000, 7000, 7000), val(9999, 9999, 9999, 9999)),
     row('Trey McBride', 'TE', 'ARI', val(6000, 6500, 7000, 7500), val(6100, 6600, 7100, 7600)),
     row('2027 Early 1st', 'RDP', null, val(1, 1, 1, 1), val(1, 1, 1, 1))
   ]));
-  assert.deepEqual(rows.map((r) => r.n), ['Josh Allen', 'Trey McBride']);
+  assert.deepEqual(rows.map((r) => r.n), ['Josh Allen', 'Trey McBride', '2027 Early 1st']);
   assert.deepEqual(rows[1].v, [6000, 6500, 7000, 7500]);
   assert.deepEqual(rows[1].s, [6100, 6600, 7100, 7600]);
   assert.throws(() => ktc.parse('<html></html>'), /changed its page/);
@@ -55,4 +55,24 @@ test('KTC names are matched to Sleeper players', () => {
   const found = ktc.matchAll(rows, [{ id: '99', name: 'Marvin Harrison', position: 'WR', team: 'ARI' }]);
   assert.equal(found['99'].p, 'WR');
   assert.deepEqual(found['99'].v, rows[0].v);
+});
+
+test('draft picks: priced by year, round and where in the round, in the league format', () => {
+  const rows = ktc.parse(page([
+    row('2027 Early 1st', 'RDP', null, val(7125, 7125, 7125, 7125), val(6967, 6967, 6967, 6967)),
+    row('2027 Late 2nd', 'RDP', null, val(3980, 3980, 3980, 3980), val(3286, 3286, 3286, 3286)),
+    row('Josh Allen', 'QB', 'BUF', val(7000, 7000, 7000, 7000), val(9999, 9999, 9999, 9999))
+  ]));
+  const picks = ktc.pickValues(rows);
+  assert.deepEqual(Object.keys(picks).sort(), ['2027:1:early', '2027:2:late']);
+  assert.equal(ktc.pickValue(picks, { year: 2027, round: 1, tier: 'early', superflex: true }), 6967);
+  assert.equal(ktc.pickValue(picks, { year: 2027, round: 1, tier: 'early', superflex: false }), 7125);
+  assert.equal(ktc.pickValue(picks, { year: 2031, round: 1, tier: 'mid', superflex: false }), 0);
+  assert.deepEqual(Object.keys(ktc.matchAll(rows, [{ id: '1', name: 'Josh Allen', position: 'QB', team: 'BUF' }])), ['1']); // picks are not players
+});
+
+test('pick tier follows the standings: the worst teams pick early', () => {
+  const tiers = Array.from({ length: 12 }, (_, i) => ktc.pickTier(i + 1, 12));
+  assert.deepEqual(tiers, ['early', 'early', 'early', 'early', 'mid', 'mid', 'mid', 'mid', 'late', 'late', 'late', 'late']);
+  assert.deepEqual([1, 5, 10].map((r) => ktc.pickTier(r, 10)), ['early', 'mid', 'late']);
 });

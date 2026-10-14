@@ -12,14 +12,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { api, teams, players, storage, account, dom, value, model, ktc } = NightOwl;
+  const { api, teams, players, storage, account, dom, season, value, model, ktc } = NightOwl;
   const { isPlaying, mine: rosterOf, teamNames, teamUrl } = NightOwl.leagues;
   const { escape: esc, percent } = NightOwl.format;
 
   const REFRESH_MS = 15 * 60000;
   const SHOWN = 6; // adds listed per league
   const STREAMERS = 3; // next-week adds listed per league
-  const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
+  const PICK_ROUNDS = 4; // rounds KeepTradeCut prices
+const PICK_YEARS = 3; // drafts ahead that can be traded
+const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
 
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
@@ -37,6 +39,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     trade: { leagueId: null, partner: null, give: new Set(), get: new Set(), result: null, token: 0 },
     base: new Map(), // league id -> projection with today's rosters
     loadedAt: 0,
+    generation: 0, // bumped by each load, so work begun on older data can tell
     timer: null,
     busy: false,
     thinking: false,
@@ -45,7 +48,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const MARKUP = `
     <header class="bar">
-      <div class="title"><strong id="mv-week">Moves</strong><span id="mv-sub" class="muted small"></span></div>
+      <div class="title"><strong>Moves</strong></div>
       <div class="actions">
         <div class="tabs mv-mode" role="group" aria-label="Moves">
           <button type="button" class="tab" data-mode="waivers" title="Free agents who would improve your lineups">Waivers</button>
@@ -65,6 +68,36 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(1)}`;
   const oddsLabel = (p) => (p >= 0.995 ? '>99%' : p > 0 && p < 0.005 ? '<1%' : percent(p));
 
+  // ---- draft picks --------------------------------------------------------
+
+  // A pick is traded like a player: its id carries the draft year, the round
+  // and the roster it originally belonged to ("pick:2027:1:4").
+  const isPick = (pid) => String(pid).startsWith('pick:');
+  const pickOf = (pid) => { const [, year, round, from] = String(pid).split(':'); return { year: Number(year), round: Number(round), from: Number(from) }; };
+
+  /** Standings order, worst first (rank 1 picks first): wins, then points. */
+  function standingsRanks(rosters) {
+    const pts = (ro) => ((ro.settings && ro.settings.fpts) || 0) + ((ro.settings && ro.settings.fpts_decimal) || 0) / 100;
+    const order = rosters.slice().sort((a, b) => ((a.settings && a.settings.wins) || 0) - ((b.settings && b.settings.wins) || 0) || pts(a) - pts(b));
+    return new Map(order.map((ro, i) => [ro.roster_id, i + 1]));
+  }
+
+  /** roster id -> the future picks that roster holds right now, after trades. */
+  function ownedPicks(lg) {
+    const held = new Map(lg.raw.rosters.map((ro) => [ro.roster_id, []]));
+    const rounds = Math.min(PICK_ROUNDS, (lg.draftRounds || PICK_ROUNDS));
+    for (let year = Number(lg.raw.season) + 1; year <= Number(lg.raw.season) + PICK_YEARS; year++) {
+      const owner = season.pickOwners(lg.traded, year);
+      for (let round = 1; round <= rounds; round++) {
+        for (const ro of lg.raw.rosters) {
+          const to = owner(round, ro.roster_id);
+          if (held.has(to)) held.get(to).push(`pick:${year}:${round}:${ro.roster_id}`);
+        }
+      }
+    }
+    return held;
+  }
+
   // ---- data -------------------------------------------------------------
 
   async function load() {
@@ -76,7 +109,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const playing = (await api.leagues(userId, nfl.season)).filter((lg) => isPlaying(lg) && !excluded.has(lg.league_id));
     const leagues = (await Promise.all(playing.map(async (lg) => {
-      const [rosters, users] = await Promise.all([api.rosters(lg.league_id), api.users(lg.league_id)]);
+      const keeps = lg.settings && (lg.settings.type === 1 || lg.settings.type === 2);
+      const [rosters, users, traded] = await Promise.all([
+        api.rosters(lg.league_id),
+        api.users(lg.league_id),
+        keeps ? api.tradedPicks(lg.league_id).catch(() => []) : Promise.resolve([])
+      ]);
       const mine = rosterOf(rosters, userId);
       if (!mine) return null;
       const t = model.timeline(lg, rosters, nfl);
@@ -88,8 +126,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         playoffTeams: t.playoffTeams,
         medianGame: t.medianGame,
         draft: null,
+        draftRounds: (lg.settings && lg.settings.draft_rounds) || PICK_ROUNDS,
         // Roster spots: the lineup and bench, plus the separate IR and taxi slots.
         capacity: (lg.roster_positions || []).length + ((lg.settings && lg.settings.reserve_slots) || 0) + ((lg.settings && lg.settings.taxi_slots) || 0),
+        traded,
         kind: KIND[(lg.settings && lg.settings.type) || 0] || 'redraft',
         mine,
         names: teamNames(users),
@@ -130,11 +170,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       lg.weeks = model.valueWeeks(lg, stats);
       const taken = new Set(lg.raw.rosters.flatMap((ro) => ro.players || []));
       lg.free = [...projected].filter((pid) => !taken.has(pid));
+      lg.ranks = standingsRanks(lg.raw.rosters);
+      lg.picks = lg.kind === 'redraft' ? new Map() : ownedPicks(lg);
       lg.superflex = ktc.isSuperflex(lg.raw.slots);
       lg.tep = ktc.tepTier(lg.raw.scoring);
       lg.openSpots = Math.max(0, lg.capacity - (lg.mine.players || []).length);
     }
     state.leagues = leagues;
+    state.generation++;
     state.targets.clear();
     state.base.clear();
     state.loadedAt = Date.now();
@@ -142,10 +185,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   // Waiver math for every league, one at a time so Sleeper's page never stalls.
   async function analyze() {
+    const generation = state.generation;
     for (const lg of state.leagues) {
       if (state.targets.has(lg.leagueId)) continue;
       await tick();
-      if (!root) return;
+      if (!root || generation !== state.generation) return; // closed, or a newer load took over
       const pool = model.activePool(lg.mine);
       state.targets.set(lg.leagueId, value.waiverTargets({
         slots: lg.raw.slots, pool, droppable: pool, openSpots: lg.openSpots,
@@ -185,6 +229,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `<span class="mv-who"><img src="${teams.photo(pid, p.team)}" alt="" loading="lazy"><span class="mv-nm"><b>${esc(p.name)}</b><small>${esc(p.pos)}${p.team ? ` · ${esc(p.team)}` : ''}${injury}</small></span></span>`;
   };
 
+  const ordinalRound = (n) => `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n] || 'th'}`;
+
+  function pickLabel(lg, pid, owner) {
+    const pick = pickOf(pid);
+    const next = Number(lg.raw.season) + 1;
+    const tier = pick.year === next ? ktc.pickTier(lg.ranks.get(pick.from) || 1, lg.raw.rosters.length) : 'mid';
+    const own = pick.from === owner.roster_id;
+    const from = own ? 'own pick' : `from ${esc(lg.names.get((lg.raw.rosters.find((r) => r.roster_id === pick.from) || {}).owner_id) || `Team ${pick.from}`)}`;
+    return `<span class="mv-who"><span class="mv-pk">${String(pick.year).slice(2)}</span><span class="mv-nm"><b>${pick.year} ${tier[0].toUpperCase()}${tier.slice(1)} ${ordinalRound(pick.round)}</b><small>${from}</small></span></span>`;
+  }
+
   function addRow(lg, t, { by }) {
     const drop = t.drop ? `<span class="mv-cut" title="The player your lineup misses least">cut ${esc(players.info(t.drop).name)}</span>` : '<span class="mv-cut">open spot</span>';
     return `<tr>
@@ -203,7 +258,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!targets) {
       head = '<span class="mv-best muted">Checking…</span>';
     } else if (!targets.length) {
-      head = '<span class="mv-best muted">Nothing beats your lineup</span>';
+      head = '<span class="mv-best muted">No upgrades</span>';
       body = '<p class="muted small mv-note">No free agent would start for you, even after cutting your least useful player.</p>';
     } else {
       const best = targets[0];
@@ -238,8 +293,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!lg) return;
     const partner = t.partner && rosterById(lg, t.partner);
     if (!partner || partner.roster_id === lg.mine.roster_id) { t.partner = null; t.get.clear(); }
-    for (const pid of [...t.give]) if (!(lg.mine.players || []).includes(pid)) t.give.delete(pid);
-    for (const pid of [...t.get]) if (!partner || !(partner.players || []).includes(pid)) t.get.delete(pid);
+    const holds = (ro, pid) => (isPick(pid) ? (lg.picks.get(ro.roster_id) || []) : ro.players || []).includes(pid);
+    for (const pid of [...t.give]) if (!holds(lg.mine, pid)) t.give.delete(pid);
+    for (const pid of [...t.get]) if (!partner || !holds(partner, pid)) t.get.delete(pid);
   }
 
   const rosPoints = (lg, pid) => value.restOfSeason(pid, lg.weeks);
@@ -253,28 +309,57 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function dynastyValue(lg, pid) {
     lg.dyn = lg.dyn || new Map();
     if (lg.dyn.has(pid)) return lg.dyn.get(pid);
-    const entry = state.ktc && state.ktc[pid];
-    let out = 0;
-    if (entry) {
-      // Tight-end premium is already in KTC's TE+ columns: score without it.
-      const plain = Object.assign({}, lg.raw.scoring, { bonus_rec_te: 0 });
-      let mine = 0;
-      let ppr = 0;
-      for (const w of lg.weeks) {
-        const row = state.stats[w.week] && state.stats[w.week][pid];
-        mine += NightOwl.scoring.points(row, plain);
-        ppr += (row && row.pts_ppr) || 0;
-      }
-      out = Math.round(ktc.valueIn(entry, lg) * ktc.scoringFactor(mine, ppr));
+    if (isPick(pid)) {
+      const pick = pickOf(pid);
+      // Only the next draft has a known slot; later ones are priced as mid-round.
+      const next = Number(lg.raw.season) + 1;
+      const tier = pick.year === next ? ktc.pickTier(lg.ranks.get(pick.from) || 1, lg.raw.rosters.length) : 'mid';
+      const v = state.ktc ? ktc.pickValue(state.ktc.picks, { year: pick.year, round: pick.round, tier, superflex: lg.superflex }) : 0;
+      lg.dyn.set(pid, v);
+      return v;
     }
+    const entry = state.ktc && state.ktc.players[pid];
+    const out = entry ? Math.round(ktc.valueIn(entry, lg) * scoringFactor(lg, pid)) : 0;
     lg.dyn.set(pid, out);
     return out;
+  }
+
+  // League points over PPR points for the rest of the season, unadjusted.
+  function scoringRatio(lg, pid) {
+    // Tight-end premium is already in KTC's TE+ columns: score without it.
+    const plain = Object.assign({}, lg.raw.scoring, { bonus_rec_te: 0 });
+    let mine = 0;
+    let ppr = 0;
+    for (const w of lg.weeks) {
+      const row = state.stats[w.week] && state.stats[w.week][pid];
+      mine += NightOwl.scoring.points(row, plain);
+      ppr += (row && row.pts_ppr) || 0;
+    }
+    return mine > 0 && ppr > 0 ? mine / ppr : null;
+  }
+
+  // A standard league scores every skill player below PPR; that lowers everyone
+  // alike and says nothing about who is worth more. What matters is a player's
+  // ratio against the league's typical one, so a receiver loses to a runner in
+  // standard scoring but picks keep their value against players.
+  function scoringFactor(lg, pid) {
+    if (lg.ratioBase === undefined) {
+      const ratios = Object.keys(state.ktc.players).map((id) => scoringRatio(lg, id)).filter((r) => r !== null).sort((a, b) => a - b);
+      lg.ratioBase = ratios.length ? ratios[Math.floor(ratios.length / 2)] : null;
+    }
+    const ratio = scoringRatio(lg, pid);
+    return lg.ratioBase && ratio ? ktc.scoringFactor(ratio, lg.ratioBase) : 1;
   }
   const worth = (n) => Math.round(n).toLocaleString();
 
   function pickList(lg, ro, chosen, kind) {
     const away = new Set([...(ro.reserve || []), ...(ro.taxi || [])]);
     const rows = (ro.players || []).slice().sort((a, b) => (usesKtc(lg) ? dynastyValue(lg, b) - dynastyValue(lg, a) : 0) || rosPoints(lg, b) - rosPoints(lg, a));
+    const picks = (lg.picks.get(ro.roster_id) || []).filter((pid) => dynastyValue(lg, pid) > 0 || chosen.has(pid));
+    const pickRows = usesKtc(lg) ? picks.map((pid) => `<label class="mv-pick${chosen.has(pid) ? ' on' : ''}">
+        <input type="checkbox" data-${kind}="${esc(pid)}"${chosen.has(pid) ? ' checked' : ''}>
+        ${pickLabel(lg, pid, ro)}<span class="mv-ros" title="Draft pick value (KeepTradeCut, for this league's format)">${worth(dynastyValue(lg, pid))}</span>
+      </label>`).join('') : '';
     return `<div class="mv-picks">${rows.map((pid) => {
       const tag = (ro.reserve || []).includes(pid) ? 'IR' : (ro.taxi || []).includes(pid) ? 'taxi' : '';
       return `<label class="mv-pick${chosen.has(pid) ? ' on' : ''}">
@@ -283,7 +368,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           ? `<span class="mv-ros" title="Dynasty value (KeepTradeCut, for this league's format and scoring)${tag ? `; on ${esc(tag)}` : ''}">${dynastyValue(lg, pid) ? worth(dynastyValue(lg, pid)) : '–'}</span>`
           : `<span class="mv-ros" title="Projected points rest of season">${away.has(pid) ? esc(tag) : Math.round(rosPoints(lg, pid))}</span>`}
       </label>`;
-    }).join('')}</div>`;
+    }).join('')}${pickRows}</div>`;
   }
 
   const delta = (n) => `<b class="${n > 0 ? 'up' : n < 0 ? 'down' : ''}">${signed(n)}</b>`;
@@ -325,7 +410,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function verdict(me, them, names) {
     const a = me.delta;
     const b = them.delta;
-    if (Math.abs(a) < 0.5 && Math.abs(b) < 0.5) return 'basically even this season.';
+    if (Math.abs(a) < 0.5 && Math.abs(b) < 0.5) return 'basically even.';
     if (a >= 0 && b >= 0) return 'both lineups improve.';
     if (a <= 0 && b <= 0) return 'both lineups get worse, so this is about depth or the future.';
     return a > b ? `favors you by ${Math.abs(a - b).toFixed(1)} pts.` : `favors ${esc(names)} by ${Math.abs(a - b).toFixed(1)} pts.`;
@@ -337,8 +422,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!r) return '<p class="muted small mv-note">Pick what you would give and what you would get.</p>';
     const them = nameOf(lg, partner);
     const slots = lg.capacity;
-    const myCount = (lg.mine.players || []).length - t.give.size + t.get.size;
-    const theirCount = (partner.players || []).length - t.get.size + t.give.size;
+    const give = [...t.give].filter((pid) => !isPick(pid)).length;
+    const get = [...t.get].filter((pid) => !isPick(pid)).length;
+    const myCount = (lg.mine.players || []).length - give + get;
+    const theirCount = (partner.players || []).length - get + give;
     const warn = [];
     if (myCount > slots) warn.push(`You would need to drop ${myCount - slots}.`);
     if (theirCount > slots) warn.push(`${esc(them)} would need to drop ${theirCount - slots}.`);
@@ -348,7 +435,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       <p class="mv-verdict">${usesKtc(lg) ? 'This season: ' : 'For this season: '}${verdict(r.impact.a, r.impact.b, them)}</p>
       ${lg.kind !== 'redraft' && state.ktcError ? '<p class="muted small">Dynasty values unavailable right now (KeepTradeCut could not be reached).</p>' : ''}
       ${warn.length ? `<p class="mv-warn small">${warn.join(' ')}</p>` : ''}
-      <p class="muted small mv-note">Each lineup is re-set every remaining week on Sleeper's projections${lg.kind !== 'redraft' ? '; age and picks are not counted here' : ''}. Odds replay the season ${model.SIMS.toLocaleString()} times with the trade done.</p>
+      <p class="muted small mv-note">Each lineup is re-set every remaining week on Sleeper's projections${lg.kind !== 'redraft' ? '; age is not counted here' : ''}. Odds replay the season ${model.SIMS.toLocaleString()} times with the trade done.</p>
     </div>`;
   }
 
@@ -383,17 +470,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.thinking = false;
     if (!lg || !partner || (!t.give.size && !t.get.size)) { t.result = null; render(); return; }
 
-    const give = [...t.give];
-    const get = [...t.get];
+    // Picks change hands but never a lineup: only players go through the lineup and odds math.
+    const give = [...t.give].filter((pid) => !isPick(pid));
+    const get = [...t.get].filter((pid) => !isPick(pid));
     const impact = value.tradeImpact({
       slots: lg.raw.slots, weeks: lg.weeks, positionsOf,
       a: { pool: model.activePool(lg.mine) }, b: { pool: model.activePool(partner) },
       aGives: give, bGives: get
     });
     t.result = { impact, base: state.base.get(lg.leagueId) || null, after: null };
-    state.thinking = lg.playoffTeams > 0;
+    state.thinking = lg.playoffTeams > 0 && (give.length > 0 || get.length > 0);
     render();
-    if (!lg.playoffTeams) return;
+    if (!state.thinking) return; // picks only (or no playoffs): nothing for the season replay to change
 
     try {
       await tick();
@@ -416,9 +504,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function render() {
     if (!root) return;
-    const sub = state.mode === 'waivers' ? 'Free agents' : 'Trade analyzer';
-    $('mv-week').textContent = 'Moves';
-    $('mv-sub').textContent = state.leagues.length ? sub : '';
     root.querySelectorAll('.mv-mode .tab').forEach((b) => b.classList.toggle('on', b.dataset.mode === state.mode));
     const err = $('mv-error');
     err.hidden = !state.error;
@@ -430,7 +515,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     } else if (state.mode === 'waivers') {
       dom.setHtml($('mv-body'), state.leagues.map(waiverBlock).join(''));
     } else {
-      dom.setHtml($('mv-body'), tradePane());
+      // Ticking a player redraws the pane; the two lists must keep their scroll.
+      const body = $('mv-body');
+      const scrolls = [...body.querySelectorAll('.mv-picks')].map((el) => el.scrollTop);
+      if (dom.setHtml(body, tradePane())) body.querySelectorAll('.mv-picks').forEach((el, i) => { el.scrollTop = scrolls[i] || 0; });
     }
   }
 
