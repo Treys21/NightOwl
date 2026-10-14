@@ -10,7 +10,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { api, storage, players, match, draftOrder, draftBoard, badges } = NightOwl;
+  const { api, storage, players, account, match, draftOrder, draftBoard, badges } = NightOwl;
 
   const POLL_MS = 3000;
   const MAX_BACKOFF_MS = 30000;
@@ -47,15 +47,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return drafts.reduce((a, b) => ((b.created || 0) > (a.created || 0) ? b : a)).draft_id;
   }
 
+  // The board works without a username; only "you're on the clock" needs it.
   async function resolveUserId() {
-    const settings = await storage.getSettings();
-    if (settings.userId || !settings.username) return settings.userId || null;
     try {
-      const user = await api.user(settings.username);
-      if (user && user.user_id) await storage.saveSettings({ userId: user.user_id });
-      return (user && user.user_id) || null;
+      return (await account.resolve()).userId;
     } catch {
-      return null; // "on the clock" degrades; the board still works
+      return null;
     }
   }
 

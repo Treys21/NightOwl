@@ -34,7 +34,7 @@ test('content scripts load in order and register every tool', () => {
     assert.equal(typeof view.mount, 'function');
     assert.equal(typeof view.unmount, 'function');
   }
-  for (const mod of ['storage', 'dom', 'format', 'api', 'teams', 'players', 'scoring', 'tracker', 'lineups', 'bets', 'season', 'match', 'draftOrder', 'panel', 'draftBoard', 'badges']) {
+  for (const mod of ['storage', 'dom', 'format', 'leagues', 'api', 'account', 'teams', 'players', 'scoring', 'tracker', 'lineups', 'bets', 'season', 'match', 'draftOrder', 'panel', 'draftBoard', 'badges']) {
     assert.ok(NightOwl[mod], `NightOwl.${mod} missing`);
   }
 });

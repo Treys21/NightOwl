@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+Fixes and a cleanup pass from a full code review.
+- **Draft board no longer jumps to the top.** It was redrawn from scratch on
+  every 3-second poll, which reset the scroll position; now an unchanged board
+  is left alone and a changed one keeps your place.
+- **Rank badges update** on Sleeper's own draft list when a player is taken
+  (they were stamped once and never refreshed), and come back if Sleeper
+  re-renders the row.
+- **Lineup alerts look ahead.** They used the week Sleeper is still showing
+  until midweek, so Thursday's lineups could be missed; they now use the same
+  look-ahead week as the Lineups tab.
+- **A stuck request can't freeze a tool.** Every request gives up after 20
+  seconds; before, one that never answered stopped that tool's polling until
+  the page reloaded.
+- **Less work while idle.** Live, Lineups and Season skip redrawing when a poll
+  changed nothing, Live writes its saved state only when it changed, and the
+  season projection yields between leagues so Sleeper's page never stalls.
+- **Cleaner after an update.** An old panel left running after the extension is
+  reloaded now removes itself instead of logging errors; the panel no longer
+  stacks up listeners each time Sleeper forces it to rebuild.
+- Under the hood: the code every tool repeated to find your username, user id,
+  leagues, roster, team names and week now lives in two shared modules
+  (`leagues`, `account`), one handler hides broken images, and dead styles are
+  gone. 127 tests (9 new).
+
 ## 3.7.0
 - **Season: Now | Projected.** Projected plays out the rest of the season and
   the playoffs 2,000 times from every team's best projected lineup (Sleeper's

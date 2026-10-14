@@ -7,8 +7,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { api, tracker, scoring, teams, players, storage } = NightOwl;
-  const { escape: esc, points: fmt, signed, clock: clockOf, short }  = NightOwl.format;
+  const { api, tracker, scoring, teams, players, storage, account, dom } = NightOwl;
+  const { escape: esc, points: fmt, signed, clock: clockOf, short } = NightOwl.format;
+  const { isPlaying, mine, teamNames, avatars, startingSlots, slotLabel, displayWeek, seasonType: seasonTypeOf } = NightOwl.leagues;
   let root = null; // the element we render into, inside the panel's shadow root
   const $ = (id) => root.querySelector(`#${id}`);
 
@@ -58,14 +59,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </div>
   `;
 
-  const NEED_USERNAME = 'Add your Sleeper username to get started.';
   const LIVE_POLL_MS = 15000;
   const IDLE_POLL_MS = 120000;
   const CONTEXT_TTL_MS = 5 * 60000; // lineups can change until each game locks
   const SCHEDULE_TTL_MS = 60000;
   const MAX_EVENTS = 500;
-  const IDP = ['DL', 'LB', 'DB', 'IDP_FLEX'];
-
 
   const state = {
     openRecaps: new Set(), // recap cards the user expanded
@@ -99,46 +97,39 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const info = (pid) => players.info(pid);
 
   async function loadContext() {
+    const { username, userId } = await account.resolve();
     const nfl = await api.state();
     const season = nfl.season;
-    const seasonType = nfl.season_type === 'post' ? 'post' : 'regular';
-    const week = nfl.display_week || nfl.week;
+    const seasonType = seasonTypeOf(nfl);
+    const week = displayWeek(nfl);
 
-    let userId = state.ctx && state.ctx.username === state.settings.username ? state.ctx.userId : null;
-    if (!userId) {
-      const user = await api.user(state.settings.username);
-      if (!user || !user.user_id) throw new Error(`No Sleeper user named "${state.settings.username}"`);
-      userId = user.user_id;
-    }
-
-    const all = await api.leagues(userId, season);
-    const playing = all.filter((lg) => lg.status === 'in_season' || lg.status === 'post_season');
+    const playing = (await api.leagues(userId, season)).filter(isPlaying);
     const leagues = (await Promise.all(playing.map(async (lg) => {
       const [rosters, users, matchups] = await Promise.all([
         api.rosters(lg.league_id), api.users(lg.league_id), api.matchups(lg.league_id, week)
       ]);
-      const mine = rosters.find((r) => r.owner_id === userId || (r.co_owners || []).includes(userId));
-      if (!mine) return null;
-      const userName = new Map(users.map((u) => [u.user_id, (u.metadata && u.metadata.team_name) || u.display_name]));
-      const userAvatar = new Map(users.map((u) => [u.user_id, (u.metadata && u.metadata.avatar) || (u.avatar ? `https://sleepercdn.com/avatars/thumbs/${u.avatar}` : '')]));
-      const owner = (rosterId) => rosters.find((x) => x.roster_id === rosterId) || {};
-      const teamName = (rosterId) => userName.get(owner(rosterId).owner_id) || `Team ${rosterId}`;
-      const avatar = (rosterId) => userAvatar.get(owner(rosterId).owner_id) || '';
-      const matchup = tracker.pickMatchup(matchups || [], mine.roster_id);
+      const roster = mine(rosters, userId);
+      if (!roster) return null;
+      const names = teamNames(users);
+      const faces = avatars(users);
+      const ownerOf = (rosterId) => (rosters.find((x) => x.roster_id === rosterId) || {}).owner_id;
+      const teamName = (rosterId) => names.get(ownerOf(rosterId)) || `Team ${rosterId}`;
+      const avatar = (rosterId) => faces.get(ownerOf(rosterId)) || '';
+      const matchup = tracker.pickMatchup(matchups || [], roster.roster_id);
       return {
         leagueId: lg.league_id,
         name: lg.name.trim(),
         scoring: lg.scoring_settings || {},
-        slots: (lg.roster_positions || []).filter((p) => p !== 'BN' && p !== 'IR' && p !== 'TAXI'),
-        myName: teamName(mine.roster_id),
-        myAvatar: avatar(mine.roster_id),
+        slots: startingSlots(lg),
+        myName: teamName(roster.roster_id),
+        myAvatar: avatar(roster.roster_id),
         oppName: matchup && matchup.opp ? teamName(matchup.opp.rosterId) : null,
         oppAvatar: matchup && matchup.opp ? avatar(matchup.opp.rosterId) : '',
         matchup
       };
     }))).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
 
-    state.ctx = { username: state.settings.username, userId, season, seasonType, week, leagues, loadedAt: Date.now() };
+    state.ctx = { username, userId, season, seasonType, week, leagues, loadedAt: Date.now() };
     await storage.set({ 'live.ctx': state.ctx });
   }
 
@@ -152,10 +143,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return games.some((g) => g.status === 'in_game' && before.has(g.game_id) && before.get(g.game_id) !== 'in_game');
   }
 
-  function positionsNeeded() {
-    const usesIdp = activeLeagues().some((lg) => lg.slots.some((s) => IDP.includes(s)));
-    return usesIdp ? api.OFFENSE.concat(['DL', 'LB', 'DB']) : api.OFFENSE;
-  }
+  const positionsNeeded = () => api.positionsFor(activeLeagues().map((lg) => lg.slots));
 
   // Is any game involving a tracked player on (or about to be on) right now?
   function trackedTeams() {
@@ -172,8 +160,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return g ? g.status : null;
   }
 
+  // Sleeper dates games in Eastern time.
+  const todayET = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
   function isLive() {
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const today = todayET();
     const tracked = trackedTeams();
     return state.schedule.games.some((g) => {
       if (!tracked.has(g.home) && !tracked.has(g.away)) return false;
@@ -234,6 +225,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const key = weekKey(ctx);
     if (state.trend.key !== key) state.trend = { key, series: {} };
     const now = Date.now();
+    let changed = false;
     for (const lg of activeLeagues()) {
       const chance = winChance(lg);
       if (chance == null) continue;
@@ -242,8 +234,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (last && Math.abs(last[1] - chance) < 0.005 && now - last[0] < 15 * 60000) continue;
       series.push([now, Math.round(chance * 1000) / 1000]);
       if (series.length > 400) series.splice(0, series.length - 400);
+      changed = true;
     }
-    storage.set({ 'live.trend': state.trend });
+    // Most polls add nothing: only write when a point was added.
+    if (changed) storage.set({ 'live.trend': state.trend });
   }
 
   // A small line of your win chance through the day, 50% marked.
@@ -288,13 +282,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
       const leagues = activeLeagues();
       const key = weekKey(ctx);
+      let eventsChanged = false;
       if (state.snapshot && state.snapshot.key === key) {
         const fresh = tracker.diffEvents(state.snapshot.stats, cur, leagues, info, Date.now());
         // After a gap (panel closed, tab asleep) a diff is everything since the
         // last look, not a play: it becomes a recap, never a pop-up or "last play".
         const gap = Date.now() - state.snapshot.at > 3 * LIVE_POLL_MS;
         for (const ev of fresh) if (gap) { ev.catchUp = true; ev.since = state.snapshot.at; }
-        if (fresh.length) state.events = fresh.concat(state.events).slice(0, MAX_EVENTS);
+        if (fresh.length) { state.events = fresh.concat(state.events).slice(0, MAX_EVENTS); eventsChanged = true; }
         if (!gap) celebrate(fresh);
       } else {
         // First look this week (or this install): everything so far becomes a
@@ -303,10 +298,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         for (const ev of fresh) { ev.catchUp = true; ev.firstLook = true; ev.since = ev.ts; }
         if (fresh.length) state.openRecaps.add(`${fresh[0].since}-${fresh[0].ts}`); // start it open
         state.events = fresh;
+        eventsChanged = true;
       }
       state.snapshot = { key, at: Date.now(), stats: tracker.trimSnapshot(cur, leagues) };
       state.lastPoll = Date.now();
-      await storage.set({ 'live.snapshot': state.snapshot, 'live.events': { key, list: state.events } });
+      // The event list (up to 500) only needs saving when it changed.
+      await storage.set(eventsChanged
+        ? { 'live.snapshot': state.snapshot, 'live.events': { key, list: state.events } }
+        : { 'live.snapshot': state.snapshot });
       render();
     } catch (err) {
       console.error('[Night Owl]', err);
@@ -342,13 +341,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     renderFeed();
     renderLeagueToggles();
     showView();
-    root.querySelectorAll('img.face').forEach((img) => img.addEventListener('error', () => { img.style.visibility = 'hidden'; }));
   }
 
   function lineup(lg, side) {
     if (!side) return '<div class="muted small">No opponent this week</div>';
     return side.slots.map((pid, i) => {
-      const slot = (lg.slots[i] || '').replace('SUPER_FLEX', 'SF').replace('REC_FLEX', 'RF').replace('WRRB_FLEX', 'W/R');
+      const slot = slotLabel(lg.slots[i]);
       if (!pid || pid === '0') return `<div class="slot"><span class="pos">${esc(slot)}</span><span class="nm muted">empty</span><span></span></div>`;
       const p = info(pid);
       const playing = gameStatus(p.team) === 'in_game';
@@ -361,7 +359,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // Games on now (or later today) with every tracked starter in them: who's
   // yours, who's your opponents', in which leagues, and what they have so far.
   function renderGames() {
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const today = todayET();
     const leagues = activeLeagues();
     const byId = new Map(leagues.map((lg) => [lg.leagueId, lg]));
     const watch = tracker.watchList(leagues);
@@ -370,7 +368,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       .filter((g) => g.status === 'in_game' || (g.status === 'pre_game' && g.date === today))
       .sort((a, b) => (b.status === 'in_game') - (a.status === 'in_game'));
 
-    $('games').innerHTML = games.map((g) => {
+    const html = games.map((g) => {
       const rows = [...watch].filter(([pid]) => [g.home, g.away].includes(info(pid).team)).map(([pid, spots]) => {
         const p = info(pid);
         const forMe = spots.filter((s) => s.side === 'me').length - spots.filter((s) => s.side === 'opp').length;
@@ -390,13 +388,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         ${rows.length ? `<ol class="game-list">${rows.map((r) => r.html).join('')}</ol>` : '<p class="muted small">None of your matchups have a starter in this game.</p>'}
       </details>`;
     }).join('') || `<p class="muted small empty">${gamesIdleText()}</p>`;
+    dom.setHtml($('games'), html);
     $('lv-count-games').textContent = games.filter((g) => g.status === 'in_game').length ? `${games.filter((g) => g.status === 'in_game').length} live` : '';
   }
 
   // Small round headshot (team logo for defenses) ringed in the team's color.
   function face(pid, team) {
-    const src = /^[A-Z]{2,3}$/.test(pid) ? teams.logo(team) : teams.headshot(pid);
-    return `<img class="face" alt="" src="${src}" style="border-color:${teams.colors(team).primary}">`;
+    return `<img class="face" alt="" src="${teams.photo(pid, team)}" style="border-color:${teams.colors(team).primary}">`;
   }
 
   // ---- celebrations ------------------------------------------------------
@@ -495,7 +493,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('stage').classList.toggle('dormant', !last && !live);
     $('stage-idle').innerHTML = last
       ? `<span class="muted small">Last play · ${clockOf(last.ts)}</span>
-         <span class="idle-who"><img alt="" src="${/^[A-Z]{2,3}$/.test(last.pid) ? teams.logo(last.team) : teams.headshot(last.pid)}"><b>${esc(last.name)}</b></span>
+         <span class="idle-who"><img alt="" src="${teams.photo(last.pid, last.team)}"><b>${esc(last.name)}</b></span>
          <span>${esc(last.text)}</span>
          <span class="impacts idle-impacts">${impactChips(last)}</span>`
       : `<span class="muted">${live ? `${esc(live.away)} @ ${esc(live.home)} is live. Waiting for the next play.` : 'Plays pop here the moment they happen'}</span>
@@ -505,7 +503,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // The player in uniform: a jersey in team colors with their number, their
   // headshot on the collar. Defenses get the team logo instead.
   function figure(ev, p, team, c) {
-    if (ev.pos === 'DEF' || /^[A-Z]{2,3}$/.test(ev.pid)) {
+    if (ev.pos === 'DEF' || teams.isDefenseId(ev.pid)) {
       return `<img class="logo" alt="" src="${teams.logo(team)}">`;
     }
     const num = esc(p.number || ev.pos || '');
@@ -567,9 +565,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     let withOpp = 0;
     const final = { won: 0, lost: 0, open: 0 };
 
-    $('scoreboard').innerHTML = leagues.map((lg) => {
+    const html = leagues.map((lg) => {
       const s = board.get(lg.leagueId);
-      if (!s) return `<div class="match"><summary><span class="lname">${esc(lg.name)}</span><span class="muted">no matchup</span></summary></div>`;
+      if (!s) return `<details class="match" data-id="${esc(lg.leagueId)}"><summary><span class="lname">${esc(lg.name)}</span><span class="muted">no matchup</span></summary></details>`;
       state.prevScores[lg.leagueId] = s;
       if (s.margin != null) { withOpp++; if (s.margin > 0) winning++; }
       const before = prev[lg.leagueId];
@@ -618,6 +616,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         </div>
       </details>`;
     }).join('') || '<p class="muted small">No in-season leagues found.</p>';
+    const changed = dom.setHtml($('scoreboard'), html);
 
     // Once win odds exist, count where you're favored (what matters); before
     // that, where you're ahead right now.
@@ -626,8 +625,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       : withChance
       ? `<span class="pill-count ${favored * 2 >= withChance ? 'good' : 'bad'}" title="Favored to win ${favored} of ${withChance}">${favored}/${withChance} favored</span>`
       : withOpp ? `<span class="pill-count ${winning * 2 >= withOpp ? 'good' : 'bad'}" title="Leading in ${winning} of ${withOpp}">${winning}/${withOpp} up</span>` : '';
-    root.querySelectorAll('.match .big[data-to]').forEach(countUp);
-    root.querySelectorAll('img.av').forEach((img) => img.addEventListener('error', () => img.replaceWith(Object.assign(document.createElement('span'), { className: img.className + ' blank', textContent: '•' }))));
+    if (changed) root.querySelectorAll('.match .big[data-to]').forEach(countUp);
   }
 
   // Scores tick up (or down) to their new value instead of jumping.
@@ -742,7 +740,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
       html.push(playRow(ev, !first && !state.seenEventIds.has(ev.id)));
     }
-    $('feed').innerHTML = html.join('');
+    dom.setHtml($('feed'), html.join(''));
     $('lv-count-feed').textContent = String(state.events.filter((ev) => !ev.catchUp).length || '');
     for (const ev of state.events) state.seenEventIds.add(ev.id);
   }
@@ -752,8 +750,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!state.ctx) return;
     const leagues = activeLeagues();
     if (state.league && !leagues.some((lg) => lg.leagueId === state.league)) state.league = '';
-    sel.innerHTML = '<option value="">All leagues</option>' + leagues.map((lg) =>
-      `<option value="${esc(lg.leagueId)}"${lg.leagueId === state.league ? ' selected' : ''}>${esc(lg.name)}</option>`).join('');
+    dom.setHtml(sel, '<option value="">All leagues</option>' + leagues.map((lg) =>
+      `<option value="${esc(lg.leagueId)}"${lg.leagueId === state.league ? ' selected' : ''}>${esc(lg.name)}</option>`).join(''));
   }
 
   function showView() {
@@ -764,10 +762,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function renderLeagueToggles() {
     const box = $('league-toggles');
-    if (!state.ctx) { box.innerHTML = ''; return; }
-    box.innerHTML = '<p class="lv-set-h">Leagues to track</p>' + state.ctx.leagues.map((lg) =>
-      `<label><input type="checkbox" data-id="${lg.leagueId}"${state.settings.excluded.includes(lg.leagueId) ? '' : ' checked'}> ${esc(lg.name)}</label>`
-    ).join('');
+    if (!state.ctx) { dom.setHtml(box, ''); return; }
+    dom.setHtml(box, '<p class="lv-set-h">Leagues to track</p>' + state.ctx.leagues.map((lg) =>
+      `<label><input type="checkbox" data-id="${esc(lg.leagueId)}"${state.settings.excluded.includes(lg.leagueId) ? '' : ' checked'}> ${esc(lg.name)}</label>`
+    ).join(''));
   }
 
   function showError(msg) {
@@ -818,6 +816,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     root.classList.add('tool', 'intro');
     setTimeout(() => el.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
+    // A league avatar that fails to load becomes a dot (other images just hide: see dom.hideBrokenImages).
+    root.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img && img.tagName === 'IMG' && img.classList.contains('av')) {
+        img.replaceWith(Object.assign(document.createElement('span'), { className: `${img.className} blank`, textContent: '•' }));
+      }
+    }, true);
 
     state.seenEventIds = new Set();
     state.prevScores = {};
@@ -898,7 +903,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const saved = await storage.get('live.events', null);
     if (saved && state.snapshot && saved.key === state.snapshot.key) state.events = saved.list;
     render();
-    if (!state.settings.username) showError(NEED_USERNAME);
+    if (!state.settings.username) showError(account.NEED_USERNAME);
     poll(false);
   }
 

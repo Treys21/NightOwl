@@ -20,6 +20,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // Fantasy positions requested by default; IDP rows are added only for leagues
   // that start IDP players (they are most of the payload).
   const OFFENSE = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+  const IDP = ['DL', 'LB', 'DB'];
+
+  // A request that never answers would hold a tool's "busy" flag forever and
+  // stop its polling for good, so every request gives up after this long.
+  const TIMEOUT_MS = 20000;
+  const timeoutSignal = () => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(TIMEOUT_MS) : undefined);
 
   // Which feed a URL belongs to, so an outage can be named in the panel.
   const SOURCES = [
@@ -55,7 +61,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function getJson(url) {
     return request(url, async () => {
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetch(url, { cache: 'no-store', signal: timeoutSignal() });
       if (!res.ok) throw new Error(`${res.status} ${url}`);
       return res.json();
     });
@@ -68,7 +74,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const inPage = typeof document !== 'undefined';
     if (!inPage || !(globalThis.chrome && chrome.runtime && chrome.runtime.sendMessage)) return getJson(url);
     return request(url, () => new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`timed out: ${url}`)), TIMEOUT_MS + 2000);
       chrome.runtime.sendMessage({ type: 'nightowl-fetch', url }, (res) => {
+        clearTimeout(timer);
         if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
         else if (!res || !res.ok) reject(new Error((res && res.error) || 'background fetch failed'));
         else resolve(res.data);
@@ -81,6 +89,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   NightOwl.api = {
     OFFENSE,
+    TIMEOUT_MS,
+
+    /** Positions to request for leagues with these starting-slot lists: IDP rows only when someone starts them. */
+    positionsFor: (slotLists) => (NightOwl.leagues.usesIdp(slotLists) ? OFFENSE.concat(IDP) : OFFENSE),
 
     /** Feeds whose latest request failed, as labels. Cleared on their next success. */
     unavailable: () => [...down.values()],

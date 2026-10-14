@@ -12,7 +12,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { api, players, storage, season, projection, lineups } = NightOwl;
+  const { api, players, storage, account, dom, season, projection, lineups } = NightOwl;
+  const { isPlaying, mine: rosterOf, teamNames, displayWeek } = NightOwl.leagues;
   const fantasyPoints = NightOwl.scoring.points;
   const { escape: esc, short: num, tenths, percent } = NightOwl.format;
   const { NOT_STARTING_SLOTS } = NightOwl.lineups;
@@ -28,8 +29,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const $ = (id) => root.querySelector(`#${id}`);
 
   const state = {
-    username: '',
-    userId: null,
     week: null,
     leagues: [],
     open: new Set(), // league ids expanded
@@ -124,29 +123,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   async function load() {
-    const shared = await storage.get('settings', {});
-    const own = await storage.get('live.settings', {});
+    const { userId } = await account.resolve();
+    const excluded = await account.excluded();
     const prefs = await storage.get('season.settings', {});
     if (prefs.draftMethod) state.draftMethod = prefs.draftMethod;
     if (prefs.mode) state.mode = prefs.mode;
-    const username = (shared.username || '').trim();
-    if (!username) throw new Error('Add your Sleeper username to get started.');
-    if (username !== state.username) { state.username = username; state.userId = null; }
-    const excluded = new Set(own.excluded || []);
 
     await players.load();
     const nfl = await api.state();
-    const week = nfl.display_week || nfl.week;
-    state.week = week;
+    state.week = displayWeek(nfl);
     state.nfl = nfl;
-    if (!state.userId) {
-      const user = await api.user(username);
-      if (!user || !user.user_id) throw new Error(`No Sleeper user named "${username}"`);
-      state.userId = user.user_id;
-    }
 
-    const all = await api.leagues(state.userId, nfl.season);
-    const playing = all.filter((lg) => (lg.status === 'in_season' || lg.status === 'post_season') && !excluded.has(lg.league_id));
+    const playing = (await api.leagues(userId, nfl.season)).filter((lg) => isPlaying(lg) && !excluded.has(lg.league_id));
     state.leagues = (await Promise.all(playing.map(async (lg) => {
       const start = (lg.settings && lg.settings.start_week) || 1;
       const playoffTeams = (lg.settings && lg.settings.playoff_teams) || 0;
@@ -158,7 +146,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         api.users(lg.league_id),
         keeps ? api.tradedPicks(lg.league_id).catch(() => []) : Promise.resolve([])
       ]);
-      const mine = rosters.find((r) => r.owner_id === state.userId || (r.co_owners || []).includes(state.userId));
+      const mine = rosterOf(rosters, userId);
       if (!mine) return null;
       // Finished weeks are the ones in Sleeper's records (wins, points, max
       // points), which can lag the NFL calendar by a day or so. The next week
@@ -173,7 +161,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         inProgress ? api.matchups(lg.league_id, next) : Promise.resolve([])
       ]);
       const weeks = await weekScores(lg.league_id, finished);
-      const names = new Map(users.map((u) => [u.user_id, (u.metadata && u.metadata.team_name) || u.display_name]));
+      const names = teamNames(users);
       const live = liveWeek(lg, rosters, thisWeek || [], { medianGame });
       const counted = live ? live.rosters : rosters;
       const allWeeks = live ? weeks.concat([live.scores]) : weeks;
@@ -363,6 +351,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       ]);
       for (const lg of pending) {
         try {
+          // 2,000 simulated seasons take ~60 ms a league: give the page a
+          // breath between leagues so Sleeper's own UI never stalls.
+          await new Promise((resolve) => setTimeout(resolve));
           state.projections.set(lg.leagueId, await projectLeague(lg, remainingOf, stats));
         } catch (err) {
           console.warn('[Night Owl season] projection failed', lg.name, err);
@@ -660,9 +651,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('se-error').hidden = !state.error;
     $('se-error').textContent = state.error || '';
     if (!state.leagues.length) {
-      if (state.loadedAt) $('se-body').innerHTML = '<p class="muted small empty">No in-season leagues found.</p>';
-      else if (state.error) $('se-body').innerHTML = '';
-      $('se-summary').innerHTML = '';
+      if (state.loadedAt) dom.setHtml($('se-body'), '<p class="muted small empty">No in-season leagues found.</p>');
+      else if (state.error) dom.setHtml($('se-body'), '');
+      dom.setHtml($('se-summary'), '');
       return;
     }
     const sum = state.leagues.reduce((acc, lg) => {
@@ -673,13 +664,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (lg.playoffTeams && m.rank <= lg.playoffTeams) acc.in++;
       return acc;
     }, { w: 0, l: 0, t: 0, aw: 0, al: 0, at: 0, luck: 0, in: 0 });
-    $('se-summary').innerHTML = `<div class="se-summary">
+    dom.setHtml($('se-summary'), `<div class="se-summary">
       <div><b>${record(sum.w, sum.l, sum.t)}</b><span>overall</span></div>
       <div><b>${record(sum.aw, sum.al, sum.at)}</b><span>all-play</span></div>
       <div class="${sum.luck > 0.05 ? 'up' : sum.luck < -0.05 ? 'down' : ''}"><b>${signedTenth(sum.luck)}</b><span>wins of luck</span></div>
       <div><b>${sum.in} of ${state.leagues.length}</b><span>in playoff spots</span></div>
-    </div>`;
-    $('se-body').innerHTML = state.leagues.map(leagueBlock).join('');
+    </div>`);
+    dom.setHtml($('se-body'), state.leagues.map(leagueBlock).join(''));
   }
 
   // ---- lifecycle --------------------------------------------------------

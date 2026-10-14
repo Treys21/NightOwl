@@ -43,21 +43,39 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     observe();
   }
 
+  // Rank, drafted state and tooltip: re-applied each poll, so a badge turns
+  // grey the moment its player is taken.
+  function paint(badge, row) {
+    badge.textContent = String(row.rank);
+    badge.dataset.drafted = row.pickNo ? '1' : '0';
+    badge.title = row.pickNo ? `Your rank ${row.rank}, taken at #${row.pickNo}` : `Your rank ${row.rank}`;
+  }
+
   function decorate() {
     for (const selector of NAME_SELECTORS) {
       for (const element of document.querySelectorAll(selector)) {
-        if (element.hasAttribute(MARKED_ATTR) || element.querySelector(`.${BADGE_CLASS}`)) continue;
+        const existing = element.querySelector(`.${BADGE_CLASS}`);
+        if (existing) {
+          const row = rankByName.get(existing.dataset.key);
+          if (row) {
+            paint(existing, row);
+          } else { // his row left the board (rankings edited)
+            existing.remove();
+            element.removeAttribute(MARKED_ATTR);
+          }
+          continue;
+        }
 
         const text = (element.textContent || '').replace(/\s+/g, ' ').trim();
         if (!text || text.length > 40) continue;
-        const row = rankByName.get(NightOwl.match.normalizeName(text));
+        const key = NightOwl.match.normalizeName(text);
+        const row = rankByName.get(key);
         if (!row) continue;
 
         const badge = document.createElement('span');
         badge.className = BADGE_CLASS;
-        badge.textContent = String(row.rank);
-        badge.dataset.drafted = row.pickNo ? '1' : '0';
-        badge.title = row.pickNo ? `Your rank ${row.rank}, taken at #${row.pickNo}` : `Your rank ${row.rank}`;
+        badge.dataset.key = key; // so later polls can find his row without re-reading the name
+        paint(badge, row);
         element.setAttribute(MARKED_ATTR, '1');
         element.prepend(badge);
       }

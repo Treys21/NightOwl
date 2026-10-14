@@ -79,6 +79,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const host = document.createElement('div');
     host.id = HOST_ID;
     const shadow = host.attachShadow({ mode: 'open' });
+    dom.hideBrokenImages(shadow);
     await dom.adoptStyles(shadow, STYLES); // before first paint: no unstyled flash
 
     panel = document.createElement('div');
@@ -113,12 +114,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     wire();
     wireSetup();
     showOutages(NightOwl.api.unavailable());
-    place();
     apply();
     enableResize();
-    window.addEventListener('resize', () => { place(); slideIndicator(); });
     setTimeout(slideIndicator, 400); // again once webfonts settle
   }
+
+  // Registered once, not per build: Sleeper can tear the host out and the shell
+  // rebuilds it, and listeners added per build would pile up.
+  window.addEventListener('resize', () => {
+    if (!panel) return;
+    place();
+    slideIndicator();
+  });
 
   function unmountActive() {
     if (active) viewOf(active)?.unmount();
@@ -326,14 +333,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         button.disabled = false;
       }
     });
-    storage.onChanged((changes) => {
-      if (!changes.settings || !panel) return;
-      const next = !((changes.settings.newValue || {}).username);
-      if (next !== needsSetup) {
-        needsSetup = next;
-        apply();
-      }
-    });
+  }
+
+  // The username arrived (or was cleared) in the popup: show the right screen.
+  storage.onChanged((changes) => {
+    if (!changes.settings || !panel) return;
+    const next = !((changes.settings.newValue || {}).username);
+    if (next !== needsSetup) {
+      needsSetup = next;
+      apply();
+    }
+  });
+
+  /**
+   * Take the panel down for good. An extension that was reloaded or updated
+   * leaves its old content scripts running in open tabs, cut off from chrome.*;
+   * they would only log errors on every poll.
+   */
+  function destroy() {
+    unmountActive();
+    document.getElementById(HOST_ID)?.remove();
+    panel = null;
   }
 
   /** The page URL changed (Sleeper is a single-page app). */
@@ -343,6 +363,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   NightOwl.panel = {
     mount,
+    destroy,
     setTool,
     navigated,
     tool: () => toolOf(ui && ui.tool)

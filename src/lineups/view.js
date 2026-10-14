@@ -7,8 +7,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { api, scoring, teams, players, storage } = NightOwl;
-  const { escape: esc, tenths: fmt, dayTime: timeOf, countdown } = NightOwl.format;
+  const { api, scoring, teams, players, storage, account, dom } = NightOwl;
+  const { escape: esc, tenths: fmt, windowTitle, countdown } = NightOwl.format;
+  const { isPlaying, mine, startingSlots, slotLabel, lookaheadWeek, seasonType: seasonTypeOf, teamUrl } = NightOwl.leagues;
   const core = NightOwl.lineups;
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
@@ -17,13 +18,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const TICK_MS = 30000; // countdowns
   const PROJ_TTL_MS = 15 * 60000;
   const KICKOFF_TTL_MS = 5 * 60000;
-  const IDP = ['DL', 'LB', 'DB', 'IDP_FLEX'];
 
   const state = {
-    username: '',
-    excluded: [],
+    excluded: new Set(),
     nfl: null,
-    userId: null,
     leagues: [], // [{ leagueId, name, slots, scoring, roster }]
     games: [],
     gamesAt: 0,
@@ -50,44 +48,33 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   // ---- data -------------------------------------------------------------
   async function load(force) {
-    const shared = await storage.get('settings', {});
-    const own = await storage.get('live.settings', {});
-    const username = (shared.username || '').trim();
-    if (!username) throw new Error('Add your Sleeper username to get started.');
-    if (username !== state.username) { state.userId = null; state.username = username; }
-    state.excluded = own.excluded || [];
+    const { userId } = await account.resolve();
+    state.excluded = await account.excluded();
 
     await players.load();
     state.nfl = await api.state();
     const season = state.nfl.season;
     // Lineups look ahead: Sleeper moves `week` on as soon as the last game
     // ends, while `display_week` stays on the finished week until midweek.
-    const week = lineupWeek(state.nfl);
-    const seasonType = state.nfl.season_type === 'post' ? 'post' : 'regular';
+    const week = lookaheadWeek(state.nfl);
+    const seasonType = seasonTypeOf(state.nfl);
 
-    if (!state.userId) {
-      const user = await api.user(username);
-      if (!user || !user.user_id) throw new Error(`No Sleeper user named "${username}"`);
-      state.userId = user.user_id;
-    }
-
-    const all = await api.leagues(state.userId, season);
-    const playing = all.filter((lg) => lg.status === 'in_season' || lg.status === 'post_season');
+    const playing = (await api.leagues(userId, season)).filter(isPlaying);
     state.leagues = (await Promise.all(playing.map(async (lg) => {
       const [rosters, matchups] = await Promise.all([api.rosters(lg.league_id), api.matchups(lg.league_id, week)]);
-      const mine = rosters.find((r) => r.owner_id === state.userId || (r.co_owners || []).includes(state.userId));
-      if (!mine) return null;
+      const own = mine(rosters, userId);
+      if (!own) return null;
       // The week's matchup holds the lineup you actually set; the roster's own
       // `starters` can lag behind it (it still showed a benched player and an
       // empty slot that had been filled).
-      const set = (matchups || []).find((m) => m.roster_id === mine.roster_id);
+      const set = (matchups || []).find((m) => m.roster_id === own.roster_id);
       const roster = set
-        ? Object.assign({}, mine, { starters: set.starters || mine.starters, players: set.players || mine.players })
-        : mine;
+        ? Object.assign({}, own, { starters: set.starters || own.starters, players: set.players || own.players })
+        : own;
       return {
         leagueId: lg.league_id,
         name: lg.name.trim(),
-        slots: (lg.roster_positions || []).filter((p) => !core.NOT_STARTING_SLOTS.has(p)),
+        slots: startingSlots(lg),
         scoring: lg.scoring_settings || {},
         roster
       };
@@ -103,8 +90,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       state.gamesAt = Date.now();
     }
     if (force || Date.now() - state.projAt > PROJ_TTL_MS) {
-      const idp = state.leagues.some((lg) => lg.slots.some((s) => IDP.includes(s)));
-      const rows = await api.weekProjections(season, week, seasonType, idp ? api.OFFENSE.concat(['DL', 'LB', 'DB']) : api.OFFENSE);
+      const rows = await api.weekProjections(season, week, seasonType, api.positionsFor(state.leagues.map((lg) => lg.slots)));
       state.proj = {};
       for (const r of rows) state.proj[r.player_id] = r.stats || {};
       state.projAt = Date.now();
@@ -146,8 +132,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const day = new Date(w.kickoff).toLocaleDateString([], { weekday: 'short' });
       return `${day} · ${w.games.length} game${w.games.length > 1 ? 's' : ''} · times unavailable`;
     }
-    if (w.games.length > 2) return `${timeOf(w.kickoff)} · ${w.games.length} games`;
-    return `${timeOf(w.kickoff)} · ${w.games.map((g) => `${g.away} @ ${g.home}`).join(', ')}`;
+    return windowTitle(w);
   }
 
   function computed() {
@@ -157,12 +142,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const kickoffOf = (t) => (kickoffByTeam.has(t) ? kickoffByTeam.get(t) : null);
     const projected = (pid, sc) => scoring.points(state.proj[pid], sc);
     const leagues = state.leagues
-      .filter((lg) => !state.excluded.includes(lg.leagueId))
+      .filter((lg) => !state.excluded.has(lg.leagueId))
       .map((lg) => Object.assign({}, lg, core.lineup(lg, lg.roster, players.info, projected, kickoffOf, now)));
     return { leagues, wins: core.windows(state.games).filter((w) => !w.started && w.kickoff > now) };
   }
-
-  const slotLabel = (slot) => (slot || '').replace('SUPER_FLEX', 'SF').replace('REC_FLEX', 'RF').replace('WRRB_FLEX', 'W/R');
 
   // Every valid swap for this player, best first: the top few as chips, the
   // rest behind "+N more". Each chip's number is what that swap would do to
@@ -210,7 +193,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       ? `<span class="lu-pill start">${esc(slotLabel(r.slot))}</span>`
       : `<span class="lu-pill ${r.status}">${r.status === 'ir' ? 'IR' : r.status === 'taxi' ? 'TAXI' : 'BENCH'}</span>`;
     const inj = r.injury ? `<span class="lu-inj ${core.OUT.has(r.injury) ? 'out' : ''}">${esc(r.injury === 'Questionable' ? 'Q' : r.injury)}</span>` : '';
-    const head = r.pos === 'DEF' ? teams.logo(r.team) : teams.headshot(r.pid);
+    const head = teams.photo(r.pid, r.team);
     const notes = r.notes.map((n) => `<div class="lu-note ${n.kind}">${n.kind === 'swap' ? '⇄' : '⚠'} ${esc(n.text)}</div>`).join('');
     const opts = optionsList(r);
     return `<li class="lu-row ${r.status}${r.notes.some((n) => n.kind !== 'info') ? ' flagged' : ''}" style="--tc:${teams.colors(r.team).primary}">
@@ -229,7 +212,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       <div class="lu-league-head">
         <span class="lname">${esc(lg.name)}</span>
         ${flags ? `<span class="lu-flagcount">${flags} to fix</span>` : ''}
-        <a class="lu-edit" href="https://sleeper.com/leagues/${lg.leagueId}/team">Edit lineup ↗</a>
+        <a class="lu-edit" href="${teamUrl(lg.leagueId)}">Edit lineup ↗</a>
       </div>
       ${showBest ? bestBanner(lg) : ''}
       <ol class="lu-list">${rows.map((r) => playerRow(lg, r)).join('')}</ol>
@@ -240,16 +223,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const ORDER = { start: 0, bench: 1, taxi: 2, ir: 3 };
   const sortRows = (rows) => rows.slice().sort((a, b) => ORDER[a.status] - ORDER[b.status] || (a.slotIndex ?? 99) - (b.slotIndex ?? 99) || b.proj - a.proj);
 
-  const lineupWeek = (nfl) => Math.max(nfl.week || 0, nfl.display_week || 0) || 1;
-
   function render() {
     if (!root) return;
     $('lu-error').hidden = !state.error;
     $('lu-error').textContent = state.error || '';
     if (state.nfl) {
-      $('lu-week').textContent = `Week ${lineupWeek(state.nfl)}`;
+      $('lu-week').textContent = `Week ${lookaheadWeek(state.nfl)}`;
       // Early in the week the other tools still recap the week just played.
-      $('lu-sub').textContent = lineupWeek(state.nfl) > (state.nfl.display_week || 0) ? 'upcoming' : '';
+      $('lu-sub').textContent = lookaheadWeek(state.nfl) > (state.nfl.display_week || 0) ? 'upcoming' : '';
     }
     if (!state.loadedAt) {
       if (state.error) $('lu-body').innerHTML = ''; // no endless placeholders under an error
@@ -265,8 +246,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (byes.length || empties.length) {
       html.push(`<div class="lu-alert">
         <strong>Fix before kickoff</strong>
-        ${byes.map(({ lg, r }) => `<div>${esc(r.name)} is on bye but starting in <a href="https://sleeper.com/leagues/${lg.leagueId}/team">${esc(lg.name)}</a></div>`).join('')}
-        ${empties.map((lg) => `<div>Empty ${esc(lg.empty.join(', '))} slot${lg.empty.length > 1 ? 's' : ''} in <a href="https://sleeper.com/leagues/${lg.leagueId}/team">${esc(lg.name)}</a></div>`).join('')}
+        ${byes.map(({ lg, r }) => `<div>${esc(r.name)} is on bye but starting in <a href="${teamUrl(lg.leagueId)}">${esc(lg.name)}</a></div>`).join('')}
+        ${empties.map((lg) => `<div>Empty ${esc(lg.empty.join(', '))} slot${lg.empty.length > 1 ? 's' : ''} in <a href="${teamUrl(lg.leagueId)}">${esc(lg.name)}</a></div>`).join('')}
       </div>`);
     }
 
@@ -313,8 +294,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </details>`);
     });
 
-    $('lu-body').innerHTML = html.join('');
-    root.querySelectorAll('img').forEach((img) => img.addEventListener('error', () => { img.style.visibility = 'hidden'; }));
+    dom.setHtml($('lu-body'), html.join(''));
   }
 
   // ---- mount ------------------------------------------------------------

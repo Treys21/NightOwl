@@ -9,7 +9,10 @@
 //    reserve, or on bye before his game locks.
 importScripts(
   'shared/storage.js',
+  'shared/leagues.js',
   'shared/api.js',
+  'shared/account.js',
+  'shared/teams.js',
   'shared/players.js',
   'lineups/core.js',
   'bets/core.js',
@@ -25,7 +28,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: false, error: 'host not allowed' });
     return false;
   }
-  fetch(msg.url)
+  fetch(msg.url, { signal: AbortSignal.timeout(api.TIMEOUT_MS) })
     .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`${res.status} ${msg.url}`))))
     .then(
       (data) => sendResponse({ ok: true, data }),
@@ -38,7 +41,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 const ALARM = 'night-owl-lineups';
 const SENT_KEY = 'alerts.sent';
-const { api, storage, players, lineups, alerts, bets } = globalThis.NightOwl;
+const { api, storage, players, lineups, alerts, bets, leagues, account } = globalThis.NightOwl;
 const LINES_KEY = 'bets.lines';
 const LINES_WINDOW_MS = 75 * 60000; // save closing lines in the hour before kickoff
 
@@ -55,29 +58,24 @@ async function checkLineups() {
   if (!settings.username) return;
   const nfl = await api.state();
   if (nfl.season_type !== 'regular' && nfl.season_type !== 'post') return;
-  const week = nfl.display_week || nfl.week;
-  const seasonType = nfl.season_type === 'post' ? 'post' : 'regular';
+  // Look ahead: Sleeper's display_week stays on the week just played until
+  // midweek, which would hide Thursday's lineups from the check.
+  const week = leagues.lookaheadWeek(nfl);
+  const seasonType = leagues.seasonType(nfl);
 
   const games = lineups.parseGames(await api.kickoffs(nfl.season, week, seasonType));
   await saveClosingLines(games, `${nfl.season}-${seasonType}-${week}`).catch((err) => console.warn('[Night Owl lines]', err));
   if (settings.alerts === false) return;
 
-  let userId = settings.userId;
-  if (!userId) {
-    const user = await api.user(settings.username);
-    userId = user && user.user_id;
-    if (!userId) return;
-    await storage.saveSettings({ userId });
-  }
-  const excluded = new Set(((await storage.get('live.settings', {})).excluded) || []);
-  const all = await api.leagues(userId, nfl.season);
-  const playing = all.filter((lg) => lg.status === 'in_season' && !excluded.has(lg.league_id));
+  const { userId } = await account.resolve();
+  const excluded = await account.excluded();
+  const playing = (await api.leagues(userId, nfl.season)).filter((lg) => leagues.isPlaying(lg) && !excluded.has(lg.league_id));
   if (!playing.length) return;
 
-  const leagues = (await Promise.all(playing.map(async (lg) => {
+  const lineupsByLeague = (await Promise.all(playing.map(async (lg) => {
     const [rosters, matchups] = await Promise.all([api.rosters(lg.league_id), api.matchups(lg.league_id, week)]);
-    const mine = rosters.find((r) => r.owner_id === userId || (r.co_owners || []).includes(userId));
-    const set = mine && (matchups || []).find((m) => m.roster_id === mine.roster_id);
+    const roster = leagues.mine(rosters, userId);
+    const set = roster && (matchups || []).find((m) => m.roster_id === roster.roster_id);
     return set ? { leagueId: lg.league_id, name: lg.name.trim(), starters: set.starters || [] } : null;
   }))).filter(Boolean);
 
@@ -87,7 +85,7 @@ async function checkLineups() {
 
   const sent = new Set(await storage.get(SENT_KEY, []));
   const found = alerts.findAlerts({
-    leagues,
+    leagues: lineupsByLeague,
     week: `${nfl.season}-${seasonType}-${week}`,
     now: Date.now(),
     sent,

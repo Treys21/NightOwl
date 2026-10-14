@@ -38,11 +38,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { primary, secondary, ink: inkOn(primary) };
   }
 
+  const logo = (team) => `https://sleepercdn.com/images/team_logos/nfl/${String(team).toLowerCase()}.png`;
+  const headshot = (pid) => `https://sleepercdn.com/content/nfl/players/thumb/${pid}.jpg`;
+
+  // Team defenses use the team code as their player id ("DAL").
+  const isDefenseId = (pid) => /^[A-Z]{2,3}$/.test(String(pid));
+
   NightOwl.teams = {
     colors,
     inkOn,
-    logo: (team) => `https://sleepercdn.com/images/team_logos/nfl/${String(team).toLowerCase()}.png`,
-    headshot: (pid) => `https://sleepercdn.com/content/nfl/players/thumb/${pid}.jpg`
+    logo,
+    headshot,
+    isDefenseId,
+    /** A player's headshot, or the team logo for a defense. */
+    photo: (pid, team) => (isDefenseId(pid) ? logo(team) : headshot(pid))
   };
 })(globalThis.NightOwl);
 

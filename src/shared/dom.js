@@ -40,5 +40,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheetFrom(cssText)];
   }
 
-  NightOwl.dom = { adoptStyles, adoptCss };
+  const rendered = new WeakMap(); // element -> the markup last put in it
+
+  /**
+   * Set an element's markup unless it already shows exactly that. Views render
+   * on every poll; most polls change nothing, and rebuilding the DOM for
+   * nothing costs time and loses scroll position, focus and hover.
+   * Returns true when the markup changed.
+   */
+  function setHtml(el, html) {
+    if (rendered.get(el) === html) return false;
+    rendered.set(el, html);
+    el.innerHTML = html;
+    return true;
+  }
+
+  /** Hide any image under root that fails to load (headshots missing for rookies, say). One listener covers every image, now and later. */
+  function hideBrokenImages(root) {
+    root.addEventListener('error', (e) => {
+      if (e.target && e.target.tagName === 'IMG') e.target.style.visibility = 'hidden';
+    }, true);
+  }
+
+  NightOwl.dom = { adoptStyles, adoptCss, setHtml, hideBrokenImages };
 })(globalThis.NightOwl);

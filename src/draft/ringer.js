@@ -137,7 +137,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   async function fetchRankings(format) {
     let html;
     try {
-      const response = await fetch(RINGER_URL, { credentials: 'omit' });
+      const response = await fetch(RINGER_URL, { credentials: 'omit', signal: AbortSignal.timeout(20000) });
       if (!response.ok) {
         return { ok: false, rankings: [], reason: `The Ringer returned ${response.status}.` };
       }

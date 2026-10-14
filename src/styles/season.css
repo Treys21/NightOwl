@@ -46,7 +46,6 @@
   #se-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 10px; align-items: start; }
   .se-league { margin-bottom: 0; }
 }
-.se-aside { font-style: normal; color: var(--muted); opacity: .8; }
 /* A chevron shows the league opens into full standings. */
 .se-head::after { content: '▾'; flex: none; margin-left: 2px; color: var(--muted); font-size: 14px; line-height: 1; transition: transform .2s; }
 .se-league[open] .se-head::after { transform: rotate(180deg); }

@@ -24,10 +24,15 @@ enforces it).
 
 | Layer | Modules | Notes |
 | --- | --- | --- |
-| Shared | `storage`, `dom`, `format`, `api`, `teams`, `players` | `api` is the only module that touches the network. `players` is the single cached copy of Sleeper's ~5 MB player directory. |
+| Shared | `storage`, `dom`, `format`, `leagues`, `api`, `account`, `teams`, `players` | `api` is the only module that touches the network (every request times out after 20 s). `account` resolves your username and user id once for every tool; `leagues` holds the league plumbing they all share (your roster, team names, the week to show). `players` is the single cached copy of Sleeper's ~5 MB player directory. |
 | Pure logic | `scoring`, `tracker`, `lineups`, `bets`, `season`, `match`, `draftOrder`, `ringer` | No DOM, no network. They also export via `module.exports` and are unit-tested in Node. |
 | Views | `NightOwl.views.{draft, live, lineups, bets, season}` | Each one is `{ mount(el), unmount(), navigated?() }`. Only the visible view is mounted, and an unmounted view must stop all timers. |
 | Shell | `panel/shell.js`, `panel/main.js` | The shell owns the shadow root, the tool switch, drag and resize. `main.js` is the entry point and follows Sleeper's SPA navigation. |
+
+Views render on every poll, and most polls change nothing. Write markup with
+`NightOwl.dom.setHtml(el, html)`, which skips the write when the element already
+shows exactly that, so an idle panel does no DOM work and keeps its scroll
+position.
 
 Styles live in `src/styles/*.css`, loaded with `NightOwl.dom.adoptStyles` as
 constructed stylesheets. Colors follow Sleeper's palette, with the tokens
@@ -46,8 +51,9 @@ docs/                  README images, brand assets (logo, avatar, social preview
 scripts/               check.mjs (static checks), package.mjs (release zip)
 src/
   background.js        fetch relay for ESPN (allow-listed hosts only)
-  shared/              storage, styles loader, formatting, API client,
-                       team colors, shared player directory
+  shared/              storage, DOM helpers and styles loader, formatting,
+                       league helpers, API client, account, team colors,
+                       shared player directory
   panel/               shell.js (tool switch, drag, resize), main.js (entry)
   draft/               draft.js (controller), board.js, badges.js,
                        match-names.js, draft-order.js, ringer.js

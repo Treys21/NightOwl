@@ -35,6 +35,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `${d.toLocaleDateString([], { weekday: 'short' })} ${time}`;
   }
 
+  /** A kickoff window's title: "Sun 1:00 PM · 7 games", or the matchups when there are one or two. */
+  const windowTitle = (w) => (w.games.length > 2
+    ? `${dayTime(w.kickoff)} · ${w.games.length} games`
+    : `${dayTime(w.kickoff)} · ${w.games.map((g) => `${g.away} @ ${g.home}`).join(', ')}`);
+
   /** "8:21 PM", or "8:21:07 PM" with seconds. */
   const clock = (ms, seconds = false) => new Date(ms).toLocaleTimeString([], seconds
     ? { hour: 'numeric', minute: '2-digit', second: '2-digit' }
@@ -48,7 +53,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return h < 24 ? `${h}h ${mins % 60}m` : `${Math.floor(h / 24)}d ${h % 24}h`;
   }
 
-  NightOwl.format = { escape, points, tenths, short, signed, percent, dayTime, dayTimeShort, clock, countdown };
+  NightOwl.format = { escape, points, tenths, short, signed, percent, dayTime, dayTimeShort, windowTitle, clock, countdown };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.format;

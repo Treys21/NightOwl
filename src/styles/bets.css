@@ -21,7 +21,7 @@
 .bt-rung.reached { background: #00ceb8; color: var(--teal-ink); border-color: transparent; animation: pop-in .4s ease-out; }
 .bt-rung.reached small { color: rgba(2, 32, 71, .7); }
 .bt-legal { font-size: 11px; color: var(--muted); text-align: center; margin: 14px 8px 4px; line-height: 1.4; }
-@media (prefers-reduced-motion: reduce) { .bt-mkt.just-hit, .bt-rung.reached { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .bt-tr.just-hit, .bt-rung.reached { animation: none !important; } }
 
 /* ==== Bets navigation ==== */
 .bt-toolbar {

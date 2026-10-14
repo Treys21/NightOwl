@@ -19,7 +19,13 @@
   // pushState/replaceState aren't observable from a content script's isolated
   // world, so poll the URL (cheap) and also catch back/forward right away.
   window.addEventListener('popstate', onNavigate);
-  setInterval(() => {
+  const watcher = setInterval(() => {
+    // chrome.runtime.id disappears once the extension is reloaded or updated.
+    if (!chrome.runtime || !chrome.runtime.id) {
+      clearInterval(watcher);
+      panel.destroy();
+      return;
+    }
     onNavigate();
     panel.mount(); // Sleeper occasionally replaces <html>'s children; come back
   }, 1000);

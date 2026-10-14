@@ -8,7 +8,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const KEY = 'live.players.v4';
   const TTL_MS = 24 * 3600000;
-  const TEAM_CODE = /^[A-Z]{2,3}$/; // team defenses use the team code as player id
   const FANTASY = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 
   // Earlier versions cached the directory under these keys (~5 MB each).
@@ -16,6 +15,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   // pid -> [name, position, team, number, injury, positionsCsv, espnId]
   let map = {};
+  let ready = false;
   let loading = null;
   let espnIndex = null; // espn athlete id -> pid, built on first use
 
@@ -54,10 +54,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
     }
     espnIndex = null;
+    ready = true;
   }
 
   function load() {
-    if (Object.keys(map).length) return Promise.resolve();
+    if (ready) return Promise.resolve();
     loading = loading || fetchAll().finally(() => { loading = null; });
     return loading;
   }
@@ -75,7 +76,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         injury: p[4] || null, positions: p[5] ? p[5].split(',') : [p[1]]
       };
     }
-    const def = TEAM_CODE.test(pid);
+    const def = NightOwl.teams.isDefenseId(pid);
     return { name: pid, pos: def ? 'DEF' : '', team: def ? pid : '', number: '', injury: null, positions: def ? ['DEF'] : [] };
   }
 

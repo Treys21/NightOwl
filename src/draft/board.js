@@ -75,6 +75,33 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `<table><thead><tr>${head}</tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody></table>`;
   }
 
+  // Events are delegated from the container and bound once, so a render only
+  // swaps markup. Each render refreshes what the handlers act on.
+  const live = new WeakMap(); // el -> { prefs, onChange }
+
+  function bind(el) {
+    const change = (patch) => {
+      const { prefs, onChange } = live.get(el);
+      Object.assign(prefs, patch);
+      NightOwl.storage.saveUi(patch);
+      onChange();
+    };
+    el.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-pos]');
+      if (chip) return change({ position: chip.dataset.pos });
+      const th = e.target.closest('[data-sort]');
+      if (th) {
+        const { prefs } = live.get(el);
+        const key = th.dataset.sort;
+        change({ sortBy: key, sortDir: prefs.sortBy === key && prefs.sortDir === 'asc' ? 'desc' : 'asc' });
+      }
+      return undefined;
+    });
+    el.addEventListener('change', (e) => {
+      if (e.target.matches('[data-act="hide-drafted"]')) change({ hideDrafted: e.target.checked });
+    });
+  }
+
   /**
    * Draw the board into el.
    * @param state { status, rows, myTurn, message, kind } from draft.js
@@ -82,6 +109,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
    * @param onChange called after the user changes a filter or sort
    */
   function render(el, state, prefs, onChange) {
+    if (!live.has(el)) bind(el);
+    live.set(el, { prefs, onChange });
     const allRows = state.rows || [];
     const rows = sortRows(filterRows(allRows, prefs), prefs);
     const unmatched = allRows.filter((r) => !r.matched).length;
@@ -89,7 +118,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       ? `<div class="empty">${EMPTY[state.status] || EMPTY.loading}</div>`
       : rows.length ? tableHtml(rows, prefs) : '<div class="empty">Nothing matches the current filter.</div>';
 
-    el.innerHTML = `
+    const html = `
       ${state.myTurn ? `<div class="turn">You're on the clock${state.message ? ` · ${esc(state.message)}` : ''}</div>` : ''}
       <div class="controls">
         ${POSITIONS.map((p) => `<button class="chip ${prefs.position === p ? 'active' : ''}" data-pos="${p}">${p === 'ALL' ? 'All' : p}</button>`).join('')}
@@ -102,21 +131,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       <div class="body">${body}</div>
     `;
 
-    const change = (patch) => {
-      Object.assign(prefs, patch);
-      NightOwl.storage.saveUi(patch);
-      onChange();
-    };
-    el.querySelectorAll('[data-pos]').forEach((chip) => {
-      chip.addEventListener('click', () => change({ position: chip.dataset.pos }));
-    });
-    el.querySelector('[data-act="hide-drafted"]').addEventListener('change', (e) => change({ hideDrafted: e.target.checked }));
-    el.querySelectorAll('[data-sort]').forEach((th) => {
-      th.addEventListener('click', () => {
-        const key = th.dataset.sort;
-        change({ sortBy: key, sortDir: prefs.sortBy === key && prefs.sortDir === 'asc' ? 'desc' : 'asc' });
-      });
-    });
+    // The draft polls every few seconds and most polls change nothing: leave
+    // the DOM alone then. When a pick does change the board, keep the reader's
+    // place in the list instead of jumping back to the top.
+    const old = el.querySelector('.body');
+    const scroll = old ? old.scrollTop : 0;
+    if (!NightOwl.dom.setHtml(el, html)) return;
+    const next = el.querySelector('.body');
+    if (next) next.scrollTop = scroll;
   }
 
   NightOwl.draftBoard = { render, filterRows, sortRows };
