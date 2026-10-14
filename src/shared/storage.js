@@ -1,9 +1,3 @@
-// chrome.storage.local, promisified, plus typed helpers for the keys more than
-// one module reads. Every content script, the popup, and the tests share it.
-//
-// Keys: settings, rankings, lastSynced, ui — and per-tool caches prefixed
-// live.*, bets.* (see each tool). Never rename a key without migrating it:
-// people's saved rankings and settings live under them.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -11,14 +5,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const DEFAULTS = {
     settings: { username: '', userId: null, format: 'half-ppr', alerts: true },
-    rankings: [], // [{ rank, name, position, team }]
+    rankings: [],
     ui: {
       x: null,
       y: null,
       w: null,
       h: null,
       collapsed: false,
-      tool: 'live', // 'draft' | 'live' | 'lineups' | 'bets' | 'season'
+      tool: 'live',
       sortBy: 'rank',
       sortDir: 'asc',
       position: 'ALL',
@@ -47,7 +41,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return current;
   }
 
-  // Ranks are always 1..n in array order, so reorder and delete stay consistent.
   const renumber = (rankings) => rankings.map((player, index) => Object.assign({}, player, { rank: index + 1 }));
 
   NightOwl.storage = {
@@ -64,18 +57,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     getRankings: () => get('rankings', DEFAULTS.rankings),
     getLastSynced: () => get('lastSynced', null),
-    // Never clobber a good board with an empty one: a failed sync is a no-op.
     async saveRankings(rankings, { markSynced = false } = {}) {
       if (!Array.isArray(rankings) || rankings.length === 0) return false;
       const items = { rankings: renumber(rankings) };
       if (markSynced) {
         items.lastSynced = Date.now();
-        items['ringer.synced'] = items.rankings.map((r) => `${r.name}|${r.position}`); // what a sync made, to tell later whether it was edited
+        items['ringer.synced'] = items.rankings.map((r) => `${r.name}|${r.position}`);
       }
       await set(items);
       return true;
     },
-    // Deliberately emptying the board (deleting every row) bypasses that guard.
     clearRankings: () => set({ rankings: [] }),
 
     onChanged(callback) {

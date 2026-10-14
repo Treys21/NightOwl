@@ -1,6 +1,3 @@
-// Builds dist/night-owl-v<version>.zip — exactly what Chrome needs
-// (manifest, src/, icons/, LICENSE), nothing else. Upload this to the Chrome Web Store
-// or unzip it and "Load unpacked".
 import { readFileSync, mkdirSync, rmSync, copyFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
@@ -13,8 +10,6 @@ const out = join(root, 'dist', `night-owl-v${version}.zip`);
 mkdirSync(join(root, 'dist'), { recursive: true });
 rmSync(out, { force: true });
 execFileSync('zip', ['-rq', out, 'manifest.json', 'LICENSE', 'src', 'icons', '-x', '*.DS_Store', 'icons/src/*'], { cwd: root, stdio: 'inherit' });
-// The same zip under a fixed name, so the README can link straight to
-// releases/latest/download/night-owl.zip.
 const latest = join(root, 'dist', 'night-owl.zip');
 copyFileSync(out, latest);
 console.log(`✔ ${out}\n✔ ${latest}`);

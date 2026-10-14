@@ -1,6 +1,3 @@
-/* Live view: matchups, the feed, and the play stage. */
-
-/* Matchups — head-to-head cards with both owners' avatars */
 .match {
   position: relative; border-radius: 16px; margin-bottom: 10px; overflow: hidden;
   background: var(--card); border: 1px solid var(--hair);
@@ -58,7 +55,6 @@
 .good { color: var(--teal); }
 .bad { color: var(--pink); }
 
-/* Feed */
 #feed { list-style: none; padding: 0; margin: 0; }
 .ev {
   position: relative; overflow: hidden; border-radius: 14px; padding: 11px 12px 11px 14px; margin-bottom: 8px;
@@ -91,13 +87,10 @@
 
 .tool [hidden] { display: none !important; }
 
-/* Score bumps and new feed cards */
 @keyframes bump { 0% { transform: scale(1); } 35% { transform: scale(1.25); color: var(--teal); } 100% { transform: scale(1); } }
 .ev.new { animation: slidein .5s cubic-bezier(.2, 1.3, .4, 1), flash 3s ease-out; }
 @keyframes slidein { from { transform: translateX(-24px) scale(.96); opacity: 0; } }
 
-/* Play pop-ups */
-/* The stage: a fixed strip just for play animations */
 .stage {
   flex: none; position: relative; height: 196px; overflow: hidden;
   margin: 10px 12px 4px; border-radius: 14px; transition: height .3s ease;
@@ -136,7 +129,7 @@
   86% { opacity: 1; }
   100% { opacity: 0; }
 }
-/* A stripe in the team's second color sweeps across as the play lands. */
+
 .pop .band {
   position: absolute; top: -40%; bottom: -40%; left: 30%; width: 34px;
   background: var(--ts); opacity: .9; transform: rotate(18deg);
@@ -155,7 +148,6 @@
 }
 @keyframes mark { 18% { opacity: .2; transform: translateY(-50%) scale(1) rotate(-8deg); } 100% { opacity: .16; transform: translateY(-50%) scale(1.06) rotate(-6deg); } }
 
-/* The player figure: jersey with the headshot on the collar. */
 .pop .fig { position: relative; height: 170px; z-index: 1; animation: fig .7s cubic-bezier(.2, 1.5, .4, 1) both; }
 @keyframes fig { from { transform: translateX(-130px) rotate(-14deg); opacity: 0; } }
 .pop .jersey { position: absolute; left: 4px; bottom: 6px; width: 112px; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45)); }
@@ -171,7 +163,6 @@
   transform: translateY(-50%); filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .5));
 }
 
-/* The words, on a dark glass card so teal/pink read on any team color. */
 .pop .copy {
   position: relative; z-index: 1; text-align: left; min-width: 0;
   padding: 8px 10px 9px; border-radius: 12px;
@@ -205,8 +196,6 @@
   .big.bump, .ev.new, .pop, .pop *, .spark, .stage, .intro *, .live-tag { animation: none !important; }
 }
 
-
-/* Entrance: cards rise in, staggered, the first time a tool opens. */
 .intro .match, .intro .ev, .intro .lu-league, .intro .stage, .intro h2 { animation: rise .55s cubic-bezier(.2, 1.1, .4, 1) both; }
 .intro .match:nth-child(2), .intro .ev:nth-child(2) { animation-delay: .06s; }
 .intro .match:nth-child(3), .intro .ev:nth-child(3) { animation-delay: .12s; }
@@ -215,22 +204,16 @@
 .intro .match:nth-child(n+6), .intro .ev:nth-child(n+6) { animation-delay: .3s; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.98); } }
 
-/* Lineups extras */
 @keyframes ringpulse { 50% { transform: rotate(-90deg) scale(1.15); } }
 @keyframes pop-in { from { transform: scale(.3); opacity: 0; } }
 .card { background: rgba(31, 36, 49, .8); border: 1px solid rgba(163, 187, 211, .1); }
-/* Nothing on this row would help: keep the list but tone it down. */
 
-/* Scores: you in white, your opponent quieter; the leader's score takes
-   teal (you) or pink (them). */
 .big { color: #fff; }
 .m-side.opp .big { color: var(--sub); }
 .match.win .m-side.me .big { color: var(--teal); }
 .match.lose .m-side.opp .big { color: var(--pink); }
 .stage .idle > * { position: relative; }
 
-/* "While you were away": changes from a gap, folded into one quiet card so
-   they never read as a single play. */
 .recap > details {
   position: relative; margin-bottom: 8px; border-radius: 14px; overflow: hidden;
   background: var(--card); border: 1px solid var(--hair);
@@ -250,9 +233,6 @@
 }
 .recap-row .impacts { grid-column: 1 / -1; margin-left: 38px; }
 
-/* ==== Game-day layout: Feed | Matchups | Games ====
-   Second-level navigation: underlined text tabs, so they never read as
-   another row of chips. */
 .lv-tabs {
   flex: none; display: flex; gap: 2px; margin: 0 12px; padding: 0;
   border-bottom: 1px solid var(--hair); max-width: 520px;
@@ -270,7 +250,6 @@
 .lv-count:empty { display: none; }
 .lv-tabs .pill-count { font-size: 10.5px; padding: 0 6px; }
 
-/* Filters stay pinned while the feed scrolls under them: one row. */
 .lv-toolbar {
   position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   margin: 0 -12px 8px; padding: 8px 12px; background: rgba(19, 23, 34, .94); backdrop-filter: blur(6px);
@@ -278,7 +257,6 @@
 #lv-league { margin-left: auto; max-width: 118px; min-width: 0; padding: 3px 8px; text-overflow: ellipsis; }
 .lv-toolbar .tab { padding: 3px 10px; }
 
-/* Compact play rows. */
 #feed .ev { padding: 8px 10px 8px 12px; margin-bottom: 6px; }
 #feed .ev-text { margin: 3px 0 6px 38px; font-size: 12.5px; }
 #feed .ev .impacts { margin-left: 38px; }
@@ -294,7 +272,6 @@
 .ev-when:first-child { margin-top: 0; }
 .stage .idle-impacts { justify-content: center; max-width: 100%; }
 
-/* Games: one collapsible block per game; live games start open. */
 details.game { margin-bottom: 4px; }
 summary.game-h {
   display: flex; align-items: center; gap: 6px; padding: 8px 2px; cursor: pointer; list-style: none;
@@ -307,9 +284,6 @@ details.game[open] > summary.game-h::after { transform: rotate(180deg); }
 #feed .ev.good, #feed .ev.bad { color: var(--text); }
 .lv-tabs .pill-count { white-space: nowrap; }
 
-/* ==== Responsive ==== */
-/* Short panels: a smaller stage (pop-ups scale with it), and none at all when
-   there's barely room for the feed. */
 @container view (max-height: 640px) {
   .stage.busy { height: 138px; }
   .stage .pop { zoom: .72; }
@@ -317,7 +291,7 @@ details.game[open] > summary.game-h::after { transform: rotate(180deg); }
 @container view (max-height: 500px) {
   .stage { display: none; }
 }
-/* Wide panels: cards flow into columns. */
+
 @container view (min-width: 660px) {
   #feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px; align-items: start; }
   #feed .ev { margin-bottom: 0; }
@@ -334,14 +308,11 @@ details.game[open] > summary.game-h::after { transform: rotate(180deg); }
 .m-league .winpct.good { color: var(--teal); }
 .m-league .winpct.bad { color: var(--pink); }
 
-/* Between plays the stage shrinks to a strip with the last play on two lines,
-   and grows back when a play lands. */
 .stage:not(.busy) { height: 64px; }
 .stage.dormant:not(.busy) { display: none; }
 .stage:not(.busy) .idle { flex-direction: row; flex-wrap: wrap; align-content: center; column-gap: 8px; row-gap: 3px; font-size: 12.5px; }
 .stage:not(.busy) .idle .idle-impacts { flex-basis: 100%; }
 
-/* Win chance through the day, inside an opened matchup. */
 .trend { margin: 2px 12px 8px; }
 .trend svg { display: block; width: 100%; height: 44px; margin-top: 4px; overflow: visible; }
 .trend .mid { stroke: var(--line); stroke-dasharray: 3 4; stroke-width: 1; vector-effect: non-scaling-stroke; }
@@ -350,8 +321,6 @@ details.game[open] > summary.game-h::after { transform: rotate(180deg); }
 .trend polyline.bad { stroke: var(--pink); }
 .recap-row .ev-who > span:last-child { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
-/* Narrow panels: the filters scroll sideways on one row; the league picker
-   stays pinned on the right. */
 @container view (max-width: 420px) {
   .lv-toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .lv-toolbar::-webkit-scrollbar { display: none; }

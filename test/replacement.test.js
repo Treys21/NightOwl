@@ -1,4 +1,3 @@
-// Replacement level, byes and fading projections.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -38,7 +37,6 @@ test('over replacement: a hole in the lineup is filled by a free agent, not by z
   const wrapped = rep.wrap({ slots, weeks: w, positionsOf, rates: lv, fade: 1 });
   const empty = lineupPoints(slots, wrapped.pool([]), wrapped.weeks, wrapped.positionsOf).total;
   assert.strictEqual(empty, 14 * 4, 'the stand-in plays');
-  // A starter adds only his margin over the stand-in, and a backup adds almost nothing.
   const starter = lineupPoints(slots, wrapped.pool(['qb1']), wrapped.weeks, wrapped.positionsOf).total;
   assert.strictEqual(starter - empty, (20 - 14) * 4);
   assert.strictEqual(Math.round(wrapped.over('qb1')), 24);
@@ -48,7 +46,7 @@ test('over replacement: a hole in the lineup is filled by a free agent, not by z
 test('a backup covers the starter\'s bye: worth the bye week over the stand-in, not the whole season', () => {
   const slots = ['QB', 'BN'];
   const w = weeks(4);
-  w[1].isOut = (p) => p === 'qb1'; // starter on bye in week 2
+  w[1].isOut = (p) => p === 'qb1';
   const lv = new Map([['QB', 8]]);
   const wrapped = rep.wrap({ slots, weeks: w, positionsOf, rates: lv, fade: 1 });
   const solo = lineupPoints(slots, wrapped.pool(['qb1']), wrapped.weeks, wrapped.positionsOf).total;

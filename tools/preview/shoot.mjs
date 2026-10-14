@@ -1,10 +1,3 @@
-// Screenshots of every tab at several panel sizes, with real data for a
-// Sleeper account and every league and owner name anonymized. For design
-// review and the README.
-//
-//   npm run preview -- --user <sleeper username> [--tools live,season] [--sizes 440x800,320x480] [--out .preview]
-//
-// Needs Google Chrome (or set CHROME to a Chromium binary).
 /* global document -- used inside page.evaluate callbacks, which run in the browser */
 import { mkdir } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
@@ -36,7 +29,6 @@ const RANKINGS = ['Bijan Robinson|RB', "Ja'Marr Chase|WR", 'Jahmyr Gibbs|RB', 'C
   .map((x, i) => ({ rank: i + 1, name: x.split('|')[0], position: x.split('|')[1] }));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// The draft view needs a league with a draft: use the account's first one.
 async function draftRoute(user) {
   const sleeper = (path) => fetch(`https://api.sleeper.app/v1${path}`).then((r) => r.json());
   const state = await sleeper('/state/nfl');

@@ -1,17 +1,3 @@
-// Runs the content scripts on a plain local page, for screenshots and design
-// review. Stands in for the extension APIs and anonymizes everything personal:
-// league names, owner names and avatars are replaced before the views see them.
-//
-// Query parameters:
-//   user=<sleeper username>  tool=draft|live|lineups|bets|season|moves  w= h= (panel size)
-//   route=<path>             pretend to be on this sleeper.com path (draft rooms)
-//   picks=<n>                show a draft as in progress after n picks
-//   stage=1                  leave one starter slot empty (shows the lineup fixer)
-//   rankings=<json>          draft rankings [{ rank, name, position }]
-//   fault=<what>             break something: sleeper | projections | ktc | espn | slow
-//   nfl=<json>               override the NFL calendar, e.g. {"season_type":"off","week":0}
-//   leagues=none             the user has no leagues
-//   status=<s>               every league's status: complete | pre_draft | drafting | in_season
 (function () {
   'use strict';
 
@@ -76,7 +62,7 @@
 
     const week = url.match(/\/v1\/league\/(\d+)\/matchups\/\d+$/);
     if (params.get('stage') && week && me && !staged) {
-      staged = true; // claim it before awaiting: matchups load in parallel
+      staged = true;
       const data = await res.clone().json();
       const rosters = await realFetch(`https://api.sleeper.app/v1/league/${week[1]}/rosters`).then((r) => r.json());
       const own = rosters.find((r) => r.owner_id === me);

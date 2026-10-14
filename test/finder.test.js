@@ -1,4 +1,3 @@
-// Trade finder: who gets proposed, and what never should.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -13,7 +12,6 @@ const PTS = {};
 const add = (id, pos, pts) => { POS[id] = [pos]; PTS[id] = pts; return id; };
 const weeks = (n) => Array.from({ length: n }, () => ({ projOf: (p) => PTS[p] || 0, isOut: () => false }));
 
-// Me: deep at RB, thin at WR. Them: deep at WR, thin at RB.
 const me = ['m_qb', 'm_rb1', 'm_rb2', 'm_rb3', 'm_rb4', 'm_wr1', 'm_wr2'];
 const them = ['t_qb', 't_rb1', 't_rb2', 't_wr1', 't_wr2', 't_wr3', 't_wr4'];
 add('m_qb', 'QB', 20); add('m_rb1', 'RB', 16); add('m_rb2', 'RB', 15); add('m_rb3', 'RB', 14); add('m_rb4', 'RB', 13);
@@ -40,7 +38,6 @@ test('redraft: a deal that fills each side\'s hole is proposed, and both lineups
   for (const p of found) {
     assert.ok(p.me.dPts >= 1.5 && p.them.dPts >= 1, `both gain: ${p.me.dPts} / ${p.them.dPts}`);
   }
-  // The natural swap: an RB from my surplus for a WR from theirs.
   assert.ok(found.some((p) => p.give.some((id) => id.startsWith('m_rb')) && p.get.some((id) => id.startsWith('t_wr'))));
 });
 
@@ -82,7 +79,6 @@ test('shop and target: every proposal includes the player you are shopping or af
   assert.deepEqual(finder.proposeFor(Object.assign(base('redraft'), { focus: { target: 'nobody' } }), a, b, finder.dropLosses(a, ctx)), []);
 });
 
-// Dynasty: values are in KTC-like units and picks exist.
 const dyn = () => {
   const ctx = base('dynasty');
   const ktc = { m_qb: 7000, m_rb1: 6000, m_rb2: 5200, m_rb3: 3000, m_rb4: 2500, m_wr1: 5000, m_wr2: 1500, t_qb: 6500, t_rb1: 4800, t_rb2: 1200, t_wr1: 6200, t_wr2: 4000, t_wr3: 3500, t_wr4: 3000, 'pick:2027:1:2': 5000, 'pick:2027:1:1': 5200 };
@@ -113,12 +109,11 @@ test('dynasty: never asks them to take a loss on consensus value', () => {
 
 test('dynasty: the rebuilder is offered picks and youth for veterans, not the reverse', () => {
   const { ctx } = dyn();
-  const a = team(1, me, 0.95, ['pick:2027:1:1']); // contender
-  const b = team(2, them, 0.05, ['pick:2027:1:2']); // rebuilder holding a pick and young WRs
+  const a = team(1, me, 0.95, ['pick:2027:1:1']);
+  const b = team(2, them, 0.05, ['pick:2027:1:2']);
   const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
   const best = found[0];
   assert.ok(best, 'a deal exists');
-  // The contender takes back production; the rebuilder gets the older players or the pick the contender holds.
   const vetsToThem = best.give.filter((id) => ['m_rb1', 'm_rb2'].includes(id)).length + best.give.filter((id) => id.startsWith('pick:')).length;
   assert.ok(vetsToThem > 0, `gives ${best.give}`);
 });
@@ -167,11 +162,11 @@ test('dynasty: a contender is only offered deals that add points, a rebuilder de
   for (const p of finder.proposeFor(ctx, contender, seller, finder.dropLosses(contender, ctx))) {
     assert.ok(p.me.dPts >= 3, `contender gains ${p.me.dPts}`);
   }
-  assert.equal(finder.worthIt({ mode: 'dynasty' }, 0.95, 'balanced', 1, 500, 1000), false); // a contender will not pay in points for value
-  assert.equal(finder.worthIt({ mode: 'dynasty' }, 0.05, 'balanced', 40, 10, 1000), false); // and a rebuilder will not take points for nothing
+  assert.equal(finder.worthIt({ mode: 'dynasty' }, 0.95, 'balanced', 1, 500, 1000), false);
+  assert.equal(finder.worthIt({ mode: 'dynasty' }, 0.05, 'balanced', 40, 10, 1000), false);
   assert.equal(finder.worthIt({ mode: 'dynasty' }, 0.05, 'balanced', -40, 80, 1000), true);
-  assert.equal(finder.worthIt({ mode: 'dynasty' }, 0.5, 'balanced', 5, 0, 1000), true); // in the hunt: points alone will do
-  assert.equal(finder.worthIt({ mode: 'dynasty' }, 0.95, 'future', -20, 80, 1000), true); // chip says rebuild
+  assert.equal(finder.worthIt({ mode: 'dynasty' }, 0.5, 'balanced', 5, 0, 1000), true);
+  assert.equal(finder.worthIt({ mode: 'dynasty' }, 0.95, 'future', -20, 80, 1000), true);
 });
 
 test('a full roster cuts a spare part to make room, and in dynasty pays for it', () => {
@@ -194,7 +189,6 @@ test('starts count the weeks an incoming player is in the lineup', () => {
   assert.ok(first.me.starts.every((s) => s.weeks >= 1 && s.weeks <= ctx.weeks.length));
 });
 
-// Redraft with a consensus price (KeepTradeCut's fantasy values) alongside projections.
 const redraftPriced = () => {
   const ctx = base('redraft');
   const price = { m_qb: 7000, m_rb1: 6000, m_rb2: 5200, m_rb3: 4500, m_rb4: 3800, m_wr1: 5000, m_wr2: 1500, t_qb: 6500, t_rb1: 4800, t_rb2: 1200, t_wr1: 6200, t_wr2: 4800, t_wr3: 4200, t_wr4: 3600 };
@@ -225,7 +219,6 @@ test('redraft consensus: a team out of the race takes a deal on price, not on po
   const found = finder.proposeFor(ctx, a, eliminated, finder.dropLosses(a, ctx));
   assert.ok(found.length > 0, 'an eliminated team still deals');
   assert.ok(found.every((p) => p.rawNetThem >= 0.03 - 1e-9 || p.them.dPts >= 2), 'it wins on consensus value or gains points');
-  // The same deals do not clear the bar for a contender unless it gains points.
   const contender = team(3, them, 0.95);
   assert.ok(finder.proposeFor(ctx, a, contender, finder.dropLosses(a, ctx)).every((p) => p.them.dPts >= 2));
   assert.equal(finder.worthIt({ mode: 'redraft', consensus: true }, 0.02, 'balanced', -10, 400, 5000, 'them'), true);
@@ -248,11 +241,9 @@ test('judge: a deal someone made goes through the same gates the search applies'
   const good = finder.judge(ctx, a, b, ['m_rb3'], ['t_wr2']);
   assert.equal(good.ok, true);
   assert.ok(good.impact.a.delta >= 3 && good.impact.b.delta >= 2);
-  // Handing over your best player for nothing fails for you, with the reason.
   const bad = finder.judge(ctx, a, b, ['m_qb'], ['t_rb2']);
   assert.equal(bad.ok, false);
   assert.ok(['noUpgrade', 'youOverpay'].includes(bad.reason), bad.reason);
-  // Dynasty: a deal the other side would see as a rip-off is rejected on price before lineups.
   const { ctx: dctx } = dyn();
   const rip = finder.judge(dctx, team(1, me, 0.9), team(2, them, 0.1), ['m_rb4'], ['t_wr1']);
   assert.equal(rip.ok, false);

@@ -1,12 +1,3 @@
-// Season tool: one row per league with where you stand, how lucky you've
-// been, and how many points your lineup choices left on the bench. Expanding
-// a league shows its full standings with all-play records and power ratings,
-// and, in dynasty and keeper leagues, next year's draft order. While a week is
-// being played, everything counts it as if the games ended now.
-//
-// "Projected" plays out the rest of the season and the playoffs from each
-// team's projected lineups (see season/project.js): final records, playoff,
-// bye and title odds, the end-of-season draft order and a projected bracket.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -18,8 +9,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const { NOT_STARTING_SLOTS } = NightOwl.lineups;
 
   const REFRESH_MS = 10 * 60000;
-  const LIVE_REFRESH_MS = 2 * 60000; // while a week is being played
-  const KEEPS_PLAYERS = new Set([1, 2]); // settings.type: 1 keeper, 2 dynasty
+  const LIVE_REFRESH_MS = 2 * 60000;
+  const KEEPS_PLAYERS = new Set([1, 2]);
   const SIMS = model.SIMS;
 
   let root = null;
@@ -28,14 +19,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const state = {
     week: null,
     leagues: [],
-    open: new Set(), // league ids expanded
-    draftMethod: 'linear', // or 'inverse'; see season.draftOrder
-    mode: 'now', // or 'projected', 'path' or 'recap'
-    stats: {}, // weekly projections behind the simulations, kept for the path view
+    open: new Set(),
+    draftMethod: 'linear',
+    mode: 'now',
+    stats: {},
     remainingOf: null,
-    projections: new Map(), // league id -> projectSeason result, or { error }
+    projections: new Map(),
     projecting: false,
-    live: false, // some league counts a week still being played
+    live: false,
     loadedAt: 0,
     timer: null,
     busy: false,
@@ -62,9 +53,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </div>
   `;
 
-  // ---- data -------------------------------------------------------------
-
-  // Scores for finished weeks never change, so each is fetched once.
   async function weekScores(leagueId, weeks) {
     const key = `season.scores.${leagueId}`;
     const cached = await storage.get(key, {});
@@ -77,8 +65,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return weeks.map((w) => cached[w]).filter(Boolean);
   }
 
-  // Last finished week for your team: actual vs best possible, and the
-  // single bench decision that cost the most.
   function weekReview(lg, matchups, mine, week) {
     const me = matchups.find((m) => m.roster_id === mine.roster_id);
     if (!me || !me.players_points) return null;
@@ -157,8 +143,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         name: lg.name.trim(),
         playoffTeams,
         medianGame,
-        // What the projection needs: the records as Sleeper has them (the
-        // live week is projected, not counted), and the league's rules.
         raw: {
           season: lg.season,
           rosters,
@@ -186,8 +170,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.loadedAt = Date.now();
   }
 
-  // The week being played, folded into the season as it stands, or null
-  // before anything has been scored.
   function liveWeek(lg, rosters, matchups, { medianGame }) {
     if (!matchups.some((m) => m.points > 0)) return null;
     const byRoster = new Map(rosters.map((r) => [r.roster_id, r]));
@@ -206,8 +188,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     };
   }
 
-  // ---- projection ---------------------------------------------------------
-
   async function runProjections() {
     if (state.projecting || !state.leagues.length) return;
     const pending = state.leagues.filter((lg) => lg.raw.next < lg.raw.playoffStart && !state.projections.has(lg.leagueId));
@@ -224,8 +204,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       state.remainingOf = remainingOf;
       for (const lg of pending) {
         try {
-          // 2,000 simulated seasons take ~60 ms a league: give the page a
-          // breath between leagues so Sleeper's own UI never stalls.
           await new Promise((resolve) => setTimeout(resolve));
           state.projections.set(lg.leagueId, await model.projectLeague(lg, { remainingOf, stats, draftMethod: state.draftMethod }));
         } catch (err) {
@@ -265,8 +243,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
     }
   }
-
-  // ---- view -------------------------------------------------------------
 
   const ordinal = (n) => {
     const tail = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
@@ -316,8 +292,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return parts.length ? `<p class="muted small se-note">${parts.join(' ')}</p>` : '';
   }
 
-  // ---- draft order --------------------------------------------------------
-
   const METHODS = {
     linear: { label: 'Linear', blurb: 'Gaps count in proportion to their size.' },
     inverse: { label: 'Inverse', blurb: 'The worst teams pull far ahead; small gaps near the top barely count.' }
@@ -331,8 +305,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     );
   }
 
-  // Picks you hold in every round, in draft order (rookie drafts run the same
-  // order each round).
   function myPicks(lg, picks) {
     const mine = lg.me.rosterId;
     const out = [];
@@ -374,7 +346,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </section>`;
   }
 
-  // A value over its label; tone is 'up' (good), 'down' (bad) or ''.
   const kpi = (value, label, { tone = '', title = '' } = {}) =>
     `<div class="se-kpi ${tone}"${title ? ` title="${esc(title)}"` : ''}><b>${value}</b><span>${label}</span></div>`;
 
@@ -384,8 +355,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       title: `Round 1 picks you hold, by the projected ${lg.draft.season} draft order`
     });
   }
-
-  // ---- projected ----------------------------------------------------------
 
   const projRecord = (w, l) => `${num(Math.round(w * 10) / 10)}–${num(Math.round(l * 10) / 10)}`;
   const nameOf = (lg, rosterId) => {
@@ -556,8 +525,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return extrasPane;
   };
 
-  // ---- lifecycle --------------------------------------------------------
-
   storage.onChanged((changes) => {
     if (root && (changes.settings || changes['live.settings'])) refresh();
   });
@@ -583,7 +550,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!btn || btn.dataset.method === state.draftMethod) return;
       state.draftMethod = btn.dataset.method;
       storage.set({ 'season.settings': { draftMethod: state.draftMethod, mode: state.mode } });
-      // #1-pick odds depend on the method, so projections run again.
       if (state.mode === 'projected') { state.projections.clear(); runProjections(); }
       render();
     });
@@ -596,7 +562,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (Date.now() - state.loadedAt > REFRESH_MS / 2) refresh();
     else if (state.mode === 'projected' || state.mode === 'path') runProjections().then(() => state.mode === 'path' && extras().runPaths());
     else if (state.mode === 'recap') extras().runRecaps();
-    // Every 2 minutes while a week is being played, otherwise every 10.
     state.timer = setInterval(() => {
       if (Date.now() - state.loadedAt >= (state.live ? LIVE_REFRESH_MS : REFRESH_MS) - 1000) refresh();
     }, LIVE_REFRESH_MS);

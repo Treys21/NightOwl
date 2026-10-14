@@ -1,10 +1,3 @@
-// Draft view: resolve the draft on this page, poll it, and keep the big board
-// and the inline rank badges current.
-//
-// Polling lives here rather than in the background worker on purpose: MV3
-// workers are killed after ~30s idle and chrome.alarms fires at most once a
-// minute, far too slow to feel live. It runs only while the Draft tool is
-// showing in an open tab.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -16,7 +9,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const MAX_BACKOFF_MS = 30000;
 
   let root = null;
-  let session = 0; // bumped on every (re)start so stale async work bails out
+  let session = 0;
   let prefs = null;
   let timer = null;
   let backoffMs = 0;
@@ -24,12 +17,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   let draftId = null;
   let draft = null;
   let userId = null;
-  let index = null; // name index over Sleeper's players
+  let index = null;
   let rankings = [];
   let board = { status: 'loading', rows: [], myTurn: false, message: '', kind: '' };
 
-  // /draft/nfl/<draft_id> in a draft room; league pages carry a league id and
-  // the draft is resolved through the league.
   function parseRoute(url) {
     const draftMatch = url.match(/\/draft\/[a-z]+\/(\d+)/i);
     if (draftMatch) return { kind: 'draft', id: draftMatch[1] };
@@ -43,11 +34,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (route.kind === 'draft') return route.id;
     const drafts = await api.leagueDrafts(route.id);
     if (!Array.isArray(drafts) || drafts.length === 0) return null;
-    // The league's most recent draft, as the site itself shows.
     return drafts.reduce((a, b) => ((b.created || 0) > (a.created || 0) ? b : a)).draft_id;
   }
 
-  // The board works without a username; only "you're on the clock" needs it.
   async function resolveUserId() {
     try {
       return (await account.resolve()).userId;
@@ -71,7 +60,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         team: ranking.team || (player && player.team) || '',
         matched: Boolean(player),
         pickNo,
-        // Positive = fell past where you had him (value); negative = went early (reach).
         delta: pickNo ? pickNo - ranking.rank : null,
         byMe: Boolean(pick && userId && String(pick.picked_by) === String(userId))
       };
@@ -113,7 +101,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       backoffMs = 0;
     } catch (err) {
       if (id !== session) return;
-      // Keep the last good board on screen and back off rather than going blank.
       backoffMs = Math.min(backoffMs ? backoffMs * 2 : POLL_MS, MAX_BACKOFF_MS);
       show(Object.assign({}, board, { message: 'reconnecting…', kind: 'warn' }));
       console.warn('[Night Owl draft] poll failed', err);
@@ -155,7 +142,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     draftId = null;
   }
 
-  // Rankings edited in the popup show up without a reload.
   storage.onChanged(async (changes) => {
     if (!root || !draftId || !(changes.rankings || changes.settings)) return;
     const id = session;

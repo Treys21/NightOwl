@@ -1,5 +1,3 @@
-/* Moves view: waivers and the trade analyzer. */
-
 .mv-mode { margin-right: 6px; }
 #mv-body { padding-top: 8px; }
 .mv-league {
@@ -61,7 +59,6 @@
 .mv-verdict { margin: 8px 2px 0; font-size: 12.5px; color: var(--text); }
 .mv-warn { margin: 6px 2px 0; color: #feae58; }
 
-/* Trade finder */
 .mv-goals { margin: 2px 0 6px; }
 .mv-finder-controls { grid-template-columns: 1fr 1fr; }
 .mv-finder-controls #mv-league { grid-column: 1 / -1; }
@@ -99,7 +96,6 @@
 .mv-btn:hover { background: rgba(163, 187, 211, .14); }
 @media (max-width: 360px) { .mv-swap { grid-template-columns: 1fr; } .mv-arrow { display: none; } }
 
-/* Trade history */
 .mv-hist { padding: 9px 12px; }
 .mv-hist-h { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
 .mv-hist-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -117,7 +113,6 @@
 .mv-managers tr.me td { background: var(--teal-soft); }
 @media (max-width: 360px) { .mv-hist-sides { grid-template-columns: 1fr; } }
 
-/* ---- drafts board ---- */
 .dv-wrap { overflow: auto; max-height: 62vh; margin: 0 8px 6px; border-radius: 10px; border: 1px solid var(--hair); }
 .dv-grid { display: grid; grid-template-columns: 24px repeat(var(--teams), minmax(76px, 1fr)); min-width: calc(24px + var(--teams) * 76px); gap: 2px; background: var(--bg); }
 .dv-corner, .dv-head, .dv-round { background: var(--panel); position: sticky; z-index: 1; }
@@ -140,7 +135,6 @@
 .dv-cell.near .dv-name { font-weight: 500; }
 .dv-colour { margin: 0 8px 8px; }
 
-/* ---- cleaner cards ---- */
 .mv-card { position: relative; padding: 12px 14px; border-radius: 14px; border-color: var(--hair); background: linear-gradient(160deg, rgba(163, 187, 211, .07), rgba(163, 187, 211, .03)); }
 .mv-card.high::before, .mv-card.mid::before, .mv-card.low::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: var(--line); }
 .mv-card.high::before { background: var(--teal); }

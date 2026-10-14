@@ -1,8 +1,3 @@
-/* Shared by the Live, Lineups and Bets views: palette tokens, the view's
-   bar and scroller, cards, tabs, chips, empty/error states. */
-/* Sleeper's own palette, read off sleeper.com: navy panels, teal accent with
-   navy text on it, pink for the bad news, blue-grey secondary text.
-   Defined on the panel so every view (the Draft board too) shares them. */
 .panel, .tool {
   --raised: #2c3549;
   --hair: rgba(163, 187, 211, 0.12);
@@ -14,7 +9,7 @@
   --chip: #262e3e;
   --text: #ffffff;
   --sub: #bfcfe0;
-  --muted: #8d9fbc; /* was #677897: too dim on navy for small text */
+  --muted: #8d9fbc;
   --teal: #00ceb8;
   --teal-ink: #022047;
   --teal-soft: rgba(0, 206, 184, 0.12);
@@ -90,18 +85,11 @@ h2::after { content: ''; flex: 1; min-width: 20px; height: 1px; background: line
 #league-toggles label { display: flex; gap: 8px; align-items: center; padding: 3px 0; color: var(--sub); }
 #league-toggles input { accent-color: var(--teal); }
 
-/* Scroll performance: keep scroll chaining inside the panel. */
 .tool-scroll { overscroll-behavior: contain; }
 
-/* Comfortable targets in a dense panel. */
 button.icon { min-width: 28px; min-height: 28px; }
 .tab, .chip { min-height: 26px; }
 
-/* ==== Controls: one look across every tool ====
-   Teal fill is reserved for the tool switch and for "good / you / hit".
-   Secondary choices (sub-tabs, filters, Mine / Opponents, positions) are
-   quiet: outlined when off, a raised neutral surface when on. Helps / Hurts
-   filters take their meaning's colour only while selected. */
 .tab, .chip {
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   min-height: 28px; padding: 3px 11px; border-radius: 999px;
@@ -121,12 +109,10 @@ select {
 select:hover { background: rgba(163, 187, 211, 0.06); }
 select option { background: var(--panel); color: var(--text); }
 
-/* Every tool's top bar: the week as the title, quiet status beside it. */
 .bar { min-height: 44px; padding: 6px 10px 6px 14px; border-bottom: 1px solid var(--hair); }
 .title strong { font: 600 14.5px Poppins, sans-serif; }
 .title .muted.small { font-size: 12px; }
 
-/* Loading: placeholder cards in the shape of what's coming. */
 .skel { display: grid; gap: 10px; padding-top: 10px; }
 .skel i {
   display: block; height: 92px; border-radius: 14px;
@@ -138,11 +124,9 @@ select option { background: var(--panel); color: var(--text); }
 @keyframes skel { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .skel i { animation: none; } }
 
-/* An icon button whose panel is open reads as pressed. */
 button.icon[aria-expanded="true"] { color: var(--text); background: var(--raised); }
 .lv-set-h { margin: 0 0 6px; font: 600 11px Inter, sans-serif; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 
-/* A narrow panel: the title never wraps, and the bar's tabs scroll sideways before they push the refresh button out. */
 .bar > .title { flex: none; white-space: nowrap; }
 .bar > .actions { min-width: 0; flex: 0 1 auto; }
 .bar .actions .tabs { min-width: 0; overflow-x: auto; scrollbar-width: none; }

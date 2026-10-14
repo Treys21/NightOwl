@@ -1,8 +1,3 @@
-// The rankings parser reads the dataset a Next.js page embeds in its RSC
-// payload (self.__next_f.push chunks). The fixture is SYNTHETIC: the same
-// structure as The Ringer's page, with invented ranks and values, split across
-// several chunks so reassembly is exercised. (A real page capture was used to
-// build the parser; it isn't redistributed here.)
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -39,23 +34,23 @@ test('players unranked in a format (9999) are left out', () => {
 test('teams are converted to Sleeper abbreviations', () => {
   const { rankings } = ringer.parseHtml(html, 'half-ppr');
   const byName = new Map(rankings.map((r) => [r.name, r]));
-  assert.equal(byName.get('Christian McCaffrey').team, 'SF'); // 49ers
-  assert.equal(byName.get('Ashton Jeanty').team, 'LV'); // Raiders
-  assert.equal(byName.get('Puka Nacua').team, 'LAR'); // Rams
+  assert.equal(byName.get('Christian McCaffrey').team, 'SF');
+  assert.equal(byName.get('Ashton Jeanty').team, 'LV');
+  assert.equal(byName.get('Puka Nacua').team, 'LAR');
 });
 
 test('positions are upper-cased and carry positional rank and auction value', () => {
   const top = ringer.parseHtml(html, 'half-ppr').rankings[0];
   assert.equal(top.position, 'RB');
   assert.equal(top.positionRank, 1);
-  assert.equal(top.value, 62); // "$$62" -> 62
+  assert.equal(top.value, 62);
 });
 
 test('superflex is a genuinely different board', () => {
   const half = ringer.parseHtml(html, 'half-ppr').rankings;
   const superflex = ringer.parseHtml(html, 'superflex').rankings;
   assert.equal(half[0].name, 'Bijan Robinson');
-  assert.equal(superflex[0].position, 'QB'); // quarterbacks jump in superflex
+  assert.equal(superflex[0].position, 'QB');
 });
 
 test('every scoring format produces a board with unique ascending ranks', () => {

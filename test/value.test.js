@@ -1,4 +1,3 @@
-// Roster-move value: waiver targets and trade impact, on invented players.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -14,7 +13,7 @@ const weeks = (n, out = () => false) => Array.from({ length: n }, () => ({ projO
 
 test('lineup points are the best lineup each week, summed', () => {
   const r = value.lineupPoints(SLOTS, ['qb1', 'rb1', 'rb2', 'rb3', 'wr1', 'te1'], weeks(3), positionsOf);
-  assert.deepEqual(r.perWeek, [64, 64, 64]); // 20 + 15 + 8 + 12 + 9
+  assert.deepEqual(r.perWeek, [64, 64, 64]);
   assert.equal(r.total, 192);
 });
 
@@ -32,11 +31,9 @@ test('waiver targets: only free agents who start are worth adding, with the leas
     candidates: ['fa_rb', 'fa_wr', 'fa_te', 'fa_qb', 'fa_junk']
   });
   const byPid = Object.fromEntries(found.map((f) => [f.pid, f]));
-  // 11 beats his 8-point RB2 by 3 a week for 4 weeks, cutting someone who never starts.
   assert.equal(byPid.fa_rb.gain, 12);
   assert.equal(byPid.fa_rb.nowGain, 3);
   assert.ok(['rb3', 'wr2'].includes(byPid.fa_rb.drop));
-  // A 6-point WR does not beat the 12-point starter, and nobody else starts for him.
   assert.equal(byPid.fa_wr, undefined);
   assert.equal(byPid.fa_te, undefined);
   assert.equal(byPid.fa_junk, undefined);
@@ -56,7 +53,6 @@ test('waiver targets: nothing to add when the season is over', () => {
 test('a trade moves lineup points from one side to the other', () => {
   const a = { pool: ['qb1', 'rb1', 'rb2', 'wr1', 'te1'] };
   const b = { pool: ['fa_qb', 'rb3', 'wr2', 'fa_rb'] };
-  // a sends rb2 (8) for b's fa_rb (11): a gains 3 a week; b loses it at RB.
   const t = value.tradeImpact({ slots: SLOTS, weeks: weeks(2), positionsOf, a, b, aGives: ['rb2'], bGives: ['fa_rb'] });
   assert.equal(t.a.delta, 6);
   assert.deepEqual(t.a.perWeek, [3, 3]);
@@ -75,5 +71,5 @@ test('applying a trade swaps players between the two rosters and leaves the rest
   assert.deepEqual(next[1].players, ['b']);
   assert.deepEqual(next[1].taxi, []);
   assert.equal(next[2], rosters[2]);
-  assert.deepEqual(rosters[0].players, ['a', 'b']); // the input is untouched
+  assert.deepEqual(rosters[0].players, ['a', 'b']);
 });

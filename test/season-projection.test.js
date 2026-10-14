@@ -1,5 +1,3 @@
-// Rest-of-season projection: bracket formats, the simulation's bookkeeping,
-// and the projected bracket and draft order.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -16,7 +14,6 @@ test('bracket formats match Sleeper: byes to the top seeds, no reseeding', () =>
   assert.deepEqual(six.rounds.map((r) => [r.label, r.weeks]), [['Quarterfinals', [15]], ['Semifinals', [16]], ['Championship', [17]]]);
   assert.deepEqual(projection.bracketFormat(4, 15, 0).firstRound, [[1, 4], [2, 3]]);
   assert.deepEqual(projection.bracketFormat(8, 15, 0).firstRound, [[1, 8], [4, 5], [2, 7], [3, 6]]);
-  // Two-week championship, and two weeks every round.
   assert.deepEqual(projection.bracketFormat(4, 15, 1).rounds.map((r) => r.weeks), [[15], [16, 17]]);
   assert.deepEqual(projection.playoffWeeks(projection.bracketFormat(4, 14, 2)), [14, 15, 16, 17]);
   assert.equal(projection.bracketFormat(0, 15), null);
@@ -38,8 +35,6 @@ test('a team week starts the best projected lineup and skips players who are out
   assert.equal(avail(0)('c'), false);
 });
 
-// Four teams, two weeks left, 2-team playoffs (one round). Team 1 is far
-// better than everyone; teams 2 and 3 are even; team 4 is bad.
 const strength = { 1: 150, 2: 110, 3: 110, 4: 70 };
 const wk = (pairs) => ({ pairs, teams: Object.fromEntries(Object.entries(strength).map(([id, m]) => [id, { mean: m, variance: 100 }])) });
 const TEAMS = [
@@ -73,24 +68,18 @@ test('the simulation keeps its books: records, odds and picks add up', () => {
   close(sum([1, 2, 3, 4].map((id) => p.teams[id].playoffOdds)), 2, 1e-9, 'two playoff spots');
   close(sum([1, 2, 3, 4].map((id) => p.teams[id].titleOdds)), 1, 1e-9, 'one champion');
   close(sum([1, 2, 3, 4].map((id) => p.teams[id].finalOdds)), 2, 1e-9, 'two finalists');
-  // Team 1 wins nearly everything; team 4 nearly nothing.
   assert.ok(p.teams[1].wins > 5.9, `team 1 wins ${p.teams[1].wins}`);
   assert.ok(p.teams[1].playoffOdds > 0.99);
   assert.ok(p.teams[4].playoffOdds < 0.01);
   assert.ok(p.teams[1].titleOdds > 0.85);
-  // Teams 2 and 3 are even today, but 3 still plays team 4 while 2 still
-  // plays team 1: the schedule puts 3 ahead.
   assert.deepEqual(p.order, [1, 3, 2, 4]);
   assert.ok(p.teams[3].wins > p.teams[2].wins);
-  // Worst team picks first almost always.
   assert.ok(p.teams[4].pickOdds[0] > 0.99);
-  // Same seed, same answer.
   assert.deepEqual(run().teams, p.teams);
 });
 
 test('max points add the full lineup; points for are scaled by efficiency', () => {
   const p = run({ teams: TEAMS.map((t) => (t.rosterId === 2 ? { ...t, efficiency: 0.8 } : t)) });
-  // Two weeks of a 110-point lineup: max grows ~220, points for ~176.
   close(p.teams[2].max - 600, 220, 6, 'max points added');
   close(p.teams[2].pf - 550, 176, 6, 'points for added');
 });

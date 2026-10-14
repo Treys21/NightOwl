@@ -1,11 +1,8 @@
-// NFL team colors plus Sleeper's CDN for headshots and logos — what the play
-// stage uses to dress each pop-up in the scoring player's uniform.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
   'use strict';
 
-  // [primary, secondary]
   const COLORS = {
     ARI: ['#97233F', '#FFB612'], ATL: ['#A71930', '#000000'], BAL: ['#241773', '#9E7C0C'],
     BUF: ['#00338D', '#C60C30'], CAR: ['#0085CA', '#101820'], CHI: ['#0B162A', '#C83803'],
@@ -30,7 +27,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   }
 
-  // Readable ink on a team color: white on dark jerseys, near-black on gold ones.
   const inkOn = (hex) => (luminance(hex) > 0.35 ? '#101820' : '#ffffff');
 
   function colors(team) {
@@ -41,7 +37,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const logo = (team) => `https://sleepercdn.com/images/team_logos/nfl/${String(team).toLowerCase()}.png`;
   const headshot = (pid) => `https://sleepercdn.com/content/nfl/players/thumb/${pid}.jpg`;
 
-  // Team defenses use the team code as their player id ("DAL").
   const isDefenseId = (pid) => /^[A-Z]{2,3}$/.test(String(pid));
 
   NightOwl.teams = {
@@ -50,7 +45,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     logo,
     headshot,
     isDefenseId,
-    /** A player's headshot, or the team logo for a defense. */
     photo: (pid, team) => (isDefenseId(pid) ? logo(team) : headshot(pid))
   };
 })(globalThis.NightOwl);

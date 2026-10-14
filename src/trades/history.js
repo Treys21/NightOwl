@@ -1,12 +1,3 @@
-// A league's trade history, read and graded. Pure: no DOM, no network.
-//
-//   parse     Sleeper's transactions -> completed trades, one record per side
-//   realized  what each side's players actually scored after the trade (and
-//             whether they were started), from the weekly matchups
-//   grade     a letter for each side: what the market says the deal was worth
-//             now, and what the players produced
-//   profile   how each manager trades: how often, how fair, picks or players
-//             (the finder uses it to judge who is likely to deal)
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -20,12 +11,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
   };
 
-  /**
-   * Completed trades out of a league's transactions.
-   *   transactions  Sleeper rows (any type, any week)
-   * -> [{ id, season, week, at, sides: { [rosterId]: { got: [pid], gave: [pid], gotPicks: [pick], gavePicks: [pick] } } }]
-   *    a pick is { season, round, from } (from = the roster it originally belonged to)
-   */
   function parse(transactions, season) {
     const out = [];
     for (const tx of transactions || []) {
@@ -46,18 +31,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out.sort((a, b) => b.at - a.at);
   }
 
-  /**
-   * Points players scored for the roster that got them, after the trade.
-   *   weekly  [{ week, rosters: { [rosterId]: { starters: [pid], points: { pid: pts } } } }]
-   * -> { [rosterId]: { started, bench } } for the players each side received
-   */
   function realized(trade, weekly) {
     const out = {};
     for (const [rid, side] of Object.entries(trade.sides)) {
       let started = 0;
       let bench = 0;
       for (const w of weekly) {
-        if (w.week <= trade.week) continue; // the week of the deal was mostly played before it went through
+        if (w.week <= trade.week) continue;
         const entry = w.rosters[rid];
         if (!entry) continue;
         const starters = new Set(entry.starters || []);
@@ -72,21 +52,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  // Twelve steps, not five. The two sides of a trade are mirrors, and a typical real deal is
-  // 10-15% off an even price, so wide letters made nine deals in ten an A for one side and
-  // an F for the other. A near-even deal is a C; it takes a lopsided one to reach the ends.
   const LETTERS = [[0.4, 'A+'], [0.3, 'A'], [0.22, 'A-'], [0.16, 'B+'], [0.11, 'B'], [0.07, 'B-'], [0.035, 'C+'], [-0.035, 'C'], [-0.07, 'C-'], [-0.11, 'D+'], [-0.16, 'D'], [-0.22, 'D-']];
   const letterFor = (score) => (LETTERS.find(([min]) => score >= min) || [0, 'F'])[1];
-  /** The letter without its sign: what colours the chip. */
   const toneOf = (letter) => letter[0];
 
-  /**
-   * Grade both sides of a two-team trade.
-   *   ctx.assetValue(side asset) -> market value now (0 when the market has no price)
-   *   ctx.sideValue(values)      -> package value
-   *   real                       -> realized(trade, weekly) for the points half
-   * -> { [rosterId]: { valueNet, valuePct, ptsNet, ptsPct, score, letter, tone } }
-   */
   function grade(trade, ctx, real) {
     const ids = Object.keys(trade.sides);
     const assets = (rid, which) => {
@@ -99,30 +68,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const gave = ctx.sideValue(assets(rid, 'gave').map(ctx.assetValue));
       const size = Math.max(got, gave, 1);
       const valueNet = got - gave;
-      // Points: what my side's players started for me less what the players I gave started for them.
       const others = ids.filter((o) => o !== rid);
       const mine = real && real[rid] ? real[rid].started : 0;
       const theirs = sum(others.map((o) => (real && real[o] ? real[o].started : 0)));
       const ptsNet = mine - theirs;
       const hasValue = got > 0 || gave > 0;
-      // A few weeks of points say little about a long-run deal (picks score none), and a lot about a redraft one.
       const ptsSize = Math.max(mine, theirs, hasValue ? 60 : 30);
       const valuePct = hasValue ? valueNet / size : 0;
       const ptsPct = ptsNet / ptsSize;
-      // The market's read when there is one, blended with what the players actually did.
       const score = hasValue ? 0.85 * valuePct + 0.15 * ptsPct : ptsPct;
       out[rid] = { valueNet, valuePct, ptsNet: Math.round(ptsNet * 10) / 10, ptsPct, score, letter: letterFor(score), tone: toneOf(letterFor(score)) };
     }
     return out;
   }
 
-  /**
-   * How each manager trades, from graded trades.
-   *   graded  [{ trade, grades }]
-   *   keyOf   (trade, rosterId) -> the key to group by (default the roster id; the app
-   *           passes the owner's user id so a manager is one person across seasons)
-   * -> { [key]: { trades, avgPct, picksShare, avgGave, avgGot, partners: { [key]: n } } }
-   */
   function profiles(graded, keyOf = (trade, rid) => rid) {
     const out = {};
     for (const { trade, grades } of graded) {
@@ -152,11 +111,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return done;
   }
 
-  /**
-   * What this league's trades look like: how lopsided they usually are (the
-   * band a counterparty tolerates) and how often anyone trades.
-   * -> { count, perSeason, medianAbsPct, tolerance }
-   */
   function league(graded, seasons) {
     const abs = [];
     for (const { grades } of graded) for (const g of Object.values(grades)) if (g.valuePct) abs.push(Math.abs(g.valuePct));
@@ -165,7 +119,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       count: graded.length,
       perSeason: seasons ? graded.length / seasons : graded.length,
       medianAbsPct: med,
-      // What other managers let a deal be off by, as seen in what they accepted; too few trades say nothing.
       tolerance: graded.length >= 4 && med != null ? Math.max(0.06, Math.min(0.2, med * 1.25)) : null
     };
   }

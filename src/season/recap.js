@@ -1,6 +1,3 @@
-// A season recap for one roster, from the weekly matchups and the waiver wire:
-// the weeks the bench cost you, your most productive starter, the best player
-// you picked up and the one you let go. Pure: no DOM, no network.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -9,12 +6,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const { optimal, biggestMiss } = NightOwl.season;
   const round1 = (n) => Math.round(n * 10) / 10;
 
-  /**
-   * Weekly lineup decisions for one roster.
-   *   weekly  [{ week, rosters: { [rosterId]: { starters: [pid], points: { pid: pts } } } }]
-   * -> { weeks: [{ week, actual, best, loss, miss }], totalLoss, mvp: { pid, pts, weeks } | null }
-   *    miss is the single swap that would have gained the most (see season.biggestMiss)
-   */
   function lineups(rosterId, weekly, slots, positionsOf) {
     const weeks = [];
     const started = new Map();
@@ -48,11 +39,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     };
   }
 
-  /**
-   * The best add and the biggest regret among a roster's waiver and free-agent moves.
-   *   moves  [{ type, leg, adds, drops }] (any roster's; only this roster's count)
-   * -> { bestAdd: { pid, week, started, onRoster } | null, regret: { pid, week, pts } | null, adds, drops }
-   */
   function wire(rosterId, moves, weekly) {
     const mine = (map) => Object.entries(map || {}).filter(([, rid]) => rid === rosterId).map(([pid]) => pid);
     let bestAdd = null;
@@ -75,7 +61,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
       for (const pid of mine(m.drops)) {
         drops++;
-        // What he scored for whoever took him (or anyone) after you let him go.
         let pts = 0;
         for (const w of weekly) {
           if (w.week <= (m.leg || 0)) continue;

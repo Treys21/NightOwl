@@ -1,7 +1,3 @@
-// Lineups tool for the floating panel: walks the week's kickoff windows in
-// order and, for the next one to lock, shows every player you roster from
-// those teams — starting or benched, in every league — with swaps worth a
-// look. Lineups are edited in Sleeper itself; each league links straight there.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -14,21 +10,21 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
 
-  const REFRESH_MS = 60000; // you may be editing lineups in this very tab
-  const TICK_MS = 30000; // countdowns
+  const REFRESH_MS = 60000;
+  const TICK_MS = 30000;
   const PROJ_TTL_MS = 15 * 60000;
   const KICKOFF_TTL_MS = 5 * 60000;
 
   const state = {
     excluded: new Set(),
     nfl: null,
-    leagues: [], // [{ leagueId, name, slots, scoring, roster }]
+    leagues: [],
     games: [],
     gamesAt: 0,
     proj: {},
     projAt: 0,
     loadedAt: 0,
-    open: new Set(), // window kickoffs the user expanded
+    open: new Set(),
     timers: [],
     busy: false,
     error: null
@@ -46,7 +42,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </div>
   `;
 
-  // ---- data -------------------------------------------------------------
   async function load(force) {
     const { userId } = await account.resolve();
     state.excluded = await account.excluded();
@@ -54,8 +49,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     await players.load();
     state.nfl = await api.state();
     const season = state.nfl.season;
-    // Lineups look ahead: Sleeper moves `week` on as soon as the last game
-    // ends, while `display_week` stays on the finished week until midweek.
     const week = lookaheadWeek(state.nfl);
     const seasonType = seasonTypeOf(state.nfl);
 
@@ -64,9 +57,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const [rosters, matchups] = await Promise.all([api.rosters(lg.league_id), api.matchups(lg.league_id, week)]);
       const own = mine(rosters, userId);
       if (!own) return null;
-      // The week's matchup holds the lineup you actually set; the roster's own
-      // `starters` can lag behind it (it still showed a benched player and an
-      // empty slot that had been filled).
       const set = (matchups || []).find((m) => m.roster_id === own.roster_id);
       const roster = set
         ? Object.assign({}, own, { starters: set.starters || own.starters, players: set.players || own.players })
@@ -115,9 +105,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  // ---- view -------------------------------------------------------------
-
-  // A ring that empties over the last 12 hours before lock.
   function ring(kickoff, soon) {
     const left = Math.max(0, Math.min(1, (kickoff - Date.now()) / (12 * 3600000)));
     const c = 2 * Math.PI * 9;
@@ -147,15 +134,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { leagues, wins: core.windows(state.games).filter((w) => !w.started && w.kickoff > now) };
   }
 
-  // Every valid swap for this player, best first: the top few as chips, the
-  // rest behind "+N more". Each chip's number is what that swap would do to
-  // your lineup's projection: teal + means the swap helps, grey − means it hurts.
   function optionsList(r) {
     if (!r.options || !r.options.length) return '';
-    // With nothing to gain, the list is a backup plan: show projections, not
-    // a row of negative "gains".
     const anyGain = r.options.some((o) => o.gain > 0);
-    // What the list is (left) and what its numbers are (right, over them).
     const [label, unit] = !anyGain && r.status === 'start' ? ['Backup if he sits', 'proj']
       : [r.status === 'start' ? 'Swap out for' : 'Start over', anyGain ? 'pts gained' : 'pts lost'];
     const chip = (o) => {
@@ -172,7 +153,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     ? `<span class="lu-gain">${fmt(o.proj)}</span>`
     : `<span class="lu-gain ${cls}">${o.gain > 0 ? '+' : o.gain < 0 ? '−' : '±'}${fmt(Math.abs(o.gain))}</span>`}</span>`;
     };
-    // A backup plan is one line; swaps that gain points get a few.
     const shown = anyGain ? 3 : 1;
     const top = r.options.slice(0, shown).map(chip).join('');
     const rest = r.options.slice(shown);
@@ -180,7 +160,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       ? `<details class="lu-more"><summary>+${rest.length} more</summary>${rest.map(chip).join('')}</details>` : ''}</div>`;
   }
 
-  // The solver's verdict for one league: the exact moves to the best lineup.
   function bestBanner(lg) {
     if (!lg.best || !lg.best.moves.length) return '';
     const verb = { start: 'Start', move: 'Slide', bench: 'Bench' };
@@ -221,7 +200,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </div>`;
   }
 
-  // Starting and benched first, then IR/taxi; within each, best projection first.
   const ORDER = { start: 0, bench: 1, taxi: 2, ir: 3 };
   const sortRows = (rows) => rows.slice().sort((a, b) => ORDER[a.status] - ORDER[b.status] || (a.slotIndex ?? 99) - (b.slotIndex ?? 99) || b.proj - a.proj);
 
@@ -231,18 +209,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('lu-error').textContent = state.error || '';
     if (state.nfl) {
       $('lu-week').textContent = `Week ${lookaheadWeek(state.nfl)}`;
-      // Early in the week the other tools still recap the week just played.
       $('lu-sub').textContent = lookaheadWeek(state.nfl) > (state.nfl.display_week || 0) ? 'upcoming' : '';
     }
     if (!state.loadedAt) {
-      if (state.error) $('lu-body').innerHTML = ''; // no endless placeholders under an error
+      if (state.error) $('lu-body').innerHTML = '';
       return;
     }
 
     const { leagues, wins } = computed();
     const html = [];
 
-    // Starters with no game this week, anywhere.
     const byes = leagues.flatMap((lg) => lg.rows.filter((r) => r.status === 'start' && r.bye).map((r) => ({ lg, r })));
     const empties = leagues.filter((lg) => lg.empty.length);
     if (byes.length || empties.length) {
@@ -253,19 +229,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </div>`);
     }
 
-    // With no league in season there is nothing to lock; with games all started the lineups are set.
     const shownWins = leagues.length ? wins : [];
     if (!leagues.length) html.push('<p class="muted small empty">No in-season leagues right now.</p>');
     else if (!wins.length) html.push('<p class="muted small empty">Every game this week has kicked off. Lineups are locked.</p>');
 
-    // Each league's optimal-lineup banner shows once, in its first upcoming window.
     const bannered = new Set();
     shownWins.forEach((w, i) => {
       const blocks = [];
       let starting = 0;
       let benched = 0;
       let flags = 0;
-      let better = 0; // leagues where the best lineup beats yours
+      let better = 0;
       for (const lg of leagues) {
         const rows = sortRows(lg.rows.filter((r) => w.teams.has(r.team)));
         if (!rows.length) continue;
@@ -278,8 +252,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
       const open = i === 0 || state.open.has(w.kickoff);
       const soon = w.kickoff - Date.now() < 3600000;
-      // The count is what's on screen: flagged rows plus the Fix before
-      // kickoff items. "All set" also needs no better lineup on offer.
       const toFix = flags + (i === 0 ? byes.length + empties.length : 0);
       const allSet = i === 0 && blocks.length && !toFix && !better;
       const logos = w.games.slice(0, 8).map((g) => `<span class="lu-game"><img alt="" src="${teams.logo(g.away)}"><img alt="" src="${teams.logo(g.home)}"></span>`).join('');
@@ -302,7 +274,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     dom.setHtml($('lu-body'), html.join(''));
   }
 
-  // ---- mount ------------------------------------------------------------
   function mount(el) {
     if (root === el) return;
     root = el;
@@ -331,7 +302,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     root = null;
   }
 
-  // Coming back to the tab after editing a lineup elsewhere: pick it up now.
   document.addEventListener('visibilitychange', () => {
     if (root && !document.hidden && Date.now() - state.loadedAt > 10000) refresh(false);
   });

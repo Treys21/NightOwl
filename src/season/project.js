@@ -1,17 +1,3 @@
-// Rest-of-season projection: play out the remaining regular season and the
-// playoffs a few thousand times from each team's projected lineups, and read
-// off final records, playoff / bye / title odds, the draft order and a
-// projected bracket. Pure: no DOM, no network.
-//
-// The model, per team per week:
-//   mean      the best lineup the roster can set on projected points
-//   variance  each starter's score is roughly normal around his projection
-//             with a spread of about half of it (season.outlook)
-//   actual    a draw of that lineup, times the team's lineup efficiency
-//             (points scored / max points so far): managers rarely start the
-//             best lineup, and max points accrue the full draw
-// A week already being played is passed in with lineupSet: its mean is the
-// real starters' points so far plus what's left of their games.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -21,24 +7,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const round1 = (n) => Math.round(n * 10) / 10;
   const round2 = (n) => Math.round(n * 100) / 100;
 
-  // Injury statuses that keep a player out of every remaining week, and ones
-  // that only cost him the next game.
   const OUT_FOR_SEASON = new Set(['IR', 'PUP', 'Sus', 'NA']);
   const OUT_THIS_WEEK = new Set(['Out', 'Doubtful']);
 
-  // Efficiency when a team has no history yet, and the range it's held to.
   const DEFAULT_EFFICIENCY = 0.92;
   const clampEfficiency = (e) => (e == null || !isFinite(e) ? DEFAULT_EFFICIENCY : Math.max(0.8, Math.min(1, e)));
 
-  /**
-   * One team's projected week.
-   *   slots        roster_positions
-   *   pool         players who can play (roster minus IR and taxi)
-   *   projOf       pid -> projected points under this league's scoring
-   *   positionsOf  pid -> eligible positions
-   *   isOut        pid -> true when he won't play this week
-   * -> { mean, variance, starters: [pid] }
-   */
   function teamWeek(slots, pool, projOf, positionsOf, isOut) {
     const best = optimal(slots, pool, (pid) => (isOut(pid) ? 0 : projOf(pid)), positionsOf);
     const starters = best.starters.filter(Boolean);
@@ -46,7 +20,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { mean: o.mean, variance: o.variance, starters };
   }
 
-  /** Who can't play in a given remaining week (index 0 = the next one). */
   function availability(injuryOf) {
     return (weekIndex) => (pid) => {
       const status = injuryOf(pid);
@@ -54,9 +27,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     };
   }
 
-  // ---- playoff bracket ----------------------------------------------------
-
-  // Bracket slot order for a power of two: 1, 8, 4, 5, 2, 7, 3, 6 for 8.
   function slotOrder(size) {
     let order = [1, 2];
     while (order.length < size) {
@@ -66,13 +36,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return order;
   }
 
-  /**
-   * Sleeper's standard bracket: top seeds get byes until the field is a
-   * power of two, no reseeding.
-   *   roundType  playoff_round_type: 0 one week a round, 1 two-week final,
-   *              2 two weeks every round
-   * -> { rounds: [{ round, label, weeks: [week] }], firstRound: [[seedA, seedB|null]] }
-   */
   function bracketFormat(playoffTeams, playoffStart, roundType = 0) {
     if (!playoffTeams || playoffTeams < 2) return null;
     const rounds = Math.ceil(Math.log2(playoffTeams));
@@ -97,10 +60,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { rounds: out, firstRound };
   }
 
-  /** Every playoff week, in order. */
   const playoffWeeks = (format) => (format ? format.rounds.flatMap((r) => r.weeks) : []);
-
-  // ---- simulation ---------------------------------------------------------
 
   function rng(seed) {
     let a = seed >>> 0;
@@ -113,16 +73,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     };
   }
 
-  // Seeds by record, then points for (Sleeper's default seeding).
   const rankTeams = (ids, wins, pf) => ids.slice().sort((a, b) => wins.get(b) - wins.get(a) || pf.get(b) - pf.get(a) || a - b);
 
-  /**
-   * teams:   [{ rosterId, wins, losses, ties, pf, max, efficiency }]  (games so far)
-   * weeks:   remaining regular-season weeks [{ week, pairs: [[a, b]], teams: { rosterId: { mean, variance } } }]
-   * playoff: { format (bracketFormat), teams: { week: { rosterId: { mean, variance } } } } or null
-   * options: { medianGame, sims, seed, draft: { method, winWeight } | null }
-   * -> { teams: { rosterId: {...} }, order: [rosterId by projected finish], bracket }
-   */
   function projectSeason({ teams, weeks, playoff = null, medianGame = false, sims = 2000, seed = 1, draft = null, forced = null }) {
     const ids = teams.map((t) => t.rosterId);
     const byId = new Map(teams.map((t) => [t.rosterId, t]));
@@ -160,7 +112,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         for (const id of ids) {
           const o = wk.teams[id];
           const full = draw(o);
-          // A week already under way has its real lineup: no efficiency haircut.
           const actual = o && o.lineupSet ? full : full * eff.get(id);
           score.set(id, actual);
           pf.set(id, pf.get(id) + actual);
@@ -168,7 +119,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         }
         for (const [a, b] of wk.pairs) {
           if (!byId.has(a) || !byId.has(b)) continue;
-          // A game can be forced (what if you win it? lose it?) to see how much it matters.
           const force = forced && wi === forced.weekIndex && (a === forced.winner || b === forced.winner);
           const [w, l] = force ? (a === forced.winner ? [a, b] : [b, a]) : score.get(a) >= score.get(b) ? [a, b] : [b, a];
           wins.set(w, wins.get(w) + 1);
@@ -249,7 +199,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         max: round2(a.max / sims),
         avgRank: round2(a.rank / sims),
         seedOdds: a.seeds.slice(1).map((n) => n / sims),
-        // Final win totals and the chance of making the playoffs at each: what you need.
         winOdds: [...a.winHist.entries()].sort((x, y) => x[0] - y[0]).map(([w, n]) => ({ wins: w, p: n / sims, make: (a.madeByWins.get(w) || 0) / n })),
         playoffOdds: a.playoffs / sims,
         byeOdds: a.bye / sims,
@@ -259,16 +208,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         avgPick: draft ? round2(a.pick / sims) : null
       };
     }
-    // Projected finish: average place across the simulations.
     const order = ids.slice().sort((x, y) => out[x].avgRank - out[y].avgRank || out[y].wins - out[x].wins || x - y);
     return { teams: out, order, bracket: format ? chalkBracket(format, order.slice(0, playoffTeams), playoff.teams, eff) : null };
   }
 
-  /**
-   * The bracket if every game goes to the favorite: seeds from the projected
-   * finish, each matchup with both teams' projected points and the chance
-   * the top team advances.
-   */
   function chalkBracket(format, seeds, weekly, eff) {
     const seedOf = (n) => (n <= seeds.length ? { seed: n, rosterId: seeds[n - 1] } : null);
     let alive = format.firstRound.map(([a, b]) => [seedOf(a), b == null ? null : seedOf(b)]);
@@ -309,9 +252,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { rounds, champion: champion && { seed: champion.seed, rosterId: champion.rosterId } };
   }
 
-  /** Expected-value draft order: the formula on projected final wins and max points. */
   function projectedDraft(projection, { method = 'linear', winWeight = DRAFT_WIN_WEIGHT } = {}) {
-    // Projected wins already count ties as half a win.
     const rows = Object.values(projection.teams).map((t) => ({ rosterId: t.rosterId, wins: t.wins, max: t.max, odds: t.pickOdds, avgPick: t.avgPick }));
     return draftOrder(rows, { method, winWeight });
   }

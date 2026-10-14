@@ -1,44 +1,19 @@
-// A league's drafts, read and graded. Pure: no DOM, no network.
-//
-//   rookieDraft   which of a season's drafts the league's traded picks were for
-//   index         every pick by season, round and the roster it originally belonged to,
-//                 so a traded "2025 round 1 pick" resolves to the player taken with it
-//   board         the draft as a grid (rounds down, draft slots across), each pick
-//                 priced now against what the picks around it returned
-//   teamGrades    how each team's picks did, as a letter
-//
-// A pick is graded against what the pick chart said its slot was worth (KeepTradeCut's
-// early, mid and late values for the round); where the chart has no such pick (rounds
-// past the fourth, redraft leagues) the picks around it in the same draft stand in.
-// A team is graded on the total value it gained over the chart: a fourth-round pick
-// that grew into a 5,000-value player outweighs a first-rounder who only met his slot.
-// Values are today's, so older drafts carry hindsight.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
   'use strict';
 
-  const NEIGHBOURS = 2; // picks either side that set what a slot is "expected" to return
-  const MIN_WEIGHT = 0.25; // the least a pick's shortfall counts, at the late end of the draft
-  const FLOOR = 800; // expected value never counts below this, so a late pick that beats nothing isn't an infinite win
+  const NEIGHBOURS = 2;
+  const MIN_WEIGHT = 0.25;
+  const FLOOR = 800;
 
-  /**
-   * The draft a season's traded picks belong to. A league can hold a startup
-   * draft and a rookie draft in one season; the rookie draft is the short one.
-   * drafts: [{ season, rounds, ... }] -> the one draft for that season, or null
-   */
   function rookieDraft(drafts, season) {
     const of = (drafts || []).filter((d) => String(d.season) === String(season));
     return of.sort((a, b) => a.rounds - b.rounds)[0] || null;
   }
 
-  /** The roster a pick originally belonged to: the owner of its draft slot (the roster that made it, when the slot map is missing). */
   const originalOf = (draft, pick) => (draft.slotToRoster && draft.slotToRoster[pick.slot]) || pick.by;
 
-  /**
-   * Every pick of the league's drafts, keyed `${season}:${round}:${original roster}`.
-   * -> Map key -> { pid, no, round, slot, by, from, season }
-   */
   function index(drafts) {
     const seasons = [...new Set((drafts || []).map((d) => String(d.season)))];
     const out = new Map();
@@ -53,22 +28,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  /** The player taken with a traded pick ({ season, round, from }), or null (not drafted yet, or the draft is unknown). */
   const resolve = (idx, pick) => idx.get(`${pick.season}:${pick.round}:${pick.from}`) || null;
 
-  /**
-   * Follow every traded pick through the league's trades and say who it was worth what to. A pick can change
-   * hands several times before its draft: only the manager who still held it at the draft used it (and made
-   * the pick). In the trade that put it with him it is worth the player he took; in every earlier trade the
-   * holder passed it on, so it was worth its slot (`passed`, with `pos` and `teams` for the pick chart).
-   * Marks each pick object of a trade, both sides alike: `player` (the pid taken), or `passed` with `pos` and `teams`.
-   *   trades   history.parse() rows ({ at, sides: { rid: { gotPicks, gavePicks } } }), any order
-   *   idx      index() of the league's drafts
-   */
   function settle(trades, idx) {
     const keyOf = (p) => `${p.season}:${p.round}:${p.from}`;
     const ordered = (trades || []).slice().sort((a, b) => a.at - b.at);
-    const gives = new Map(); // pick -> who gave it away, and when
+    const gives = new Map();
     for (const t of ordered) {
       for (const [rid, side] of Object.entries(t.sides)) {
         for (const p of side.gavePicks) {
@@ -78,7 +43,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
     }
     for (const t of ordered) {
-      const verdict = new Map(); // pick -> what it was worth in this trade
+      const verdict = new Map();
       for (const [rid, side] of Object.entries(t.sides)) {
         for (const p of side.gotPicks) {
           const hit = idx.get(keyOf(p));
@@ -96,7 +61,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  /** What each overall pick should have returned: the mean of the picks around it (not counting itself). */
   function expected(values) {
     return values.map((_, k) => {
       const near = [];
@@ -105,15 +69,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
-  /**
-   * One draft as a grid.
-   *   draft     { rounds, teams, slotToRoster, picks: [{ no, round, slot, by, pid }] }
-   *   valueOf   pid -> value now (0 when the market has none)
-   *   baselineOf   ({ round, slot, teams }) -> what the chart says the slot was worth (0 or omitted: use the neighbours)
-   * -> { rounds, teams, rows: [[cell per slot]], picks: [cell], byRoster: { rosterId: { value, expected, score } } }
-   *    cell { no, round, slot, pid, by, from, traded, value, expected, score, label }
-   *    score: value over expected as a share of expected: 0 is as expected, +0.5 is 50% better
-   */
   function board(draft, valueOf, baselineOf = null) {
     const picks = draft.picks.slice().sort((a, b) => a.no - b.no);
     const values = picks.map((p) => valueOf(p.pid));
@@ -133,9 +88,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     for (const c of cells) {
       (rows[c.round - 1] = rows[c.round - 1] || new Array(teams).fill(null))[c.slot - 1] = c;
     }
-    // What a pick is worth to the draft: the early picks set it. A late pick that loses all its value costs a team
-    // little (a good draft is good in its first rounds), so a shortfall counts in proportion to what the slot was
-    // worth; a hit counts in full wherever it comes.
     const lead = cells.slice(0, Math.max(1, Math.ceil(cells.length / 4)));
     const reference = lead.reduce((sum, c) => sum + c.expected, 0) / lead.length;
     const weigh = (c) => Math.max(MIN_WEIGHT, Math.min(1, Math.max(c.expected, c.value) / Math.max(reference, FLOOR)));
@@ -152,23 +104,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       t.picks++;
     }
     for (const t of Object.values(byRoster)) t.score = (t.value - t.expected) / Math.max(t.expected, FLOOR);
-    const average = cells.reduce((sum, c) => sum + c.expected, 0) / teams; // what a team's own picks are worth on average
+    const average = cells.reduce((sum, c) => sum + c.expected, 0) / teams;
     return { rounds: rows.length, teams, rows, picks: cells, byRoster, average, reference };
   }
 
-  /**
-   * Each team's draft after its trades. A team that moved up for a pick paid for it, and one that sold a
-   * pick was paid, so a draft is graded on what the team ended up with, not on the picks it happened to use:
-   *   result   the players taken with the picks it used, plus what it got in the trades that moved this draft's
-   *            picks less what it gave (players and other years' picks, at today's value)
-   *   baseline what the slots it started with were expected to return
-   * Teams are ranked on total value gained (a hit in the fourth round counts for its full growth); one that sold a pick is not blamed or credited for how
-   * that pick turned out, only for the price; one that bought is graded on the player against what it paid.
-   *   trades      the league's parsed trades (history.parse)
-   *   assetValue  ({ pid } | { pick }) -> value now
-   * -> { [rosterId]: { value, expected, picks, trades, baseline, gain, score } }
-   *    gain: total value over the chart, picks and trades together; score: gain as a share of a team's average baseline
-   */
   function afterTrades(b, draft, trades, assetValue) {
     const season = String(draft.season);
     const thisDraft = (p) => String(p.season) === season;
@@ -193,8 +132,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const trade = moved[rid] || 0;
       out[rid] = {
         value: t.value, expected: t.expected, picks: t.picks, trades: Math.round(trade), baseline: Math.round(base),
-        // The picks' excess over their slots (shortfalls weighted by what the slot was worth), plus what the trades
-        // did: the slots it bought less the slots it sold, and the players and picks it paid or got for them.
         gain: Math.round(t.excess + (t.expected + trade - base)),
         score: (t.excess + (t.expected + trade - base)) / Math.max(b.average, FLOOR)
       };

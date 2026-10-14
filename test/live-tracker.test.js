@@ -1,6 +1,3 @@
-// The live feed is only useful if its numbers are Sleeper's numbers. The
-// fixture is real week-4 data from two leagues with different scoring
-// (stat lines + each league's scoring_settings + Sleeper's matchup totals).
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -41,8 +38,8 @@ test('pickMatchup finds the opponent sharing my matchup_id', () => {
     { roster_id: 5, matchup_id: 3, starters: ['c'] }
   ], 1);
   assert.equal(m.opp.rosterId, 5);
-  assert.deepEqual(m.mine.starters, ['a']); // empty slot dropped
-  assert.deepEqual(m.mine.slots, ['a', '0']); // but kept for slot alignment
+  assert.deepEqual(m.mine.starters, ['a']);
+  assert.deepEqual(m.mine.slots, ['a', '0']);
 });
 
 test('pickMatchup handles a bye (no matchup_id)', () => {
@@ -50,8 +47,6 @@ test('pickMatchup handles a bye (no matchup_id)', () => {
   assert.equal(m.opp, null);
 });
 
-// Two leagues, one PPR one half-PPR with first-down points. Lamb is my
-// starter in A and my opponent's starter in B.
 const ppr = { rec: 1, rec_yd: 0.1, rec_td: 6 };
 const halfFd = { rec: 0.5, rec_yd: 0.1, rec_td: 6, rec_fd: 0.5 };
 const leagues = [
@@ -66,9 +61,9 @@ test('a 15-yard catch is scored separately in each league, signed by side', () =
   const a = ev.impacts.find((i) => i.leagueId === 'A');
   const b = ev.impacts.find((i) => i.leagueId === 'B');
   assert.equal(a.side, 'me');
-  assert.equal(a.pts, 2.5); // 1 + 1.5
+  assert.equal(a.pts, 2.5);
   assert.equal(b.side, 'opp');
-  assert.equal(b.pts, 2.5); // 0.5 + 1.5 + 0.5 first down
+  assert.equal(b.pts, 2.5);
   assert.equal(ev.net, 0);
   assert.match(ev.text, /\+1 rec · \+15 rec yds/);
 });
@@ -91,7 +86,7 @@ test('first play after kickoff counts ({} means tracked with no stats yet)', () 
 test('stat corrections come through as negative deltas', () => {
   const [ev] = tracker.diffEvents({ LAMB: { rec_td: 1 }, X: {}, Y: {} }, { LAMB: { rec_td: 0 } }, leagues, info, 1);
   assert.equal(ev.impacts.find((i) => i.leagueId === 'A').pts, -6);
-  assert.equal(ev.net, 0); // -6 for me in A, -(-6) via opponent in B
+  assert.equal(ev.net, 0);
 });
 
 test('defense points-allowed tiers net out to the real change', () => {
@@ -103,7 +98,7 @@ test('defense points-allowed tiers net out to the real change', () => {
     lg, info, 1
   );
   assert.equal(ev.net, -1);
-  assert.equal(ev.text, '+7 pts allowed'); // tier keys hidden
+  assert.equal(ev.text, '+7 pts allowed');
 });
 
 test('trimSnapshot keeps only watched players, {} for no stats yet', () => {
@@ -119,10 +114,10 @@ test('describe hides unscored noise but keeps yards', () => {
 const teams = require('../src/shared/teams.js');
 
 test('every NFL team has colors, and jersey numbers stay readable', () => {
-  assert.equal(teams.inkOn('#FFB612'), '#101820'); // PIT gold -> dark numbers
-  assert.equal(teams.inkOn('#003594'), '#ffffff'); // DAL blue -> white numbers
+  assert.equal(teams.inkOn('#FFB612'), '#101820');
+  assert.equal(teams.inkOn('#003594'), '#ffffff');
   assert.equal(teams.colors('DAL').primary, '#003594');
-  assert.equal(teams.colors('XXX').primary, '#262e3e'); // unknown team falls back
+  assert.equal(teams.colors('XXX').primary, '#262e3e');
   assert.equal(teams.logo('TB'), 'https://sleepercdn.com/images/team_logos/nfl/tb.png');
 });
 

@@ -1,5 +1,3 @@
-// Betting context for the Bets tab, checked against real Sleeper Picks lines,
-// ESPN/DraftKings milestones and game odds captured for week 5 of 2026.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -20,7 +18,6 @@ test('Sleeper lines become per-player NFL markets; other sports are dropped', ()
 });
 
 test('payouts turn into a fair probability with the margin removed', () => {
-  // 2.34x over / 1.41x under -> 0.427 vs 0.709 raw -> 37.6% over.
   assert.equal(Math.round(bets.impliedOver(2.34, 1.41) * 1000) / 10, 37.6);
   assert.equal(bets.impliedOver(2, 2), 0.5);
   assert.equal(bets.impliedOver(null, null), null);
@@ -34,7 +31,7 @@ test('hit rate counts games over the line', () => {
 
 test('closing lines survive after Sleeper pulls them at kickoff', () => {
   const pre = bets.parseLines(fx.lines);
-  const merged = bets.mergeLines(pre, {}); // all lines gone
+  const merged = bets.mergeLines(pre, {});
   assert.deepEqual(merged, pre);
   const moved = bets.mergeLines(pre, { 10232: [Object.assign({}, pre['10232'][0], { line: 99.5 })] });
   assert.equal(moved['10232'].find((m) => m.type === pre['10232'][0].type).line, 99.5);
@@ -78,9 +75,7 @@ test('live progress against a line, and TDs settle at 0.5', () => {
   const td = { keys: ['rush_td', 'rec_td'], line: 0.5, td: true };
   assert.equal(bets.progress(td, { rec_td: 1 }).hit, true);
   assert.equal(bets.progress(td, {}).hit, false);
-  // Not in a game yet: no progress at all.
   assert.equal(bets.progress(rec, undefined), null);
-  // In the game, no catches yet: zero, not unknown.
   assert.equal(bets.progress(rec, { rush_yd: 3 }).value, 0);
 });
 

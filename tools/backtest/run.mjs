@@ -1,18 +1,3 @@
-// Backtest the trade finder's gates against the trades people really made.
-//
-//   node tools/backtest/run.mjs --user <sleeper username> [--seasons 2] [--json out.json]
-//
-// For each real two-team trade in the user's leagues (this season and the one
-// before) the roster of both teams just before the deal is rebuilt, by undoing
-// every later transaction, and the trade is put through finder.judge(): the
-// same price and lineup gates the search applies. A good rule set passes what
-// people actually do and fails random swaps between the same two teams, so the
-// score is the gap between the two (pass rate on real trades minus pass rate on
-// random ones). Several parameter sets are tried and the best are printed.
-//
-// Limits, stated plainly: KeepTradeCut values are today's, not the day of the
-// deal, so older dynasty trades are priced with drift; injuries are not known
-// as of the trade; playoff weeks and IR/taxi slots are ignored.
 import { createRequire } from 'node:module';
 import { parseArgs } from 'node:util';
 import { writeFileSync } from 'node:fs';
@@ -26,8 +11,6 @@ const { values: args } = parseArgs({ options: { user: { type: 'string' }, season
 if (!args.user) { console.error('usage: node tools/backtest/run.mjs --user <sleeper username>'); process.exit(1); }
 const SEASONS = Number(args.seasons);
 const SAMPLES = Number(args.samples);
-
-// ---- data ------------------------------------------------------------------
 
 const cache = new Map();
 const get = (url) => {
@@ -63,8 +46,6 @@ const state0 = await get(`${V1}/state/nfl`);
 const user = await get(`${V1}/user/${args.user}`);
 const currentLeagues = await get(`${V1}/user/${user.user_id}/leagues/nfl/${state0.season}`);
 
-// ---- one league-season -----------------------------------------------------
-
 const IDP = new Set(['DL', 'LB', 'DB', 'IDP_FLEX']);
 const projectionCache = new Map();
 async function projections(season, week, idp) {
@@ -91,7 +72,6 @@ async function loadSeason(leagueId, isCurrent) {
   return { lg, rosters, txs, matchups, isCurrent };
 }
 
-/** Rosters (sets of player ids) just before a trade: undo it and everything after it. */
 function rostersBefore(season, trade) {
   const sets = new Map(season.rosters.map((r) => [r.roster_id, new Set(r.players || [])]));
   const later = season.txs.filter((t) => t.created >= trade.at).sort((a, b) => b.created - a.created);
@@ -102,7 +82,6 @@ function rostersBefore(season, trade) {
   return sets;
 }
 
-/** 0 (out of it) to 1 (contender) from the standings before the trade week. */
 function windowsBefore(season, week) {
   const wins = new Map(season.rosters.map((r) => [r.roster_id, 0]));
   for (let w = 1; w < week; w++) {
@@ -115,8 +94,6 @@ function windowsBefore(season, week) {
   const n = order.length;
   return new Map(order.map(([rid], i) => [rid, week <= 2 ? 0.5 : Math.max(0, Math.min(1, 1.4 * (n > 1 ? i / (n - 1) : 0.5) - 0.2))]));
 }
-
-// ---- judging ---------------------------------------------------------------
 
 async function prepare(season, trade, sets, kind) {
   const lg = season.lg;
@@ -176,16 +153,14 @@ for (const fair of [0.08, 0.12, 0.2]) {
 }
 const DEFAULT = { name: 'current defaults', params: {} };
 
-// ---- run -------------------------------------------------------------------
-
-const results = []; // one row per real trade
+const results = [];
 for (const league of currentLeagues) {
   const kind = ['redraft', 'keeper', 'dynasty'][league.settings.type] || 'redraft';
   let id = league.league_id;
   for (let s = 0; s < SEASONS && id && id !== '0'; s++) {
     const isCurrent = s === 0;
     const season = await loadSeason(id, isCurrent);
-    if (!isCurrent && kind === 'redraft') break; // today's redraft prices say nothing about last year's deal
+    if (!isCurrent && kind === 'redraft') break;
     const trades = NO.tradeHistory.parse(season.txs, season.lg.season).filter((t) => Object.keys(t.sides).length === 2);
     for (const trade of trades) {
       const sets = rostersBefore(season, trade);
@@ -202,8 +177,7 @@ for (const league of currentLeagues) {
       const B = team(prep, b, sets, w.get(b));
       const priced = (ids) => ids.filter((x) => ctx.rawOf(x) > 0).length / Math.max(1, ids.length);
       const sa = sideOf(a);
-      if (priced(sa.give.concat(sa.get)) < 0.6) continue; // the market does not know these players
-      // Random swaps between the same two teams, same shape, as the control group.
+      if (priced(sa.give.concat(sa.get)) < 0.6) continue;
       const rand = rng(hash(trade.id));
       const pickN = (ids, n) => { const pool = ids.filter((x) => ctx.rawOf(x) > 0); const out = []; while (out.length < n && pool.length) out.push(pool.splice(Math.floor(rand() * pool.length), 1)[0]); return out; };
       const randoms = [];
@@ -218,9 +192,8 @@ for (const league of currentLeagues) {
       };
       const sets_ = [DEFAULT, ...PARAM_SETS];
       const realJudged = sets_.map((set) => judge(set, sa.give, sa.get));
-      // Which side paid the premium: the one that gained lineup points is usually the one giving up consensus value.
       const base = NO.finder.judge(ctx, A, B, sa.give, sa.get);
-      const gainerPays = (base.impact.a.delta - base.impact.b.delta) * (base.rawNetThem) > 0; // A gains more points and B wins on price
+      const gainerPays = (base.impact.a.delta - base.impact.b.delta) * (base.rawNetThem) > 0;
       results.push({
         league: league.name, season: season.lg.season, week: trade.week, kind, id: trade.id,
         net: realJudged[0].net, gains: realJudged[0].gains, gainerPays,
@@ -237,8 +210,6 @@ for (const league of currentLeagues) {
   }
 }
 
-// ---- report ----------------------------------------------------------------
-
 const sets_ = [DEFAULT, ...PARAM_SETS];
 const pct = (x) => `${Math.round(x * 100)}%`;
 const median = (xs) => { const s = xs.slice().sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
@@ -251,7 +222,6 @@ for (const kind of ['dynasty', 'redraft']) {
   console.log(`== ${kind}: ${rows.length} trades · ${pct(rows.filter((r) => r.hasPicks).length / rows.length)} include picks`);
   console.log(`   price gap between the sides (consensus): median ${pct(median(nets))} · 75th ${pct(quant(nets, 0.75))} · 90th ${pct(quant(nets, 0.9))}`);
   console.log(`   the side that gains lineup points is the one paying in price: ${pct(rows.filter((r) => r.gainerPays).length / rows.length)} of trades`);
-  // How steeply packages should be discounted: the exponent under which real trades look most even.
   const gap = (r, e) => { const f = (vs) => Math.pow(vs.filter((v) => v > 0).reduce((a, v) => a + Math.pow(v, e), 0), 1 / e); const x = f(r.vals.give); const y = f(r.vals.get); return Math.abs(x - y) / Math.max(x, y, 1); };
   const byExp = [1, 1.5, 2, 2.5, 3, 4, 6].map((e) => [e, median(rows.map((r) => gap(r, e)))]);
   console.log(`   median price gap by package exponent (lower = real trades look more even): ${byExp.map(([e, m]) => `${e}: ${pct(m)}`).join(' · ')}`);

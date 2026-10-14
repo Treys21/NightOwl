@@ -1,9 +1,6 @@
-// Rankings editor + settings. This is the authoritative fallback whenever the
-// Ringer scrape breaks, or you simply disagree with a ranking.
 (function (NightOwl) {
   'use strict';
 
-  // The popup's markup is fixed, so every id exists; any covers the element subtypes.
   const byId = (id) => /** @type {any} */ (document.getElementById(id));
 
   const listEl = byId('list');
@@ -12,7 +9,6 @@
   const usernameEl = byId('username');
   const userStatusEl = byId('user-status');
   const rankStatusEl = byId('rank-status');
-  // How long ago, in plain words: "just now", "5m ago", "3h ago", "Oct 2".
   const ago = (ms) => {
     const mins = Math.round((Date.now() - ms) / 60000);
     if (mins < 1) return 'just now';
@@ -25,9 +21,6 @@
 
   let rankings = [];
   let dragIndex = null;
-  // The same page serves as both the toolbar popup and the options tab.
-  // File import only works in the tab: Chrome tears down a popup as soon as the
-  // OS file dialog takes focus, so the change event would never fire.
   let inTab = false;
 
   async function init() {
@@ -110,8 +103,6 @@
     });
   }
 
-  // Deleting down to an empty board has to be allowed, but saveRankings refuses
-  // empty lists (so a failed scrape can't wipe the board), so clear explicitly.
   async function persist() {
     if (rankings.length === 0) {
       await NightOwl.storage.clearRankings();
@@ -163,7 +154,6 @@
     syncButton.disabled = true;
     syncButton.textContent = 'Syncing…';
 
-    // Fetched straight from the extension page — no need to open The Ringer.
     const result = await NightOwl.ringer.fetchRankings(format);
 
     if (result.ok) {
@@ -174,7 +164,6 @@
       status(rankStatusEl, `✓ ${rankings.length} players from The Ringer`, 'ok');
       render();
     } else {
-      // A failed sync leaves the existing board untouched.
       status(rankStatusEl, result.reason, 'bad');
     }
 
@@ -193,9 +182,6 @@
 
   const importFile = byId('import-file');
 
-  // Opened as a plain tab rather than via chrome.runtime.openOptionsPage():
-  // this page doubles as the toolbar popup, and Chrome refuses to treat one
-  // file as both ("Could not create an options page").
   function openInTab() {
     chrome.tabs.create({ url: chrome.runtime.getURL('src/popup/popup.html') });
   }
@@ -204,8 +190,6 @@
 
   byId('import').addEventListener('click', () => {
     if (!inTab) {
-      // The file dialog steals focus and Chrome tears the popup down with it,
-      // so the change event would never fire. Do it in a tab instead.
       openInTab();
       return;
     }

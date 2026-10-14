@@ -1,6 +1,3 @@
-// The trade finder pane of the Moves tool: runs season/finder.js over every
-// team in a league and lays out the deals worth sending, with why each side
-// would say yes. Redraft and dynasty are judged differently (see finder.js).
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -10,10 +7,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const { escape: esc, percent } = NightOwl.format;
   const { isPick, pickOf } = NightOwl.moveValues;
 
-  const SHOWN = 8; // deals listed
-  const CANDIDATES = 12; // deals whose playoff and title odds are worked out before the final order
-  const PER_PARTNER = 2; // of them, per partner
-  const PER_ASSET = 2; // and in how many one asset may appear
+  const SHOWN = 8;
+  const CANDIDATES = 12;
+  const PER_PARTNER = 2;
+  const PER_ASSET = 2;
   const GOALS = [
     { id: 'balanced', label: 'Balanced', title: 'Weigh this season and the future as your team\'s outlook says' },
     { id: 'now', label: 'Win now', title: 'Pay in picks and youth for production this season' },
@@ -23,23 +20,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const tick = () => new Promise((resolve) => setTimeout(resolve));
   const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 
-  /**
-   * deps: { state, V (valuer), label(pid), pickLabel(lg, pid, owner), nameOf(lg, ro), league(),
-   *         render(), openTrade(item), positionsOf }
-   */
   function create(deps) {
     const { state, V, nameOf, league, render, openTrade, active, ensureHistory } = deps;
     const fs = state.finder;
 
-    // ---- windows ---------------------------------------------------------
-
-    /** roster id -> { w: 0..1, odds } from the replayed season (or, without playoffs, the standings). */
     function windows(lg, base) {
       const n = lg.raw.rosters.length;
       const out = new Map();
       for (const ro of lg.raw.rosters) {
         const t = base && base.teams[ro.roster_id];
-        const rank = lg.ranks.get(ro.roster_id) || 1; // 1 = worst
+        const rank = lg.ranks.get(ro.roster_id) || 1;
         const w = t && lg.playoffTeams ? finder.contention(t.playoffOdds) : n > 1 ? (rank - 1) / (n - 1) : 0.5;
         out.set(ro.roster_id, { w, odds: t && lg.playoffTeams ? t.playoffOdds : null });
       }
@@ -56,15 +46,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return base;
     }
 
-    // ---- the search ------------------------------------------------------
-
     const hasPick = (p) => p.give.concat(p.get).some(isPick);
 
-    /**
-     * The best `limit` deals, at most PER_PARTNER with one partner and PER_ASSET using one asset
-     * (`limits` false skips both for a list already thinned), with at least half the places
-     * for deals `wanted` picks out, when there are that many.
-     */
     function varied(sorted, limit, wanted, limits = true) {
       const chosen = new Set();
       const perPartner = new Map();
@@ -84,14 +67,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const dynasty = (lg) => lg.kind !== 'redraft' && V.usesKtc(lg);
 
-    // A package's price: the best player in full, the rest over replacement (see ktc.packageValue).
     const packageOf = (dyn) => (values, picks) => ktc.packageValue(values.map((v, i) => ({ v, pick: !!(picks && picks[i]) })), dyn
       ? { exponent: ktc.EXPONENT_PACKAGE, replacement: ktc.REPLACEMENT_DYNASTY }
       : { exponent: ktc.EXPONENT_REDRAFT, replacement: ktc.REPLACEMENT_REDRAFT });
 
     function context(lg) {
       const dyn = dynasty(lg);
-      const cons = V.consensus(lg); // redraft with KeepTradeCut's fantasy values loaded
+      const cons = V.consensus(lg);
       return {
         mode: dyn ? 'dynasty' : 'redraft',
         consensus: cons,
@@ -100,22 +82,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         positionsOf: lg.rep.positionsOf,
         isVirtual: lg.rep.isVirtual,
         isPick,
-        // Who a full roster may cut to make room: anyone outside the lineup in dynasty (the cut is charged at his value), only throwaways in redraft.
         canCut: dyn ? () => true : (id) => V.rosPoints(lg, id) <= 25,
         rawOf: dyn ? (id) => V.blendedValue(lg, id) : cons ? (id) => V.redraftValue(lg, id) : (id) => V.overReplacement(lg, id),
         valueOf: dyn ? (team, id, w) => V.valueFor(lg, id, w) : (team, id) => V.redraftValue(lg, id),
         sideValue: dyn || cons ? packageOf(dyn) : sum,
         pointValue: dyn || cons ? V.pointValue(lg) : 1,
-        // What this league's own trades say other managers will accept (dynasty prices only).
         fairTolerance: dyn && lg.trade ? lg.trade.band.tolerance : null,
-        // Points thresholds scale with this league's scoring and the weeks left (see pointScale in the view).
         params: { minPoints: { me: finder.DEFAULTS.minPoints.me * lg.scale, them: finder.DEFAULTS.minPoints.them * lg.scale } },
         goal: fs.goal,
         focus: { shop: fs.shop, target: fs.target }
       };
     }
 
-    // Everything on a roster that could change hands (priced players and picks).
     function teamOf(lg, ro, w, dyn) {
       const pool = model.activePool(ro);
       const priced = (id) => (dyn ? V.blendedValue(lg, id) > 0 : V.rosPoints(lg, id) > 0);
@@ -130,12 +108,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       fs.results = null;
       fs.error = null;
       if (!lg) { fs.running = false; render(); return; }
-      if (!lg.weeks.length) { fs.results = { items: [], windows: new Map(), mode: 'redraft', leagueId: lg.leagueId }; fs.running = false; render(); return; } // no regular-season week left to project
+      if (!lg.weeks.length) { fs.results = { items: [], windows: new Map(), mode: 'redraft', leagueId: lg.leagueId }; fs.running = false; render(); return; }
       fs.running = true;
       fs.progress = 'Reading the league…';
       render();
       try {
-        // The league's own trades say who deals and how far off an even price they go. Don't hold the search up for them long.
         if (!lg.history) {
           fs.progress = 'Reading the league\'s trades…';
           render();
@@ -156,13 +133,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           fs.progress = `Checking ${nameOf(lg, others[i])} (${i + 1} of ${others.length})…`;
           render();
           await tick();
-          if (token !== fs.token || !active()) return; // a newer search took over, or the tab was closed
+          if (token !== fs.token || !active()) return;
           const other = teamOf(lg, others[i], win.get(others[i].roster_id).w, dyn);
           found.push(...finder.proposeFor(ctx, me, other, mine));
         }
         found.sort((a, b) => b.score - a.score);
-        // A varied shortlist: a couple of deals per partner, no asset in more than a couple, and
-        // deals made of players alone get half of it (picks are the easy currency; most deals are not).
         const shortlist = varied(found, CANDIDATES, (p) => !hasPick(p));
         const items = await rankByOdds(lg, shortlist, ctx.mode, token);
         if (!items || token !== fs.token) return;
@@ -177,10 +152,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
     }
 
-    // What each deal does to your playoff and title odds, with the season
-    // replayed with the trade done. Odds reorder the shortlist: a deal is worth
-    // what it does for you, and a contender (or any redraft team) never gets one
-    // that lowers its odds, which is what happens when it feeds a rival.
     async function rankByOdds(lg, items, mode, token) {
       const base = state.base.get(lg.leagueId);
       if (!lg.playoffTeams || !base) return items;
@@ -209,8 +180,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return kept.sort((a, b) => b.score - a.score);
     }
 
-    // ---- words ------------------------------------------------------------
-
     const nameOfAsset = (lg, id) => {
       if (!isPick(id)) return players.info(id).name;
       const pick = pickOf(id);
@@ -223,7 +192,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const oddsLabel = (p) => (p >= 0.995 ? '>99%' : p > 0 && p < 0.005 ? '<1%' : percent(p));
     const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(1)}`;
 
-    // The reasons each side says yes, in plain words.
     function reasons(lg, item, partner, win) {
       const dyn = fs.results.mode === 'dynasty';
       const w = win.get(partner.roster_id);
@@ -258,12 +226,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         else out.push(`<b>Value:</b> they give up ${Math.round(-gap * 100)}% on ${name}${dyn ? ' and get the fit in return' : ' but gain real points'}.`);
       }
       if (!dyn && fs.results.consensus) {
-        // Where the market and the projections disagree: what to buy low and sell high.
         const K = V.pointValue(lg);
-        // Only players the market actually prices, and who matter: a throw-in's "edge" is noise.
         const priced = (id) => state.ktcRedraft.players[id] && V.redraftValue(lg, id) >= 1500 && V.overReplacement(lg, id) >= 12;
         const edge = (id) => (priced(id) ? (V.overReplacement(lg, id) * K) / V.redraftValue(lg, id) - 1 : 0);
-        // A buy only counts as an edge if he is in your lineup most weeks.
         const regular = new Set(item.me.starts.filter((st) => st.weeks >= 0.4 * lg.weeks.length).map((st) => st.id));
         const buy = item.get.filter((id) => regular.has(id)).map((id) => [id, edge(id)]).sort((a, b) => b[1] - a[1])[0];
         const sell = item.give.filter((id) => !isPick(id)).map((id) => [id, edge(id)]).sort((a, b) => a[1] - b[1])[0];
@@ -292,8 +257,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return `Trade idea (${lg.name}): I send ${list(lg, item.give)} for your ${list(lg, item.get)}.${pitch} Let me know what you think!`;
     }
 
-    // ---- markup ----------------------------------------------------------
-
     function assetRow(lg, id, ownerRo, dyn) {
       const v = dyn ? V.worth(V.blendedValue(lg, id)) : `${Math.round(V.rosPoints(lg, id))} pts`;
       const title = dyn ? `Value: KeepTradeCut (${V.worth(V.dynastyValue(lg, id))}, for this league's format and scoring) mixed with projected points over a free agent` : `Projected points rest of season${fs.results.consensus ? `; consensus value ${V.worth(V.redraftValue(lg, id))}` : ''}`;
@@ -302,7 +265,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return `<li>${who}${age}<span class="mv-ros" title="${title}">${v}</span></li>`;
     }
 
-    // Your title odds (or playoff odds in a league with no bracket) before and after, as one tile.
     function kpiOdds(o, lg, partner) {
       if (!o) return '';
       const key = o.after.bracket ? 'titleOdds' : lg.playoffTeams ? 'playoffOdds' : null;
@@ -315,7 +277,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return `<div class="kpi ${up ? 'up' : down ? 'down' : ''}" title="Your ${key === 'titleOdds' ? 'title' : 'playoff'} odds with the trade done; their ${key === 'titleOdds' ? 'title' : 'playoff'} odds: ${oddsLabel(o.base.teams[partner.roster_id][key])} → ${oddsLabel(theirs[key])}"><b>${oddsLabel(b)}<i>→</i>${oddsLabel(a)}</b><span>${key === 'titleOdds' ? 'title odds' : 'playoff odds'}</span></div>`;
     }
 
-    // The one reason that matters up front; the rest behind a click.
     function why(lg, item, partner, win) {
       const [first, ...rest] = reasons(lg, item, partner, win);
       if (!first) return '';
@@ -397,8 +358,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
       return `<div class="mv-finder" title="${esc(kind)}">${controls(lg)}${noValues}${deadline}${body}</div>`;
     }
-
-    // ---- events ----------------------------------------------------------
 
     function change(e) {
       const el = e.target;

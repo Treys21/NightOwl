@@ -1,5 +1,3 @@
-// Shared plumbing: league helpers, the account lookup, the DOM memo, the
-// request timeout, and the draft board's refusal to redraw an unchanged board.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -10,7 +8,6 @@ const leagues = require('../src/shared/leagues.js');
 const format = require('../src/shared/format.js');
 
 const root = path.join(__dirname, '..');
-// Load source files into one fresh global, like a content script's isolated world.
 function load(files, extra = {}) {
   const store = {};
   const chrome = {
@@ -76,13 +73,10 @@ test('league helpers: slots, IDP and labels', () => {
 });
 
 test('the week to show: display_week lags after Monday night, lookahead does not', () => {
-  // Tuesday after week 5: Sleeper says week 6, but display_week is still 5.
   const tuesday = { week: 6, display_week: 5, season_type: 'regular' };
   assert.equal(leagues.displayWeek(tuesday), 5);
   assert.equal(leagues.lookaheadWeek(tuesday), 6);
-  // Midweek they agree.
   assert.equal(leagues.lookaheadWeek({ week: 6, display_week: 6 }), 6);
-  // Preseason or missing numbers never give week 0.
   assert.equal(leagues.lookaheadWeek({ week: 0, display_week: 0 }), 1);
   assert.equal(leagues.displayWeek({ week: 3, display_week: 0 }), 3);
   assert.equal(leagues.seasonType({ season_type: 'post' }), 'post');
@@ -102,26 +96,21 @@ test('account: resolves once, prefers the stored id, looks up and saves when mis
   const api = { user: async (name) => { lookups.push(name); return name === 'ghost' ? null : { user_id: `id-${name}` }; } };
   const { NightOwl, store } = load(['src/shared/storage.js', 'src/shared/account.js'], { NightOwl: { api } });
 
-  // No username yet.
   await assert.rejects(NightOwl.account.resolve(), { message: NightOwl.account.NEED_USERNAME });
 
-  // A stored id is trusted: no lookup.
   store.settings = { username: 'ann', userId: 'stored-1' };
   assert.deepEqual({ ...await NightOwl.account.resolve() }, { username: 'ann', userId: 'stored-1' });
   assert.deepEqual(lookups, []);
 
-  // A new username with no id is looked up once, saved, and cached.
   store.settings = { username: 'bob', userId: null };
   assert.equal((await NightOwl.account.resolve()).userId, 'id-bob');
   assert.equal((await NightOwl.account.resolve()).userId, 'id-bob');
   assert.deepEqual(lookups, ['bob']);
   assert.equal(store.settings.userId, 'id-bob', 'the id is saved for next time');
 
-  // An unknown user is an error, not a silent null.
   store.settings = { username: 'ghost', userId: null };
   await assert.rejects(NightOwl.account.resolve(), /No Sleeper user named "ghost"/);
 
-  // League exclusions come from Live's settings.
   store['live.settings'] = { excluded: ['1', '2'] };
   assert.deepEqual([...await NightOwl.account.excluded()], ['1', '2']);
 });
@@ -134,7 +123,6 @@ test('dom.setHtml only touches an element when its markup changes', () => {
   assert.equal(NightOwl.dom.setHtml(el, '<b>1</b>'), false);
   assert.equal(NightOwl.dom.setHtml(el, '<b>2</b>'), true);
   assert.equal(writes, 2);
-  // Separate elements are tracked separately.
   const other = { set innerHTML(v) { this.html = v; } };
   assert.equal(NightOwl.dom.setHtml(other, '<b>2</b>'), true);
 });
@@ -167,7 +155,7 @@ test('the draft board redraws only when something changed, and keeps its scroll'
   const el = {
     addEventListener: (type, fn) => { listeners[type] = fn; },
     querySelector: (sel) => (sel === '.body' ? bodies[bodies.length - 1] || null : null),
-    set innerHTML(v) { this.html = v; bodies.push({ scrollTop: 0 }); } // a redraw makes a fresh, unscrolled body
+    set innerHTML(v) { this.html = v; bodies.push({ scrollTop: 0 }); }
   };
   const prefs = { position: 'ALL', hideDrafted: false, sortBy: 'rank', sortDir: 'asc' };
   const rows = (n) => Array.from({ length: n }, (_, i) => ({ rank: i + 1, name: `Player ${i}`, position: 'WR', team: 'KC', matched: true, pickNo: null, delta: null }));
@@ -175,17 +163,16 @@ test('the draft board redraws only when something changed, and keeps its scroll'
 
   draw(30);
   assert.equal(bodies.length, 1);
-  bodies[0].scrollTop = 420; // the reader scrolled down the list
+  bodies[0].scrollTop = 420;
 
-  draw(30); // the next poll: nothing changed
+  draw(30);
   assert.equal(bodies.length, 1, 'an unchanged board is not redrawn');
   assert.equal(bodies[0].scrollTop, 420);
 
-  draw(29); // a pick landed: the table changes
+  draw(29);
   assert.equal(bodies.length, 2);
   assert.equal(bodies[1].scrollTop, 420, 'the reader keeps their place');
 
-  // Events are delegated, bound once.
   assert.equal(typeof listeners.click, 'function');
   assert.equal(typeof listeners.change, 'function');
 });

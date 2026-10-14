@@ -1,6 +1,3 @@
-// Start/sit logic for the Lineups tool: kickoff windows, who on your rosters
-// plays in each, whether they're starting, and swaps worth a look.
-// Pure functions — no chrome.* or fetch — so they run under node --test.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -12,16 +9,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     WRRB_FLEX: ['WR', 'RB'], DL: ['DL'], LB: ['LB'], DB: ['DB'], IDP_FLEX: ['DL', 'LB', 'DB']
   };
   const NOT_STARTING_SLOTS = new Set(['BN', 'IR', 'TAXI']);
-  // Statuses that mean "won't play"; Questionable is only a heads-up.
   const OUT = new Set(['Out', 'IR', 'PUP', 'Sus', 'NA', 'Doubtful']);
-  // The best lineup has to beat the current one by this much to be suggested.
   const MIN_GAIN = 1;
 
   const ESPN_TO_SLEEPER = { WSH: 'WAS' };
   const round1 = (n) => Math.round(n * 10) / 10;
   const team = (abbr) => ESPN_TO_SLEEPER[abbr] || abbr;
 
-  // ESPN scoreboard events -> [{ kickoff, teams: Set, label, started }] sorted by kickoff.
   function parseGames(espnEvents) {
     return (espnEvents || []).map((e) => {
       const comp = e.competitions && e.competitions[0];
@@ -35,15 +29,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         away: team(away ? away.team.abbreviation : ''),
         home: team(home ? home.team.abbreviation : ''),
         started: e.status && e.status.type && e.status.type.state !== 'pre',
-        state: e.status && e.status.type ? e.status.type.state : 'pre', // pre | in | post
+        state: e.status && e.status.type ? e.status.type.state : 'pre',
         remaining: remainingShare(e.status),
         odds: odds ? { details: odds.details || '', overUnder: odds.overUnder } : null
       };
     }).sort((a, b) => a.kickoff - b.kickoff);
   }
 
-  // Share of a game still to play, from ESPN's period and clock (seconds left
-  // in the period). Overtime counts as nearly over.
   function remainingShare(status) {
     const state = status && status.type ? status.type.state : 'pre';
     if (state === 'pre') return 1;
@@ -54,8 +46,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return ((4 - period) * 900 + clock) / 3600;
   }
 
-  // Fallback when ESPN is unreachable: Sleeper's schedule has dates only, so
-  // each day becomes one window starting at 1:00 PM ET (approx: true).
   function gamesFromSchedule(schedule, week) {
     return (schedule || []).filter((g) => g.week === week).map((g) => {
       const noonish = Date.parse(`${g.date}T13:00:00-04:00`);
@@ -64,14 +54,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         away: g.away,
         home: g.home,
         started: g.status !== 'pre_game',
-        // No clock from Sleeper: a game in progress counts as half played.
         remaining: g.status === 'pre_game' ? 1 : g.status === 'complete' ? 0 : 0.5,
         approx: true
       };
     }).sort((a, b) => a.kickoff - b.kickoff);
   }
 
-  // Games sharing a kickoff time form one window ("Sun 1:00 PM · 7 games").
   function windows(games) {
     const out = [];
     for (const g of games) {
@@ -87,16 +75,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  // Max-weight assignment of slots to players (Hungarian algorithm, O(n³);
-  // a lineup is ~10 slots by ~25 players). weight(slot, player, k) returns a
-  // number, or null when the player can't fill that slot. Returns, per slot,
-  // the chosen player or null (left empty: nobody eligible).
   function assign(slots, players, weight) {
     const n = slots.length;
-    const m = Math.max(players.length, n) + n; // n dummy "empty" columns
+    const m = Math.max(players.length, n) + n;
     const BIG = 1e6;
     const cost = (i, j) => {
-      if (j >= players.length) return j >= m - n ? BIG / 2 : BIG; // empty beats ineligible
+      if (j >= players.length) return j >= m - n ? BIG / 2 : BIG;
       const w = weight(slots[i], players[j], i);
       return w == null ? BIG : -w;
     };
@@ -136,12 +120,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const canPlay = (slot, positions) => (ELIGIBLE[slot] || [slot]).some((p) => positions.includes(p));
 
-  // One league -> every rostered player with where they sit and what they project.
-  //   league: { slots: ['QB','RB',...], scoring }
-  //   roster: { starters: [...], players: [...], reserve: [...], taxi: [...] }
-  //   info(pid) -> { name, pos, team, positions, injury }
-  //   projected(pid, scoring) -> points
-  //   kickoffOf(team) -> ms or null (no game: bye)
   function lineup(league, roster, info, projected, kickoffOf, now) {
     const starters = roster.starters || [];
     const reserve = new Set(roster.reserve || []);
@@ -175,7 +153,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const byPid = new Map(rows.map((r) => [r.pid, r]));
     const effective = (r) => (r.bye || OUT.has(r.injury) ? 0 : r.proj);
 
-    // Starters who won't score.
     for (const r of rows) {
       if (r.status !== 'start' || r.locked) continue;
       if (r.bye) r.notes.push({ kind: 'warn', text: 'On bye, so this slot scores zero' });
@@ -186,15 +163,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const available = (r) => !r.locked && !r.bye && !OUT.has(r.injury);
     const open = (i) => { const s = byPid.get(starters[i]); return !s || !s.locked; };
 
-    // ---- the best lineup ------------------------------------------------
-    // Exact: every open slot against every unlocked, active player, solved as
-    // an assignment problem, so flex chains (WR into WR, WR into FLEX, TE
-    // bumped out...) are all considered at once. Locked starters stay put.
     const openSlots = starters.map((_, i) => i).filter(open);
     const pool = rows.filter((r) => !r.locked && (r.status === 'start' || r.status === 'bench'));
     const best = assign(openSlots.map((i) => league.slots[i]), pool, (slot, r, k) => {
       if (!canPlay(slot, r.positions)) return null;
-      // A hair of credit for staying put, so ties never suggest pointless moves.
       return effective(r) + (r.slotIndex === openSlots[k] ? 1e-3 : 0);
     });
     const bestSlotOf = new Map();
@@ -223,13 +195,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
     for (const r of rows) r.inBest = bestSlotOf.has(r.pid) || (r.locked && r.status === 'start');
 
-    // ---- every valid single swap ----------------------------------------
-    // For a starter: each active bench player who could take his spot, either
-    // straight into his slot or by another starter sliding over (a WR into
-    // the WR slot while the WR there moves to FLEX). For a bench player: each
-    // starter he could push out, the same two ways. Byes, Out/IR players,
-    // wrong positions and anyone already kicked off are filtered out.
-    // gain is always what the swap does to your lineup: + helps, − hurts.
     const swapPath = (b, i) => {
       if (canPlay(league.slots[i], b.positions)) return { slot: league.slots[i], via: null };
       for (let j = 0; j < starters.length; j++) {

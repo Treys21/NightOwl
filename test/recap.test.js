@@ -1,4 +1,3 @@
-// Season recap: lineup mistakes, MVP, best pickup and biggest regret.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -18,7 +17,7 @@ const weekly = [
 test('lineups: points the bench cost each week, the swap that would have helped, and the MVP', () => {
   const r = recap.lineups(1, weekly, SLOTS, positionsOf);
   assert.equal(r.weeks[0].actual, 34);
-  assert.equal(r.weeks[0].best, 46); // c (16) in for b (4)
+  assert.equal(r.weeks[0].best, 46);
   assert.equal(r.weeks[0].loss, 12);
   assert.equal(r.weeks[0].miss.in, 'c');
   assert.equal(r.weeks[0].miss.out, 'b');
@@ -38,7 +37,7 @@ test('wire: the best player you added by points started for you, and the best on
   ];
   const r = recap.wire(1, moves, w);
   assert.deepEqual(r.bestAdd, { pid: 'c', week: 0, started: 27, onRoster: 27 });
-  assert.deepEqual(r.regret, { pid: 'b', week: 0, pts: 25 }); // he started for someone else after the drop
+  assert.deepEqual(r.regret, { pid: 'b', week: 0, pts: 25 });
   assert.equal(r.adds, 1);
   assert.equal(r.drops, 1);
 });

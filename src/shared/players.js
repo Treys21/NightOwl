@@ -1,6 +1,3 @@
-// One compact, shared copy of Sleeper's player directory: name, position, team,
-// jersey number, injury status, eligible positions, ESPN id. /players/nfl is
-// ~5 MB, so it is fetched at most once a day (Sleeper's request) and cached.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -10,14 +7,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const TTL_MS = 24 * 3600000;
   const FANTASY = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 
-  // Earlier versions cached the directory under these keys (~5 MB each).
   const RETIRED_KEYS = ['live.players', 'live.players.v2', 'live.players.v3', 'playersCache'];
 
-  // pid -> [name, position, team, number, injury, positionsCsv, espnId]
   let map = {};
   let ready = false;
   let loading = null;
-  let espnIndex = null; // espn athlete id -> pid, built on first use
+  let espnIndex = null;
 
   function compact(raw) {
     const next = {};
@@ -50,7 +45,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         await NightOwl.storage.set({ [KEY]: { at: Date.now(), map } });
       } catch (err) {
         if (!cached) throw err;
-        map = cached.map; // a stale directory beats none
+        map = cached.map;
       }
     }
     espnIndex = null;
@@ -63,7 +58,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return loading;
   }
 
-  // Stat rows carry names for players the directory hasn't seen yet.
   function remember(pid, name, pos, team) {
     if (!map[pid]) map[pid] = [name, pos, team, '', '', pos, ''];
   }
@@ -80,7 +74,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { name: pid, pos: def ? 'DEF' : '', team: def ? pid : '', number: '', injury: null, positions: def ? ['DEF'] : [] };
   }
 
-  /** Fantasy-relevant players as [{ id, name, position, team }] (for name matching). */
   function list() {
     const out = [];
     for (const [id, p] of Object.entries(map)) {
@@ -90,7 +83,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  /** Sleeper player id for an ESPN athlete id (ESPN props are keyed that way). */
   function byEspn(espnId) {
     if (!espnIndex) {
       espnIndex = new Map();
@@ -99,7 +91,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return espnIndex.get(String(espnId)) || null;
   }
 
-  /** ESPN athlete id for a Sleeper player id, or ''. */
   const espnId = (pid) => (map[pid] && map[pid][6]) || '';
 
   NightOwl.players = { load, info, list, remember, byEspn, espnId };

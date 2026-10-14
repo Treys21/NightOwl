@@ -1,4 +1,3 @@
-// Lineup alerts: starters who won't play, found before their games lock.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -17,7 +16,7 @@ test('parses ESPN injuries by athlete id, from the id field or the player link',
 });
 
 const now = Date.parse('2026-10-11T12:00:00-04:00');
-const kick = { DAL: now + 3600000, PHI: now - 600000, KC: null }; // KC on bye
+const kick = { DAL: now + 3600000, PHI: now - 600000, KC: null };
 const base = {
   week: 5,
   now,
@@ -34,7 +33,7 @@ test('alerts for out and bye starters before lock, one per player across leagues
   assert.deepEqual(found.map((f) => [f.pid, f.status, f.leagues.map((l) => l.name)]), [
     ['lamb', 'Out', ['Office', 'Dynasty']],
     ['kelce', 'Bye', ['Office']]
-  ]); // hurts already kicked off; dak only questionable
+  ]);
   const msg = alerts.message(found[0], 'CeeDee Lamb');
   assert.equal(msg.title, 'CeeDee Lamb is out');
   assert.equal(msg.body, 'Still in your lineup in Office, Dynasty. Hamstring.');

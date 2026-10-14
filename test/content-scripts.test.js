@@ -1,6 +1,3 @@
-// Load every content script in manifest order, in one shared global like
-// Chrome's isolated world, and check the pieces find each other. This catches
-// a script listed before something it reads at load time.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -49,7 +46,7 @@ test('api names a failing feed and clears it on recovery', async () => {
   context.fetch = async (url) => (url.includes('espn.com') && !espnUp
     ? { ok: false, status: 503 }
     : { ok: true, json: async () => ({ events: [] }) });
-  delete context.chrome.runtime.sendMessage; // use fetch directly
+  delete context.chrome.runtime.sendMessage;
   vm.runInContext(fs.readFileSync(path.join(root, 'src/shared/api.js'), 'utf8'), context);
   const { api } = context.NightOwl;
   const seen = [];
@@ -82,5 +79,5 @@ test('the background worker starts, with every script it imports', () => {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(root, manifest.background.service_worker), 'utf8'), context);
   assert.ok(context.NightOwl.alerts && context.NightOwl.api.injuries);
-  assert.equal(listeners.length, 6); // fetch relay, KTC relay, installed, startup, alarm, notification click
+  assert.equal(listeners.length, 6);
 });

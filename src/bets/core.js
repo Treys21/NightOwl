@@ -1,7 +1,3 @@
-// Betting context for your starters: Sleeper Picks lines (with payouts and
-// recent results), ESPN/DraftKings milestones and game lines, defense-vs-
-// position ranks, and how each player is tracking against each line live.
-// Pure functions — no chrome.* or fetch — so they run under node --test.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -9,7 +5,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const round1 = (n) => Math.round(n * 10) / 10;
 
-  // Sleeper wager_type -> label and the stat keys (summed) that settle it.
   const MARKETS = {
     passing_yards: { label: 'Pass yds', keys: ['pass_yd'] },
     passing_touchdowns: { label: 'Pass TDs', keys: ['pass_td'] },
@@ -35,10 +30,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     assists: { label: 'Ast tackles', keys: ['idp_tkl_ast'] },
     tackles_and_assists: { label: 'Tackles + ast', keys: ['idp_tkl_solo', 'idp_tkl_ast'] }
   };
-  // Display order within a player card.
   const ORDER = Object.keys(MARKETS);
 
-  // ESPN/DraftKings milestone ladders -> the same stat keys.
   const MILESTONES = {
     'Receiving Yards Milestones': { label: 'Rec yds', keys: ['rec_yd'] },
     'Rushing Yards Milestones': { label: 'Rush yds', keys: ['rush_yd'] },
@@ -49,8 +42,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     'Rushing Attempts Milestones': { label: 'Carries', keys: ['rush_att'] }
   };
 
-  // Value of a market from a stat line (live stats or projections); null when
-  // the line has none of the keys (e.g. projections never include "longest").
   function statValue(stats, keys) {
     if (!stats || !keys.length) return null;
     let total = 0;
@@ -61,8 +52,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return seen ? round1(total) : null;
   }
 
-  // Pick'em payouts -> probability of the over, with the house margin removed
-  // when both sides are priced.
   function impliedOver(overMult, underMult) {
     const o = overMult ? 1 / overMult : null;
     const u = underMult ? 1 / underMult : null;
@@ -72,8 +61,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return null;
   }
 
-  // Payout multiplier (decimal odds: 2.34 returns $2.34 per $1) -> American
-  // odds as a sportsbook shows them: 2.34 -> "+134", 1.41 -> "-244".
   function american(mult) {
     const d = Number(mult);
     if (!d || d <= 1) return null;
@@ -81,8 +68,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return v > 0 ? `+${v}` : `${v}`;
   }
 
-  // Sleeper /lines/available (every sport) -> { pid: [market, ...] } for NFL.
-  //   market: { type, label, keys, line, over, under, pOver, recent: [{date, opponent, value}], gameId, updatedAt }
   function parseLines(raw) {
     const out = {};
     for (const entry of raw || []) {
@@ -112,7 +97,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       });
     }
     for (const pid of Object.keys(out)) {
-      // One market per type: the most recently updated.
       const best = new Map();
       for (const m of out[pid]) {
         const cur = best.get(m.type);
@@ -123,9 +107,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  // Lines vanish at kickoff; keep the last known (closing) line per player and
-  // market so live progress still has something to track against.
-  // What a player has done so far, by position, for when no line exists.
   const LIVE_STATS = {
     QB: [['pass_yd', 'pass yds'], ['pass_td', 'TD'], ['rush_yd', 'rush yds']],
     RB: [['rush_yd', 'rush yds'], ['rec', 'rec'], ['rush_td', 'TD']],
@@ -133,7 +114,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     TE: [['rec', 'rec'], ['rec_yd', 'yds'], ['rec_td', 'TD']],
     K: [['fgm', 'FG'], ['xpm', 'XP']]
   };
-  /** "4 rec · 38 yds so far", or '' when there's nothing to show. */
   function liveLine(pos, stats) {
     const parts = (LIVE_STATS[pos] || [])
       .filter(([key], i) => i < 2 || (stats && stats[key]))
@@ -151,14 +131,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  // How often the player cleared this line in the games Sleeper lists.
   function hitRate(recent, line) {
     const values = (recent || []).map((r) => r.value).filter((v) => v != null);
     if (!values.length) return null;
     return { over: values.filter((v) => v > line).length, games: values.length };
   }
 
-  // ESPN propBets items -> { espnAthleteId: [{ label, keys, rungs: [25, 40, ...] }] }.
   function parseMilestones(items) {
     const byAthlete = new Map();
     for (const it of items || []) {
@@ -181,7 +159,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  // ESPN game odds ("JAX -7.5", total 41.5) -> implied points per team.
   function impliedTotals(game) {
     const odds = game && game.odds;
     if (!odds || odds.overUnder == null) return null;
@@ -202,8 +179,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  // Sleeper season DEF stat rows -> { TEAM: { QB: rank, RB: rank, ... } },
-  // rank 1 = allows the most fantasy points per game to that position.
   function defenseRanks(defRows) {
     const positions = ['QB', 'RB', 'WR', 'TE', 'K'];
     const per = (row, pos) => {
@@ -224,18 +199,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  // Where a market stands live: current value, share of the line, and whether
-  // the over has already cashed.
   function progress(market, liveStats) {
     if (!market.keys.length || !liveStats) return null;
-    // In the game but no stat yet: that's zero, not unknown.
     const value = statValue(liveStats, market.keys) ?? 0;
     const line = market.td ? 0.5 : market.line;
     return { value, line, pct: line > 0 ? Math.min(1, value / line) : (value > 0 ? 1 : 0), hit: value > line };
   }
 
-  // A ladder can run 16 rungs deep (40+ ... 190+); keep the `max` rungs
-  // closest to the player's line (or the ladder's middle when there's none).
   function trimRungs(rungs, line, max = 6) {
     if (rungs.length <= max) return rungs.slice();
     const center = line != null ? line : rungs[Math.floor(rungs.length / 2)];
@@ -243,7 +213,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       .slice(0, max).sort((a, b) => a - b);
   }
 
-  // The one line that best sums a player up in a collapsed row.
   const KEY_BY_POS = {
     QB: ['passing_yards', 'passing_and_rushing_yards', 'passing_touchdowns'],
     RB: ['rushing_yards', 'rushing_and_receiving_yards', 'receptions'],
@@ -260,8 +229,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return list[0] || null;
   }
 
-  // Sort scores for the Bets list (higher first). proj: the player's
-  // projected stat line.
   const SORTS = {
     td: (markets) => {
       const td = (markets || []).find((m) => m.type === 'anytime_touchdowns');
@@ -287,7 +254,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   };
 
-  // 1st, 2nd, 3rd, 4th...
   function ordinal(n) {
     const s = ['th', 'st', 'nd', 'rd'];
     const v = n % 100;

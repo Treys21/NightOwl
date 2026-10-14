@@ -1,4 +1,3 @@
-// Season math: all-play, luck, standings, best lineup on actual points, win odds.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -14,7 +13,6 @@ test('all-play counts every team every week; ties are half a win', () => {
 });
 
 test('median game: the top half wins it, so it adds no luck', () => {
-  // 4 teams; team 1 tops both weeks: 2 median wins expected on top of all-play.
   const ap = season.allPlay([{ 1: 100, 2: 90, 3: 80, 4: 70 }, { 1: 100, 2: 60, 3: 90, 4: 50 }], { medianGame: true });
   assert.equal(ap[1].expected, 2 + 2);
   assert.equal(ap[2].expected, Math.round((2 / 3 + 1 + 1 / 3 + 0) * 100) / 100);
@@ -31,11 +29,11 @@ test('standings rank by wins then points, with luck and efficiency', () => {
   const rows = season.standings(rosters, [{ 1: 100, 2: 90, 3: 80, 4: 70 }, { 1: 60, 2: 90, 3: 90, 4: 50 }]);
   assert.deepEqual(rows.map((r) => r.rosterId), [2, 3, 1, 4]);
   const two = rows[0];
-  assert.equal(two.luck, 0.5); // 2 wins vs 1.5 expected
+  assert.equal(two.luck, 0.5);
   assert.equal(Math.round(two.efficiency * 1000) / 1000, 0.947);
   assert.equal(rows[1].pf, 170.5);
   assert.equal(rows[1].max, null);
-  assert.equal(rows[2].luck, -0.3); // 1 win vs 1.33 expected
+  assert.equal(rows[2].luck, -0.3);
 });
 
 test('best lineup on actual points respects slot eligibility and flex', () => {
@@ -77,25 +75,21 @@ test('team strength pulls a short track record toward the league average', () =>
 
 test('playoff odds: clinched, eliminated, and a coin flip', () => {
   const team = (rosterId, wins, pf = 500) => ({ rosterId, wins, ties: 0, pf, mean: 100, sd: 15 });
-  // One week left, 2 of 4 make it. Team 1 can't be caught; team 4 can't catch up.
   const teams = [team(1, 9), team(2, 6), team(3, 6), team(4, 3)];
   const odds = season.playoffOdds({ teams, schedule: [[[1, 4], [2, 3]]], playoffTeams: 2, sims: 4000, seed: 7 });
   assert.equal(odds[1], 1);
   assert.equal(odds[4], 0);
   assert.ok(Math.abs(odds[2] - 0.5) < 0.05, `even teams ~50%: ${odds[2]}`);
   assert.ok(Math.abs(odds[2] + odds[3] - 1) < 1e-9);
-  // Same seed, same answer.
   assert.deepEqual(season.playoffOdds({ teams, schedule: [[[1, 4], [2, 3]]], playoffTeams: 2, sims: 4000, seed: 7 }), odds);
 });
 
 test('playoff odds count the median game', () => {
   const teams = [1, 2, 3, 4].map((id) => ({ rosterId: id, wins: id === 4 ? 2 : 0, ties: 0, pf: 0, mean: id === 4 ? 200 : 80, sd: 1 }));
-  // Team 4 is far better: it wins its game and the median game every week.
   const odds = season.playoffOdds({ teams, schedule: [[[1, 2], [3, 4]]], playoffTeams: 1, medianGame: true, sims: 200 });
   assert.equal(odds[4], 1);
 });
 
-// A finished 10-team season with a median game (28 games over 14 weeks).
 const LEAGUE = [
   ['Drakeo', 23, 2627.20], ['Horton', 18, 2624.28], ['Njigbas', 17, 2505.78], ['Griddy', 16, 2424.04],
   ['Troy', 16, 2436.76], ['Deebo', 16, 2440.68], ['Buttqin', 14, 2284.06], ['FutureHOF', 12, 2316.72],
@@ -133,7 +127,6 @@ test('draft order before any games: no NaN, falls back to roster order', () => {
     assert.deepEqual(picks.map((t) => t.rosterId), [1, 2, 3]);
     assert.ok(picks.every((t) => t.score === 0));
   }
-  // One team without max points yet ranks as the worst on that part.
   const partial = season.draftOrder([{ rosterId: 1, wins: 1, max: 200 }, { rosterId: 2, wins: 1, max: 0 }], { method: 'inverse' });
   assert.equal(partial[0].rosterId, 2);
 });
@@ -156,15 +149,15 @@ test('as it stands: leaders win, the top half wins the median, totals grow', () 
   ];
   const next = season.asItStands(rosters, matchups, (id) => (id === 1 ? 100 : null), { medianGame: true });
   const s = Object.fromEntries(next.map((r) => [r.roster_id, r.settings]));
-  assert.deepEqual([s[1].wins, s[1].losses, s[1].ties], [4, 2, 0]); // won + top half
+  assert.deepEqual([s[1].wins, s[1].losses, s[1].ties], [4, 2, 0]);
   assert.deepEqual([s[2].wins, s[2].losses, s[2].ties], [2, 4, 0]);
   assert.equal(s[3].ties + s[4].ties, 2);
-  assert.equal(s[3].wins + s[4].wins, 5); // one of the tied pair is in the top half
+  assert.equal(s[3].wins + s[4].wins, 5);
   assert.equal(s[1].fpts, 490.5);
   assert.equal(s[1].fpts_against, 60);
   assert.equal(s[1].ppts, 550);
-  assert.equal(s[2].ppts, 450); // no max given: unchanged
-  assert.equal(rosters[0].settings.wins, 2); // inputs untouched
+  assert.equal(s[2].ppts, 450);
+  assert.equal(rosters[0].settings.wins, 2);
   assert.equal(season.weeksRecorded(next, { medianGame: true }), 3);
   assert.equal(season.weeksRecorded(rosters), 4);
 });

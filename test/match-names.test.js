@@ -1,6 +1,3 @@
-// Name matching is the one piece of pure logic worth testing — everything else
-// depends on live DOM or the network.
-//   node --test test/
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -21,7 +18,6 @@ test('normalizeName drops generational suffixes', () => {
 });
 
 test('normalizeName keeps two-word names whose last token looks like a suffix', () => {
-  // "V" here is the surname, not a generational suffix.
   assert.equal(normalizeName('Chris V'), 'chris v');
 });
 
@@ -64,7 +60,6 @@ test('matchPlayer returns null rather than guessing when ambiguous', () => {
 });
 
 test('matchPlayer falls back to last name + position + team for nicknames', () => {
-  // Real case: The Ringer says "Kenneth Gainwell", Sleeper says "Kenny Gainwell".
   const index = buildIndex([{ id: '7567', name: 'Kenny Gainwell', position: 'RB', team: 'TB' }]);
   assert.equal(matchPlayer({ name: 'Kenneth Gainwell', position: 'RB', team: 'TB' }, index).id, '7567');
 });

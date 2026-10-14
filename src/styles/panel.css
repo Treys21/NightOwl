@@ -1,6 +1,3 @@
-/* The floating panel shell: frame, header, brand mark, tool switch.
-   Sleeper's own palette (read off sleeper.com): navy panels, teal accent
-   with navy ink on it, pink for bad news, blue-grey secondary text. */
 :host { all: initial; }
 * { box-sizing: border-box; }
 .panel {
@@ -12,14 +9,13 @@
   animation: panel-in .5s cubic-bezier(.2,1.2,.4,1);
 }
 @keyframes panel-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
-/* Frame: a quiet 1.5px ring (the gap between ::before and ::after). It turns
-   teal while one of your games is on. */
+
 .panel::before {
   content: ''; position: absolute; inset: 0; z-index: -2; border-radius: 18px;
   background: rgba(163,187,211,.2); transition: background .6s;
 }
 .panel.hot::before { background: rgba(0,206,184,.5); }
-/* Aurora: three soft colour fields drifting behind everything. */
+
 .panel::after {
   content: ''; position: absolute; inset: 1.5px; z-index: -1; border-radius: 16.5px;
   background:
@@ -29,8 +25,7 @@
     linear-gradient(180deg, #151a27, #11141e);
   background-size: 180% 180%, 180% 180%, 180% 180%, 100% 100%;
   background-position: 0% 0%, 100% 50%, 0% 100%, 0 0;
-  /* Static on purpose: an animated background repaints everything above
-     it every frame, which made scrolling the lists stutter. */
+
 }
 @media (prefers-reduced-motion: reduce) { .panel, .panel::before, .panel::after, .brand .outer, .brand .inner, .brand .eyes, .brand .pupil, .switch .ind { animation: none; transition: none; } }
 .panel.collapsed { height: auto; }
@@ -43,9 +38,7 @@ header {
   border-bottom: 1px solid rgba(58,70,91,.7); border-radius: 16.5px 16.5px 0 0;
   cursor: move; user-select: none;
 }
-/* The Night Owl mark ("Hybrid": cyan outer tube, pink inner tube). The tubes
-   power on one after another when the panel opens (outer, inner, eyes); then
-   the inner tube flickers and the pupils blink now and then. */
+
 .brand { width: 26px; height: 26px; flex: none; display: block; }
 .brand .outer { animation: owl-on 1s .1s both; }
 .brand .inner { animation: owl-on 1s .45s both, owl-flicker 6s 3s infinite; }
@@ -78,7 +71,7 @@ header {
 .view { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .view[hidden] { display: none; }
 .view-live, .view-lineups, .view-bets { overflow: hidden; position: relative; }
-/* Shown only while one of the data feeds is failing. */
+
 .source-note {
   flex: none; margin: 0 1.5px 1.5px; padding: 7px 12px; border-radius: 0 0 16.5px 16.5px;
   font-size: 11.5px; line-height: 1.35; color: #feae58;
@@ -87,7 +80,6 @@ header {
 .source-note[hidden] { display: none; }
 .panel.collapsed .source-note { display: none; }
 
-/* Resize handles: thin strips on each edge, larger squares on the corners. */
 .rz { position: absolute; z-index: 5; }
 .rz-n, .rz-s { left: 14px; right: 14px; height: 7px; cursor: ns-resize; }
 .rz-e, .rz-w { top: 14px; bottom: 14px; width: 7px; cursor: ew-resize; }
@@ -97,7 +89,7 @@ header {
 .rz-sw { bottom: -2px; left: -2px; cursor: nesw-resize; }
 .rz-nw { top: -2px; left: -2px; cursor: nwse-resize; }
 .rz-se { bottom: -2px; right: -2px; cursor: nwse-resize; }
-/* A small grip so the bottom-right corner reads as draggable. */
+
 .rz-se::after {
   content: ''; position: absolute; right: 6px; bottom: 6px; width: 7px; height: 7px;
   border-right: 2px solid rgba(163,187,211,.35); border-bottom: 2px solid rgba(163,187,211,.35);
@@ -106,22 +98,18 @@ header {
 .panel.collapsed .rz { display: none; }
 .panel.resizing, .panel.resizing * { user-select: none; transition: none !important; }
 
-/* Each tool lays itself out from the size of its own view (container
-   queries), so every tab works at any panel size or shape. */
 .view { container: view / size; }
-/* On a wide panel the tool switch stops stretching. */
+
 .switch { max-width: 460px; }
 header .iconbtn { margin-left: auto; }
 @container view (max-width: 360px) {
   .lv-count { display: none; }
 }
 
-/* Keyboard focus is always visible; pointer clicks don't show it. */
 :is(button, a, summary, select, input, [tabindex]):focus-visible { outline: 2px solid #00ceb8; outline-offset: 2px; }
-/* Comfortable targets in a dense panel. */
+
 .iconbtn { min-width: 28px; min-height: 28px; }
 
-/* First-run setup, shown in place of a tool until a username is saved. */
 .setup {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 8px; padding: 24px 22px; margin: 0 1.5px 1.5px; text-align: center; color: #bfcfe0;
@@ -147,14 +135,11 @@ header .iconbtn { margin-left: auto; }
 .setup h2 { display: block; text-transform: none; letter-spacing: 0; }
 .setup h2::after { display: none; }
 
-/* Tab labels get room to breathe on the narrowest panels. */
 .panel { container: panel / inline-size; }
 @container panel (max-width: 360px) {
   .switch button { padding: 5px 2px; font-size: 12px; }
 }
 
-/* During first-run setup only Draft works without a username: the switch
-   stays usable but steps back so the form is the focus. */
 .panel.setting-up .switch { opacity: .55; }
 .panel.setting-up .switch .ind { opacity: 0; }
 .panel.setting-up .switch button.on { color: #a3bbd3; }

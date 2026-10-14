@@ -1,4 +1,3 @@
-// The manifest is the contract with Chrome: keep it consistent with the code.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');

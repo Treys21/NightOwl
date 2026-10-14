@@ -1,4 +1,3 @@
-// Trade loader: follows the league's history, grades trades, and caches what can't change.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -16,7 +15,7 @@ globalThis.NightOwl = {
       calls.push(`tx:${id}:${week}`);
       if (id === 'L26' && week === 3) return [{ type: 'trade', status: 'complete', leg: 3, created: 3000, transaction_id: 'now', roster_ids: [1, 2], adds: { A: 1, B: 2 }, drops: { A: 2, B: 1 }, draft_picks: [] }, { type: 'waiver', status: 'complete', leg: 3, created: 3001, adds: { Z: 1 }, drops: {}, roster_ids: [1] }];
       if (id === 'L25' && week === 9) return [{ type: 'trade', status: 'complete', leg: 9, created: 1000, transaction_id: 'old', roster_ids: [1, 2], adds: { C: 2 }, drops: { C: 1 }, draft_picks: [{ season: '2025', round: 1, roster_id: 2, owner_id: 1, previous_owner_id: 2 }] }];
-      if (id === 'L26' && week === 2) throw new Error('Sleeper hiccup'); // one bad week must not sink the rest
+      if (id === 'L26' && week === 2) throw new Error('Sleeper hiccup');
       return [];
     },
     leagueDrafts: async (id) => (id === 'L25' ? [{ draft_id: 'D25', season: '2025', type: 'linear', status: 'complete', settings: { rounds: 1, teams: 2 } }] : []),
@@ -44,12 +43,12 @@ test('chain: the league and every season before it, back to its first', async ()
 test('load: trades from every season, graded, with the points each side started after the deal', async () => {
   const h = await globalThis.NightOwl.tradeLoader.load(lg, nfl, ctx);
   assert.deepEqual(h.seasons, ['2026', '2025', '2024', '2023']);
-  assert.deepEqual(h.graded.map((g) => g.trade.id), ['now', 'old']); // newest first
+  assert.deepEqual(h.graded.map((g) => g.trade.id), ['now', 'old']);
   const now = h.graded[0];
-  assert.ok(now.grades[1].valueNet > 0); // side 1 got A (6,000) for B (4,000)
-  assert.deepEqual(now.real[1], { started: 10, bench: 0 }); // A started for side 1 after the trade week
-  assert.ok(h.graded[1].real, 'last season\'s deal has its points too'); // finished seasons are read whole
-  assert.equal(h.profiles.u1.trades, 2); // one manager across both seasons
+  assert.ok(now.grades[1].valueNet > 0);
+  assert.deepEqual(now.real[1], { started: 10, bench: 0 });
+  assert.ok(h.graded[1].real, 'last season\'s deal has its points too');
+  assert.equal(h.profiles.u1.trades, 2);
   assert.equal(h.band.count, 2);
 });
 
@@ -57,7 +56,7 @@ test('load: finished weeks are cached, so a second load only refetches the live 
   calls.length = 0;
   await globalThis.NightOwl.tradeLoader.load(lg, nfl, ctx);
   const tx = calls.filter((c) => c.startsWith('tx:L26'));
-  assert.ok(tx.length <= 2, `refetched ${tx.join(', ')}`); // the live week, and the week that failed the first time
+  assert.ok(tx.length <= 2, `refetched ${tx.join(', ')}`);
   assert.ok(!calls.includes('tx:L26:3'));
 });
 
@@ -71,6 +70,6 @@ test('load: a traded pick that has been spent is the player taken with it', asyn
   const h = await globalThis.NightOwl.tradeLoader.load(lg, nfl, ctx);
   const old = h.graded.find((g) => g.trade.id === 'old');
   const pick = old.trade.sides[1].gotPicks[0];
-  assert.equal(pick.player, 'X'); // roster 2's round-1 pick, spent from slot 2 by roster 1, who held it at the draft
+  assert.equal(pick.player, 'X');
   assert.equal(h.drafts.length, 1);
 });

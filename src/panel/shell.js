@@ -1,10 +1,3 @@
-// The floating panel: one draggable, resizable shell with a switch for each
-// tool (Draft, Live, Lineups, Bets, Season, Moves). It lives in a shadow root so
-// Sleeper's CSS can't bleed in and ours can't leak out.
-//
-// Each tool is a view — { mount(el), unmount(), navigated?() } registered on
-// NightOwl.views — and exactly one is mounted at a time: a hidden or collapsed
-// tool does no work and makes no requests.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -31,16 +24,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     { id: 'season', label: 'Season' },
     { id: 'moves', label: 'Moves' }
   ];
-  // One size for every tool. Drag any edge or corner to change it; it's
-  // remembered. Double-click the header to go back to the default.
   const DEFAULT_W = 430;
   const DEFAULT_H = 780;
   const MIN_W = 320;
   const MIN_H = 300;
-  const GAP = 8; // keep this far inside the window
+  const GAP = 8;
   const EDGES = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 
-  // The Night Owl mark ("Hybrid": cyan outer tube, pink inner tube); panel.css powers its tubes on.
   const BRAND = `
     <svg class="brand" viewBox="0 0 128 128" role="img" aria-label="Night Owl">
       <rect width="128" height="128" rx="30" fill="#140f2e"/>
@@ -57,15 +47,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   let ui = null;
   let panel = null;
   let mounting = null;
-  let active = null; // id of the mounted view, if any
-  let needsSetup = false; // no Sleeper username yet
+  let active = null;
+  let needsSetup = false;
 
   const toolOf = (value) => (TOOLS.some((t) => t.id === value) ? value : 'live');
   const viewOf = (id) => NightOwl.views && NightOwl.views[id];
   const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max));
 
-  /** Create the panel (idempotent). Sleeper re-renders aggressively; if it tore
-      the host out, this puts it back. */
   function mount() {
     if (panel && panel.isConnected) return Promise.resolve();
     mounting = mounting || build().finally(() => { mounting = null; });
@@ -82,7 +70,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     host.id = HOST_ID;
     const shadow = host.attachShadow({ mode: 'open' });
     dom.hideBrokenImages(shadow);
-    await dom.adoptStyles(shadow, STYLES); // before first paint: no unstyled flash
+    await dom.adoptStyles(shadow, STYLES);
 
     panel = document.createElement('div');
     panel.className = 'panel';
@@ -118,8 +106,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     showOutages(NightOwl.api.unavailable());
     apply();
     enableResize();
-    setTimeout(slideIndicator, 400); // again once webfonts settle
-    // The pill follows the buttons whenever they change size: webfonts arriving, the panel resized, a narrow window.
+    setTimeout(slideIndicator, 400);
     if (typeof ResizeObserver !== 'undefined') {
       const watcher = new ResizeObserver(slideIndicator);
       panel.querySelectorAll('.switch, .switch button').forEach((el) => watcher.observe(el));
@@ -127,20 +114,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(slideIndicator);
   }
 
-  // Registered once, not per build: Sleeper can tear the host out and the shell
-  // rebuilds it, and listeners added per build would pile up.
   window.addEventListener('resize', () => {
     if (!panel) return;
     place();
     slideIndicator();
   });
 
-  // Where each tool was scrolled to, so switching away and back (or a
-  // collapse and expand) puts you where you were. Per page load.
   const scrolled = new Map();
   const scroller = (id) => panel && panel.querySelector(`.view-${id} .tool-scroll`);
 
-  // Read before the view is hidden: a hidden box reports no scroll.
   function saveScroll() {
     const box = active && scroller(active);
     if (box) scrolled.set(active, box.scrollTop);
@@ -151,8 +133,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     active = null;
   }
 
-  // Views draw from cached state at once and fill in as requests land, so the
-  // saved position is tried again once content has had time to arrive.
   function restoreScroll(id) {
     const top = scrolled.get(id);
     if (!top) return;
@@ -164,7 +144,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  // Alt+Shift+1..N opens a tool, Alt+Shift+M minimizes or restores the panel.
   function onShortcut(e) {
     if (!panel || !e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return;
     const n = /^Digit([1-9])$/.exec(e.code);
@@ -180,7 +159,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  // Show the current tool and mount its view; everything else is unmounted.
   function apply() {
     saveScroll();
     const tool = toolOf(ui.tool);
@@ -195,7 +173,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     collapse.textContent = ui.collapsed ? '▢' : '—';
     collapse.title = ui.collapsed ? 'Expand' : 'Minimize';
     collapse.setAttribute('aria-label', collapse.title);
-    // Everything but the draft board needs your username first.
     const setup = needsSetup && tool !== 'draft' && !ui.collapsed;
     for (const t of TOOLS) panel.querySelector(`.view-${t.id}`).hidden = setup || t.id !== tool;
     panel.querySelector('.setup').hidden = !setup;
@@ -221,7 +198,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     apply();
   }
 
-  // The glowing pill glides under whichever tool is active.
   function slideIndicator() {
     requestAnimationFrame(() => {
       const on = panel && panel.querySelector('.switch button.on');
@@ -235,7 +211,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const viewW = () => document.documentElement.clientWidth || window.innerWidth;
   const viewH = () => window.innerHeight;
 
-  // Size and position from the saved ui, clamped to the window.
   function place() {
     const maxW = viewW() - GAP * 2;
     const maxH = viewH() - GAP * 2;
@@ -249,8 +224,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     panel.style.top = `${clamp(y, GAP, viewH() - (ui.collapsed ? 60 : h) - GAP)}px`;
   }
 
-  // Eight invisible handles around the frame. Dragging one moves that edge
-  // (or corner); the opposite edge stays put.
   function enableResize() {
     panel.querySelectorAll('.rz').forEach((handle) => {
       handle.addEventListener('pointerdown', (event) => {
@@ -306,7 +279,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function wire() {
-    document.removeEventListener('keydown', onShortcut, true); // once, however often the panel is rebuilt
+    document.removeEventListener('keydown', onShortcut, true);
     document.addEventListener('keydown', onShortcut, true);
     panel.querySelector('[data-act="collapse"]').addEventListener('click', () => {
       ui.collapsed = !ui.collapsed;
@@ -348,7 +321,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
-  // A feed that stops answering is named, rather than its section just emptying.
   function showOutages(labels) {
     const note = panel && panel.querySelector('.source-note');
     if (!note) return;
@@ -359,8 +331,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
   NightOwl.api.onAvailability(showOutages);
 
-  // First-run setup: look the username up, then save it. The settings change
-  // brings every tool to life (here and in the popup).
   function wireSetup() {
     const form = panel.querySelector('.setup');
     const msg = form.querySelector('.setup-msg');
@@ -387,7 +357,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
-  // The username arrived (or was cleared) in the popup: show the right screen.
   storage.onChanged((changes) => {
     if (!changes.settings || !panel) return;
     const next = !((changes.settings.newValue || {}).username);
@@ -397,11 +366,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   });
 
-  /**
-   * Take the panel down for good. An extension that was reloaded or updated
-   * leaves its old content scripts running in open tabs, cut off from chrome.*;
-   * they would only log errors on every poll.
-   */
   function destroy() {
     unmountActive();
     document.removeEventListener('keydown', onShortcut, true);
@@ -409,7 +373,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     panel = null;
   }
 
-  /** The page URL changed (Sleeper is a single-page app). */
   function navigated() {
     if (active) viewOf(active)?.navigated?.();
   }

@@ -1,7 +1,3 @@
-// Everything the Season and Moves tools share to play out the rest of the
-// season: where each league stands on the calendar, the remaining schedule,
-// weekly projections, and the simulation fed from them. Fetches and caches;
-// the math is in season/core.js, season/project.js and season/value.js.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -10,19 +6,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const { api, players, storage, season, projection, lineups } = NightOwl;
   const fantasyPoints = NightOwl.scoring.points;
 
-  const PROJECTION_TTL_MS = 6 * 3600000; // weekly projections, per week
+  const PROJECTION_TTL_MS = 6 * 3600000;
   const SIMS = 2000;
   const LAST_WEEK = 18;
-  // A title is won in the playoff weeks, so a player's points there count extra when pricing a roster move.
   const PLAYOFF_WEIGHT = 1.5;
   const PROJECTION_KEY = (year) => `season.projections.v2.${year}`;
 
-  /**
-   * Where a league is on the calendar. Finished weeks are the ones in Sleeper's
-   * records (wins, points, max points), which can lag the NFL calendar by a day
-   * or so. The next week is live once it has points.
-   * -> { start, playoffStart, playoffTeams, medianGame, recorded, finished: [week], next, inProgress }
-   */
   function timeline(lg, rosters, nfl) {
     const s = lg.settings || {};
     const start = s.start_week || 1;
@@ -39,8 +28,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     };
   }
 
-  // The rest of the regular season's pairings ([[rosterA, rosterB], ...] per
-  // week). Sleeper publishes the whole schedule up front, so it's cached.
   async function schedule(leagueId, fromWeek, untilWeek) {
     const key = `season.schedule.${leagueId}`;
     const cached = await storage.get(key, {});
@@ -61,15 +48,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return weeks.map((w) => cached[w] || []);
   }
 
-  // A row worth keeping: a real projection. Everything below a point (and the
-  // thousands of deep-bench rows) is noise and most of the payload.
   const relevant = (stats) => (stats.pts_ppr || 0) >= 1 || (stats.idp_tkl || 0) >= 1 || (stats.idp_sack || 0) >= 0.1;
   const dropAdp = (stats) => Object.fromEntries(Object.entries(stats).filter(([k]) => !/adp/.test(k)));
 
-  /**
-   * Weekly projections for every relevant player, cached for a few hours:
-   * { week: { pid: stats } }. About 100 KB a week once trimmed.
-   */
   async function projections(seasonYear, weeks, positions) {
     const key = PROJECTION_KEY(seasonYear);
     const cached = await storage.get(key, {});
@@ -85,12 +66,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return Object.fromEntries(weeks.map((w) => [w, (cached[w] && cached[w].stats) || {}]));
   }
 
-  /** Positions to request projections for: offense, plus IDP when some league starts them. */
   function positionsFor(slotLists) {
     return api.positionsFor(slotLists).slice().sort();
   }
 
-  /** Weeks to project for a set of leagues: every week still to play, through the playoffs. */
   function weeksNeeded(leagues) {
     const needed = new Set();
     for (const lg of leagues) {
@@ -100,40 +79,24 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return [...needed].filter((w) => w <= LAST_WEEK).sort((a, b) => a - b);
   }
 
-  // Share of each team's game left this week (1 before kickoff, 0 when final).
   async function remainingByTeam(seasonYear, week) {
     try {
       const games = lineups.parseGames(await api.kickoffs(seasonYear, week, 'regular'));
       const out = new Map();
       for (const g of games) { out.set(g.home, g.remaining); out.set(g.away, g.remaining); }
-      return (team) => (out.has(team) ? out.get(team) : 0); // no game: bye
+      return (team) => (out.has(team) ? out.get(team) : 0);
     } catch {
-      return () => 0.5; // ESPN unreachable: call every game half played
+      return () => 0.5;
     }
   }
 
-  // Players who can play: the roster minus injured reserve and the taxi squad.
   const activePool = (ro) => {
     const away = new Set([...(ro.reserve || []), ...(ro.taxi || [])]);
     return (ro.players || []).filter((pid) => !away.has(pid));
   };
 
-  // The NFL schedule as { week: [teams playing] }, which is how a bye is told from an absence:
-  // a healthy player whose team plays that week has a game (see season/replacement.js).
   const nflSchedule = (seasonYear) => NightOwl.replacement.schedule(seasonYear);
 
-  /**
-   * One entry per remaining week for the value engine (season/value.js): the
-   * regular season still to play, then the playoff weeks (weighted extra):
-   * projected points under the league's scoring, and who is out. Index 0 is the
-   * next week to play (the one in progress counts as played: it has real lineups).
-   *
-   * A bye is a week with no game, from the NFL schedule: the player is out for
-   * it. A healthy player with a game and no projection row (the rows below a
-   * point are dropped) is projected at his average for the other weeks rather
-   * than at nothing. A week whose projections are not published (or failed to
-   * load) is left out; calling it a week of zeros would price every lineup at 0.
-   */
   function valueWeeks(lg, stats, schedule = null) {
     const r = lg.raw;
     const { onBye } = NightOwl.replacement;
@@ -167,11 +130,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  /**
-   * Every remaining week as the simulation sees it: who plays whom and each
-   * team's projected score (mean and variance), regular season then playoffs.
-   * -> { format, weeks: [{ week, pairs, teams }], playoffTeams: { week: teams }, rosters }
-   */
   async function forecastWeeks(lg, { remainingOf, stats, rosters = lg.raw.rosters }) {
     const r = lg.raw;
     const format = projection.bracketFormat(lg.playoffTeams, r.playoffStart, r.roundType);
@@ -189,7 +147,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const weeks = [];
     let index = 0;
     if (r.inProgress) {
-      // The real starters: points so far plus what's left of their games.
       const pairs = new Map();
       const teams = {};
       for (const m of r.thisWeek) {
@@ -211,15 +168,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { format, weeks, playoffTeams, rosters };
   }
 
-  /**
-   * Simulate the rest of the league's season.
-   *   lg        { leagueId, playoffTeams, medianGame, draft, raw }
-   *   remainingOf / stats   from remainingByTeam and projections
-   *   rosters   play the season with these rosters instead of the real ones
-   *             (a trade, say)
-   *   draftMethod   for #1-pick odds, when the league has a draft to project
-   *   forced    { weekIndex, winner }: decide one game, to see what it is worth
-   */
   async function projectLeague(lg, { remainingOf, stats, rosters = lg.raw.rosters, draftMethod = 'linear', sims = SIMS, forced = null }) {
     const f = await forecastWeeks(lg, { remainingOf, stats, rosters });
     const teams = rosters.map((ro) => {

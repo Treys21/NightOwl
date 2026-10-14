@@ -1,6 +1,3 @@
-// The draft big board: your rankings, with who's been taken, by whom, and how
-// far each pick landed from where you had him. Rendering only — draft.js owns
-// the data. Filter and sort choices persist in the ui settings.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -31,15 +28,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function sortValue(row, key) {
-    if (key === 'status') return row.pickNo || 0; // ascending: available first, then by pick
+    if (key === 'status') return row.pickNo || 0;
     if (key === 'delta') return missing(row.delta) ? -Infinity : row.delta;
     return row[key];
   }
 
   function sortRows(rows, prefs) {
     const dir = prefs.sortDir === 'asc' ? 1 : -1;
-    // Who's still available matters most: drafted players sink below them,
-    // except when sorting by status or value, which are about the picks.
     const sinkDrafted = prefs.sortBy !== 'status' && prefs.sortBy !== 'delta';
     return rows.slice().sort((a, b) => {
       if (sinkDrafted && !a.pickNo !== !b.pickNo) return a.pickNo ? 1 : -1;
@@ -75,9 +70,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `<table><thead><tr>${head}</tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody></table>`;
   }
 
-  // Events are delegated from the container and bound once, so a render only
-  // swaps markup. Each render refreshes what the handlers act on.
-  const live = new WeakMap(); // el -> { prefs, onChange }
+  const live = new WeakMap();
 
   function bind(el) {
     const change = (patch) => {
@@ -103,11 +96,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   /**
-   * Draw the board into el.
    * @param {Element} el
-   * @param {{status?: string, rows?: any[], myTurn?: boolean, message?: string, kind?: string}} state from draft.js
-   * @param {any} prefs the ui settings (position, hideDrafted, sortBy, sortDir); edited in place
-   * @param {() => void} onChange called after the user changes a filter or sort
+   * @param {{status?: string, rows?: any[], myTurn?: boolean, message?: string, kind?: string}} state
+   * @param {any} prefs
+   * @param {() => void} onChange
    */
   function render(el, state, prefs, onChange) {
     if (!live.has(el)) bind(el);
@@ -132,9 +124,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       <div class="body">${body}</div>
     `;
 
-    // The draft polls every few seconds and most polls change nothing: leave
-    // the DOM alone then. When a pick does change the board, keep the reader's
-    // place in the list instead of jumping back to the top.
     const old = el.querySelector('.body');
     const scroll = old ? old.scrollTop : 0;
     if (!NightOwl.dom.setHtml(el, html)) return;

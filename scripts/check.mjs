@@ -1,5 +1,3 @@
-// Static checks before shipping: every file the manifest points at exists and
-// parses, versions agree, and no personal defaults slipped into the source.
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';

@@ -1,4 +1,3 @@
-// Season path: remaining games, what you need, how much the next game matters, the bracket route.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -22,14 +21,13 @@ test('schedule: each remaining opponent, with your chance in the game; a bye is 
 test('needs: cumulative playoff chance by wins, hiding totals that will not happen', () => {
   const rows = [{ wins: 5, p: 0.05, make: 0 }, { wins: 6, p: 0.25, make: 0.1 }, { wins: 7, p: 0.4, make: 0.7 }, { wins: 8, p: 0.29, make: 1 }, { wins: 9, p: 0.01, make: 1 }];
   const n = path.needs(rows);
-  assert.deepEqual(n.map((r) => r.atLeast), [5, 6, 7, 8]); // 9 wins is under 2%
-  assert.ok(Math.abs(n[0].p - 1) < 1e-9); // the tail still counts the rare totals
+  assert.deepEqual(n.map((r) => r.atLeast), [5, 6, 7, 8]);
+  assert.ok(Math.abs(n[0].p - 1) < 1e-9);
   const seven = n.find((r) => r.atLeast === 7);
   assert.ok(Math.abs(seven.make - (0.4 * 0.7 + 0.29 + 0.01) / 0.7) < 1e-9);
   assert.deepEqual(path.needs([]), []);
 });
 
-// Four teams, two weeks left: the engine's forced game and win totals.
 const strength = { 1: 100, 2: 100, 3: 100, 4: 60 };
 const wk = (pairs) => ({ pairs, teams: Object.fromEntries(Object.entries(strength).map(([id, m]) => [id, { mean: m, variance: 150 }])) });
 const TEAMS = [1, 2, 3, 4].map((rosterId) => ({ rosterId, wins: 1, losses: 1, ties: 0, pf: 200, max: 220, efficiency: 1 }));
@@ -44,7 +42,6 @@ test('a forced game decides it and moves your odds the way you would expect', ()
   const lev = path.leverage(win, lose, 1);
   assert.ok(lev.win.playoffs > lev.lose.playoffs, `${lev.win.playoffs} vs ${lev.lose.playoffs}`);
   assert.ok(lev.swing > 0.1);
-  // Winning it means at least two wins on the season; losing it, at most three.
   assert.ok(win.teams[1].winOdds.every((r) => r.wins >= 2));
   assert.ok(lose.teams[1].winOdds.every((r) => r.wins <= 2 + 1));
 });
@@ -70,7 +67,7 @@ test('route: your games through the projected bracket, until the favorite goes t
   const first = path.route(bracket, 10);
   assert.deepEqual(first.map((r) => [r.label, r.opponent.rosterId, r.p]), [['Semifinals', 13, 0.8], ['Championship', 12, 0.6]]);
   const underdog = path.route(bracket, 11);
-  assert.equal(underdog.length, 1); // the projection has you out in the semifinals
+  assert.equal(underdog.length, 1);
   assert.equal(underdog[0].p, 0.4);
   assert.equal(path.route(bracket, 99), null);
   assert.equal(path.route(null, 10), null);

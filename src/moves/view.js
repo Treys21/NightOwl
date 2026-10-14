@@ -1,12 +1,3 @@
-// Moves tool for the floating panel: roster moves priced in lineup points.
-//
-//   Waivers  the free agents who would raise each of your lineups for the rest
-//            of the season, with the player to cut, and who helps most next week.
-//   Trade    pick what you give and get with any team in a league: what each
-//            lineup gains or loses, and how both teams' playoff and title odds
-//            move when the season is played out again with the trade done.
-//
-// Information only: Sleeper has no API to make a claim or offer a trade.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -17,32 +8,32 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const { escape: esc, percent } = NightOwl.format;
 
   const REFRESH_MS = 15 * 60000;
-  const SHOWN = 6; // adds listed per league
-  const STREAMERS = 3; // next-week adds listed per league
-  const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
+  const SHOWN = 6;
+  const STREAMERS = 3;
+  const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' };
 
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
 
   const state = {
-    mode: 'waivers', // or 'trade', 'finder', 'history' or 'drafts'
-    draftMethod: 'linear', // how the league sorts its draft order (see season.draftOrder); the Season tab's setting
+    mode: 'waivers',
+    draftMethod: 'linear',
     nfl: null,
     stats: {},
     remainingOf: null,
-    ktc: null, // KeepTradeCut dynasty values { players, picks }, once loaded (dynasty and keeper leagues)
-    ktcRedraft: null, // KeepTradeCut fantasy (redraft) values { players }, for redraft leagues
+    ktc: null,
+    ktcRedraft: null,
     ktcError: null,
-    leagues: [], // see load()
-    targets: new Map(), // league id -> waiver targets
-    open: new Set(), // league ids expanded
-    history: { all: false }, // the trade history pane: whether the whole list is open
-    drafts: { draftId: null, color: 'slot' }, // the drafts pane: which draft is showing, and what colours it
+    leagues: [],
+    targets: new Map(),
+    open: new Set(),
+    history: { all: false },
+    drafts: { draftId: null, color: 'slot' },
     finder: { leagueId: null, goal: 'balanced', shop: null, target: null, results: null, running: false, progress: '', error: null, token: 0 },
     trade: { leagueId: null, partner: null, give: new Set(), get: new Set(), result: null, token: 0 },
-    base: new Map(), // league id -> projection with today's rosters
+    base: new Map(),
     loadedAt: 0,
-    generation: 0, // bumped by each load, so work begun on older data can tell
+    generation: 0,
     timer: null,
     busy: false,
     thinking: false,
@@ -75,14 +66,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const tick = () => new Promise((resolve) => setTimeout(resolve));
   const positionsOf = (pid) => players.info(pid).positions;
-  const WAIVER_MIN_GAIN = 1.5; // rest-of-season points a free agent must add (typical league)
-  const REFERENCE_PPG = 12; // points per starter per week in a typical league
-  const REFERENCE_WEEKS = 11; // weeks left the finder's point thresholds were set for
-  const DROP_PROTECTED = 2000; // KeepTradeCut value above which a dynasty player isn't offered as the drop
+  const WAIVER_MIN_GAIN = 1.5;
+  const REFERENCE_PPG = 12;
+  const REFERENCE_WEEKS = 11;
+  const DROP_PROTECTED = 2000;
   const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(1)}`;
   const oddsLabel = (p) => (p >= 0.995 ? '>99%' : p > 0 && p < 0.005 ? '<1%' : percent(p));
-
-  // ---- data -------------------------------------------------------------
 
   async function load() {
     const { userId } = await account.resolve();
@@ -103,16 +92,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const mine = rosterOf(rosters, userId);
       if (!mine) return null;
       const t = model.timeline(lg, rosters, nfl);
-      if (t.next >= t.playoffStart) return null; // regular season over: nothing to add for
+      if (t.next >= t.playoffStart) return null;
       const thisWeek = t.inProgress ? await api.matchups(lg.league_id, t.next) : [];
       return {
         leagueId: lg.league_id,
         name: lg.name.trim(),
         playoffTeams: t.playoffTeams,
         medianGame: t.medianGame,
-        draft: KIND[(lg.settings && lg.settings.type) || 0] === 'redraft' ? null : {}, // keeper and dynasty leagues project their draft order
+        draft: KIND[(lg.settings && lg.settings.type) || 0] === 'redraft' ? null : {},
         draftRounds: (lg.settings && lg.settings.draft_rounds) || PICK_ROUNDS,
-        // Roster spots: the lineup and bench, plus the separate IR and taxi slots.
         capacity: (lg.roster_positions || []).length + ((lg.settings && lg.settings.reserve_slots) || 0) + ((lg.settings && lg.settings.taxi_slots) || 0),
         traded,
         tradeDeadline: (lg.settings && lg.settings.trade_deadline) || 0,
@@ -142,7 +130,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.remainingOf = remainingOf;
     state.ktcError = null;
     if (leagues.some((lg) => lg.kind !== 'redraft')) {
-      // Dynasty values update daily; a failure only costs the dynasty view.
       try { state.ktc = await ktc.load('dynasty', players.list(), api.ktcRows); } catch (err) {
         console.warn('[Night Owl moves] KeepTradeCut unavailable', err);
         state.ktc = null;
@@ -151,21 +138,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
 
     if (leagues.some((lg) => lg.kind === 'redraft')) {
-      // Redraft consensus is only for judging fairness; without it, deals are judged on projections alone.
       try { state.ktcRedraft = await ktc.load('redraft', players.list(), api.ktcRows); } catch (err) {
         console.warn('[Night Owl moves] KeepTradeCut redraft values unavailable', err);
         state.ktcRedraft = null;
       }
     }
 
-    // Everyone with a real projection is a candidate; the ones on a roster here are not free.
     const projected = new Set();
     for (const week of Object.values(stats)) for (const pid of Object.keys(week)) projected.add(pid);
     for (const lg of leagues) {
       lg.weeks = model.valueWeeks(lg, stats, nflSchedule);
       const taken = new Set(lg.raw.rosters.flatMap((ro) => ro.players || []));
       lg.free = [...projected].filter((pid) => !taken.has(pid));
-      // Trades are priced over replacement: the free agent a team would start in a slot it can't fill, on a bye or in an injury.
       lg.rep = replacement.wrap({
         slots: lg.raw.slots, weeks: lg.weeks, positionsOf,
         rates: replacement.levels(lg.free, lg.weeks, positionsOf, replacement.startingPositions(lg.raw.slots), [...taken])
@@ -184,8 +168,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.loadedAt = Date.now();
   }
 
-  // How big a lineup upgrade has to be to matter in this league, against a typical one (1): leagues that
-  // score more per starter, or have more weeks to run, need more points before a change is worth making.
   function pointScale(lg) {
     if (!lg.weeks.length) return 1;
     const starters = NightOwl.leagues.startingSlots({ roster_positions: lg.raw.slots }).length || 1;
@@ -195,8 +177,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return clamp(ppg / REFERENCE_PPG, 0.5, 2) * clamp(lg.weeks.length / REFERENCE_WEEKS, 0.4, 1.3);
   }
 
-  // Draft order for each keeper and dynasty league, from the simulated season.
-  // The same run is the baseline the trade odds compare against.
   async function projectPicks() {
     const generation = state.generation;
     for (const lg of state.leagues) {
@@ -208,7 +188,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (generation !== state.generation) return;
         state.base.set(lg.leagueId, base);
         lg.slots = new Map(projection.projectedDraft(base, { method: state.draftMethod }).map((t) => [t.rosterId, t.pick]));
-        lg.dyn = new Map(); // pick values were priced on standings alone
+        lg.dyn = new Map();
         lg.blend = new Map();
         render();
       } catch (err) {
@@ -217,19 +197,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  // Waiver math for every league, one at a time so Sleeper's page never stalls.
   async function analyze() {
     const generation = state.generation;
     for (const lg of state.leagues) {
       if (state.targets.has(lg.leagueId)) continue;
       await tick();
-      if (!root || generation !== state.generation) return; // closed, or a newer load took over
+      if (!root || generation !== state.generation) return;
       const pool = model.activePool(lg.mine);
-      // Keeper and dynasty rosters hold players for years: never suggest cutting one the market values.
       const droppable = V.usesKtc(lg) ? pool.filter((pid) => V.dynastyValue(lg, pid) < DROP_PROTECTED) : pool;
       state.targets.set(lg.leagueId, value.waiverTargets({
         slots: lg.raw.slots, pool, droppable, openSpots: lg.openSpots,
-        candidates: lg.free, weeks: lg.rep.weeks, positionsOf, minGain: WAIVER_MIN_GAIN * lg.scale // projections fade with distance, byes are real weeks off
+        candidates: lg.free, weeks: lg.rep.weeks, positionsOf, minGain: WAIVER_MIN_GAIN * lg.scale
       }));
       render();
     }
@@ -252,7 +230,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         keepTradeValid();
         render();
         analyze().then(projectPicks).then(() => state.mode === 'trade' && analyzeTrade()).then(loadHistories);
-        // Whatever search was under way used the old data: drop it, so the tab can start a fresh one.
         state.finder.token++;
         state.finder.running = false;
         state.finder.results = null;
@@ -261,8 +238,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
     }
   }
-
-  // ---- waivers ------------------------------------------------------------
 
   const label = (pid) => {
     const p = players.info(pid);
@@ -319,13 +294,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </details>`;
   }
 
-  // ---- trade ------------------------------------------------------------
-
   const tradeLeague = () => state.leagues.find((lg) => lg.leagueId === state.trade.leagueId) || null;
   const rosterById = (lg, id) => lg.raw.rosters.find((ro) => ro.roster_id === id) || null;
   const nameOf = (lg, ro) => (ro ? lg.names.get(ro.owner_id) || `Team ${ro.roster_id}` : '');
 
-  // Selections survive a refresh only while they still make sense.
   function keepTradeValid() {
     const t = state.trade;
     let lg = tradeLeague();
@@ -373,7 +345,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </div>`;
   }
 
-  // The market's value of both sides (dynasty values, or redraft consensus), packages priced so depth doesn't buy a star.
   function marketLine(lg, partner, them) {
     const t = state.trade;
     const send = sideValueOf(lg, [...t.give]);
@@ -445,8 +416,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </div>`;
   }
 
-  // Lineup points are instant; the odds replay the season (a few hundred ms
-  // for the pair of runs), so they fill in when ready and a newer pick wins.
   async function analyzeTrade() {
     const t = state.trade;
     const lg = tradeLeague();
@@ -455,7 +424,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.thinking = false;
     if (!lg || !partner || (!t.give.size && !t.get.size)) { t.result = null; render(); return; }
 
-    // Picks change hands but never a lineup: only players go through the lineup and odds math.
     const give = [...t.give].filter((pid) => !isPick(pid));
     const get = [...t.get].filter((pid) => !isPick(pid));
     const impact = value.tradeImpact({
@@ -466,7 +434,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     t.result = { impact, base: state.base.get(lg.leagueId) || null, after: null };
     state.thinking = lg.playoffTeams > 0 && (give.length > 0 || get.length > 0);
     render();
-    if (!state.thinking) return; // picks only (or no playoffs): nothing for the season replay to change
+    if (!state.thinking) return;
 
     try {
       await tick();
@@ -485,8 +453,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  // ---- finder ----
-
   let finderPane = null;
   const finderLeague = () => state.leagues.find((lg) => lg.leagueId === state.finder.leagueId) || state.leagues[0] || null;
   function finder() {
@@ -499,7 +465,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return finderPane;
   }
 
-  // Send a proposal to the trade analyzer, ready to adjust.
   function openTrade(item) {
     const lg = finderLeague();
     const t = state.trade;
@@ -513,8 +478,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     render();
     analyzeTrade();
   }
-
-  // ---- history ----
 
   let historyPane = null;
   function history() {
@@ -534,8 +497,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return draftsPane;
   }
 
-  // Trade history for every league, one at a time and in the background: the
-  // finder uses it to judge who deals and how far off an even price they go.
   async function loadHistories() {
     const generation = state.generation;
     for (const lg of state.leagues) {
@@ -547,8 +508,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  // ---- view -------------------------------------------------------------
-
   function render() {
     if (!root) return;
     root.querySelectorAll('.mv-mode .tab').forEach((b) => b.classList.toggle('on', b.dataset.mode === state.mode));
@@ -556,7 +515,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     err.hidden = !state.error;
     err.textContent = state.error || '';
     if (!state.loadedAt) {
-      if (state.error) dom.setHtml($('mv-body'), ''); // the error says it; placeholders would wait for nothing
+      if (state.error) dom.setHtml($('mv-body'), '');
       return;
     }
 
@@ -571,7 +530,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     } else if (state.mode === 'waivers') {
       dom.setHtml($('mv-body'), state.leagues.map(waiverBlock).join(''));
     } else {
-      // Ticking a player redraws the pane; the two lists must keep their scroll.
       const body = $('mv-body');
       const scrolls = [...body.querySelectorAll('.mv-picks')].map((el) => el.scrollTop);
       if (dom.setHtml(body, tradePane())) body.querySelectorAll('.mv-picks').forEach((el, i) => { el.scrollTop = scrolls[i] || 0; });
@@ -642,7 +600,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function unmount() {
-    state.finder.token++; // stops a search in progress
+    state.finder.token++;
     state.finder.running = false;
     clearInterval(state.timer);
     state.timer = null;

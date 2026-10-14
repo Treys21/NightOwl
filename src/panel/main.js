@@ -1,6 +1,3 @@
-// Entry point (the last content script): put the panel on every sleeper.com
-// page and follow Sleeper's client-side navigation. Opening a draft room
-// switches to the Draft tool.
 (function (NightOwl) {
   'use strict';
 
@@ -16,18 +13,15 @@
     else panel.navigated();
   }
 
-  // pushState/replaceState aren't observable from a content script's isolated
-  // world, so poll the URL (cheap) and also catch back/forward right away.
   window.addEventListener('popstate', onNavigate);
   const watcher = setInterval(() => {
-    // chrome.runtime.id disappears once the extension is reloaded or updated.
     if (!chrome.runtime || !chrome.runtime.id) {
       clearInterval(watcher);
       panel.destroy();
       return;
     }
     onNavigate();
-    panel.mount(); // Sleeper occasionally replaces <html>'s children; come back
+    panel.mount();
   }, 1000);
 
   (async () => {

@@ -1,7 +1,3 @@
-// Two more looks at the Season tab: Path (your road through the rest of the
-// season: opponents, what you need, how much the next game matters, your route
-// through the bracket) and Recap (what the bench cost you, your MVP, the best
-// add and the one that got away, and your trades). Both draw one card per league.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -16,13 +12,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const ordinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th')}`;
   const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(1)}`;
 
-  /** deps: { state, render, nameOf(lg, rosterId), active() } */
   function create(deps) {
     const { state, render, nameOf, active } = deps;
-    const paths = new Map(); // league id -> { status, ... }
+    const paths = new Map();
     const recaps = new Map();
-
-    // ---- path ------------------------------------------------------------
 
     async function computePath(lg) {
       const me = lg.me.rosterId;
@@ -30,7 +23,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!base || base.error) return null;
       const forecast = await model.forecastWeeks(lg, { remainingOf: state.remainingOf, stats: state.stats });
       const games = path.schedule(forecast, me);
-      // How much the next game matters: the season replayed with it won, and with it lost.
       let lev = null;
       const first = forecast.weeks[0];
       if (first && first.pairs.some((p) => p.includes(me)) && !first.teams[me].lineupSet) {
@@ -48,7 +40,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const generation = state.loadedAt;
       for (const lg of state.leagues) {
         if (paths.has(lg.leagueId) || lg.raw.next >= lg.raw.playoffStart) continue;
-        if (!state.projections.get(lg.leagueId)) continue; // waits for the projection
+        if (!state.projections.get(lg.leagueId)) continue;
         paths.set(lg.leagueId, { status: 'loading' });
         await tick();
         if (!active() || generation !== state.loadedAt) { paths.delete(lg.leagueId); return; }
@@ -76,7 +68,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const hardest = p.games.slice().sort((a, b) => a.p - b.p)[0];
         const seed = t.seedOdds.indexOf(Math.max(...t.seedOdds)) + 1;
         const rows = p.games.map((g) => `<tr><td>${g.week}</td><td class="se-team">${esc(nameOf(lg, g.oppId))}</td><td>${g.mean.toFixed(0)}–${g.oppMean.toFixed(0)}</td><td class="${g.p >= 0.6 ? 'up' : g.p < 0.4 ? 'down' : ''}">${oddsLabel(g.p)}</td></tr>`).join('');
-        // Only the totals that decide it: a few below the point where a playoff spot is as good as certain.
         const sure = p.needs.findIndex((n) => n.make >= 0.985);
         const shownNeeds = t.playoffOdds >= 0.985 || t.playoffOdds <= 0.015 ? [] : p.needs.slice(Math.max(0, (sure < 0 ? p.needs.length : sure + 1) - 5), sure < 0 ? p.needs.length : sure + 1);
         const settled = t.playoffOdds >= 0.985 ? 'You are all but in.' : t.playoffOdds <= 0.015 ? 'You are all but out.' : '';
@@ -101,8 +92,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </details>`;
     }
 
-    // ---- recap -----------------------------------------------------------
-
     async function computeRecap(lg) {
       const me = lg.me.rosterId;
       const lastPlayed = lg.raw.next - 1;
@@ -113,7 +102,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const positionsOf = (pid) => players.info(pid).positions;
       const lineups = recap.lineups(me, weekly, lg.raw.slots, positionsOf);
       const wire = recap.wire(me, moves, weekly);
-      // Trades: what the players you received started for you, less what the ones you gave started for them.
       const mine = tradeHistory.parse(trades, lg.raw.season).filter((t) => t.sides[me]);
       let net = 0;
       for (const t of mine) {

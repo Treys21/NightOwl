@@ -1,9 +1,3 @@
-// Best-effort rank badges on Sleeper's own player rows in a draft room.
-//
-// This is the deliberately fragile half of the Draft tool: it depends on
-// Sleeper's internal markup, which changes without notice. Every selector guess
-// lives here, and when none match the module does nothing — the board stays
-// authoritative and unaffected.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -20,7 +14,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     .${BADGE_CLASS}[data-drafted="1"] { background: #3a465b; color: #bfcfe0; }
   `;
 
-  // Ordered guesses at Sleeper's player-row name element.
   const NAME_SELECTORS = [
     '[class*="player-name"]',
     '[class*="playerName"]',
@@ -32,7 +25,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   let observer = null;
   let styled = false;
 
-  /** @param rows [{ name, rank, pickNo }] from the board */
   function update(rows) {
     rankByName = new Map(rows.map((row) => [NightOwl.match.normalizeName(row.name), row]));
     if (!styled) {
@@ -43,8 +35,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     observe();
   }
 
-  // Rank, drafted state and tooltip: re-applied each poll, so a badge turns
-  // grey the moment its player is taken.
   function paint(badge, row) {
     badge.textContent = String(row.rank);
     badge.dataset.drafted = row.pickNo ? '1' : '0';
@@ -59,7 +49,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           const row = rankByName.get(/** @type {HTMLElement} */ (existing).dataset.key);
           if (row) {
             paint(existing, row);
-          } else { // his row left the board (rankings edited)
+          } else {
             existing.remove();
             element.removeAttribute(MARKED_ATTR);
           }
@@ -74,7 +64,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
         const badge = document.createElement('span');
         badge.className = BADGE_CLASS;
-        badge.dataset.key = key; // so later polls can find his row without re-reading the name
+        badge.dataset.key = key;
         paint(badge, row);
         element.setAttribute(MARKED_ATTR, '1');
         element.prepend(badge);
@@ -82,7 +72,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  // Sleeper re-renders constantly; re-decorate on DOM churn, throttled.
   function observe() {
     if (observer) return;
     let pending = false;
@@ -94,14 +83,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         try {
           decorate();
         } catch (err) {
-          console.debug('[Night Owl badges]', err); // never let badges break the page
+          console.debug('[Night Owl badges]', err);
         }
       }, 400);
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  /** Remove every badge and stop watching the page. */
   function stop() {
     if (observer) observer.disconnect();
     observer = null;

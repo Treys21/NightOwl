@@ -1,7 +1,3 @@
-// Live tool for the floating panel: loads your leagues and this week's
-// matchups, polls Sleeper's live stat lines, and turns every change into a
-// feed event showing what it did to each matchup it touches. Runs only while
-// mounted — switching the panel to Draft unmounts it and stops polling.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -10,7 +6,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const { api, tracker, scoring, teams, players, storage, account, dom } = NightOwl;
   const { escape: esc, points: fmt, signed, clock: clockOf, short } = NightOwl.format;
   const { isPlaying, mine, ownerNames, avatars, startingSlots, slotLabel, displayWeek, seasonType: seasonTypeOf } = NightOwl.leagues;
-  let root = null; // the element we render into, inside the panel's shadow root
+  let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
 
   const MARKUP = `
@@ -61,28 +57,28 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const LIVE_POLL_MS = 15000;
   const IDLE_POLL_MS = 120000;
-  const CONTEXT_TTL_MS = 5 * 60000; // lineups can change until each game locks
+  const CONTEXT_TTL_MS = 5 * 60000;
   const SCHEDULE_TTL_MS = 60000;
   const MAX_EVENTS = 500;
 
   const state = {
-    openRecaps: new Set(), // recap cards the user expanded
+    openRecaps: new Set(),
     settings: { username: '', excluded: [] },
-    ctx: null, // { userId, season, week, seasonType, leagues, loadedAt }
-    stats: {}, // pid -> current stat line
-    proj: {}, // pid -> projected stat line for the week
+    ctx: null,
+    stats: {},
+    proj: {},
     projAt: 0,
-    clocks: [], // ESPN games with the share of each still to play
+    clocks: [],
     clocksAt: 0,
-    trend: { key: null, series: {} }, // leagueId -> [[ts, chance]] for this week
-    snapshot: null, // { key, stats } last diffed snapshot, persisted
-    events: [], // newest first, persisted per week
+    trend: { key: null, series: {} },
+    snapshot: null,
+    events: [],
     schedule: { games: [], loadedAt: 0 },
     filter: 'all',
-    view: 'feed', // feed | matchups | games
-    league: '', // '' = all leagues
+    view: 'feed',
+    league: '',
     bigOnly: false,
-    gameOpen: new Map(), // game id -> open, once the user toggles it (live games start open)
+    gameOpen: new Map(),
     lastPoll: 0,
     timer: null,
     busy: false,
@@ -92,7 +88,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const weekKey = (ctx) => `${ctx.season}-${ctx.seasonType}-${ctx.week}`;
   const activeLeagues = () => (state.ctx ? state.ctx.leagues.filter((lg) => !state.settings.excluded.includes(lg.leagueId)) : []);
 
-  // ---- data loading -----------------------------------------------------
   const loadPlayers = () => players.load();
   const info = (pid) => players.info(pid);
 
@@ -133,8 +128,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     await storage.set({ 'live.ctx': state.ctx });
   }
 
-  // Returns true when a game just kicked off: its lineups are now locked, so
-  // the matchups get re-read to pick up any late swaps before kickoff.
   async function loadSchedule() {
     const ctx = state.ctx;
     const before = new Map(state.schedule.games.map((g) => [g.game_id, g.status]));
@@ -145,7 +138,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const positionsNeeded = () => api.positionsFor(activeLeagues().map((lg) => lg.slots));
 
-  // Is any game involving a tracked player on (or about to be on) right now?
   function trackedTeams() {
     const codes = new Set();
     for (const pid of tracker.watchList(activeLeagues()).keys()) {
@@ -160,7 +152,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return g ? g.status : null;
   }
 
-  // Sleeper dates games in Eastern time.
   const todayET = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
   function isLive() {
@@ -173,12 +164,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
-  // ---- win probability inputs -------------------------------------------
   const PROJ_TTL_MS = 30 * 60000;
   const CLOCK_TTL_MS = 60000;
 
-  // Projections (twice an hour) and game clocks (every minute while games
-  // are on). Either failing just hides the win %.
   async function loadOutlook(ctx) {
     const now = Date.now();
     if (now - state.projAt > PROJ_TTL_MS) {
@@ -200,13 +188,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  // Share of a team's game left to play; 0 on a bye.
   function remainingFor(team) {
     const g = state.clocks.find((x) => x.home === team || x.away === team);
     return g ? g.remaining : 0;
   }
 
-  // Chance of winning this league's matchup, or null when it can't be told.
   function winChance(lg) {
     if (!lg.matchup || !lg.matchup.opp || !Object.keys(state.proj).length) return null;
     const side = (s) => NightOwl.season.outlook(s.starters.map((pid) => ({
@@ -217,10 +203,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return NightOwl.season.winProbability(side(lg.matchup.mine), side(lg.matchup.opp));
   }
 
-  // Starters whose game isn't over yet (including ones not started).
   const stillToPlay = (side) => (side ? side.starters.filter((pid) => remainingFor(info(pid).team) > 0).length : 0);
 
-  // Win chance over the day, one point per poll (persisted for the week).
   function recordTrend(ctx) {
     const key = weekKey(ctx);
     if (state.trend.key !== key) state.trend = { key, series: {} };
@@ -236,11 +220,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (series.length > 400) series.splice(0, series.length - 400);
       changed = true;
     }
-    // Most polls add nothing: only write when a point was added.
     if (changed) storage.set({ 'live.trend': state.trend });
   }
 
-  // A small line of your win chance through the day, 50% marked.
   function trendSvg(series) {
     if (!series || series.length < 2) return '';
     const w = 300;
@@ -256,7 +238,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </svg></div>`;
   }
 
-  // ---- the poll ---------------------------------------------------------
   async function poll(force) {
     if (state.busy || !root || !state.settings.username) return;
     state.busy = true;
@@ -285,24 +266,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       let eventsChanged = false;
       if (state.snapshot && state.snapshot.key === key) {
         const fresh = tracker.diffEvents(state.snapshot.stats, cur, leagues, info, Date.now());
-        // After a gap (panel closed, tab asleep) a diff is everything since the
-        // last look, not a play: it becomes a recap, never a pop-up or "last play".
         const gap = Date.now() - state.snapshot.at > 3 * LIVE_POLL_MS;
         for (const ev of fresh) if (gap) { ev.catchUp = true; ev.since = state.snapshot.at; }
         if (fresh.length) { state.events = fresh.concat(state.events).slice(0, MAX_EVENTS); eventsChanged = true; }
         if (!gap) celebrate(fresh);
       } else {
-        // First look this week (or this install): everything so far becomes a
-        // "This week so far" recap instead of an empty feed.
         const fresh = tracker.diffEvents(tracker.trimSnapshot({}, leagues), cur, leagues, info, Date.now());
         for (const ev of fresh) { ev.catchUp = true; ev.firstLook = true; ev.since = ev.ts; }
-        if (fresh.length) state.openRecaps.add(`${fresh[0].since}-${fresh[0].ts}`); // start it open
+        if (fresh.length) state.openRecaps.add(`${fresh[0].since}-${fresh[0].ts}`);
         state.events = fresh;
         eventsChanged = true;
       }
       state.snapshot = { key, at: Date.now(), stats: tracker.trimSnapshot(cur, leagues) };
       state.lastPoll = Date.now();
-      // The event list (up to 500) only needs saving when it changed.
       await storage.set(eventsChanged
         ? { 'live.snapshot': state.snapshot, 'live.events': { key, list: state.events } }
         : { 'live.snapshot': state.snapshot });
@@ -322,12 +298,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!root) return;
     const live = state.ctx && isLive();
     $('live-dot').classList.toggle('live', !!live);
-    // The panel frame spins faster while one of your games is on.
     if (root.parentElement) root.parentElement.classList.toggle('hot', !!live);
     state.timer = setTimeout(() => poll(false), live ? LIVE_POLL_MS : IDLE_POLL_MS);
   }
-
-  // ---- rendering --------------------------------------------------------
 
   function render() {
     if (!root) return;
@@ -356,14 +329,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }).join('');
   }
 
-  // Games on now (or later today) with every tracked starter in them: who's
-  // yours, who's your opponents', in which leagues, and what they have so far.
   function renderGames() {
     const today = todayET();
     const leagues = activeLeagues();
     const byId = new Map(leagues.map((lg) => [lg.leagueId, lg]));
     const watch = tracker.watchList(leagues);
-    // Games on now come first, then the rest of today's in schedule order.
     const games = state.schedule.games
       .filter((g) => g.status === 'in_game' || (g.status === 'pre_game' && g.date === today))
       .sort((a, b) => Number(b.status === 'in_game') - Number(a.status === 'in_game'));
@@ -392,25 +362,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('lv-count-games').textContent = games.filter((g) => g.status === 'in_game').length ? `${games.filter((g) => g.status === 'in_game').length} live` : '';
   }
 
-  // Small round headshot (team logo for defenses) ringed in the team's color.
   function face(pid, team) {
     return `<img class="face" alt="" src="${teams.photo(pid, team)}" style="border-color:${teams.colors(team).primary}">`;
   }
 
-  // ---- celebrations ------------------------------------------------------
-  // Each fresh play pops over the panel: a big signed number for what it did
-  // to you net across leagues, who did it, and where. Touchdowns and other big
-  // swings get a banner and a burst of confetti.
   const POP_MS = 2200;
-  const POP_GAP_MS = 150; // after one pop leaves, before the next lands
+  const POP_GAP_MS = 150;
   const MAX_POPS = 3;
   const BIG_PTS = 4;
-  const MIN_POP_PTS = 1; // smaller plays (a 3-yard run) go to the feed only
+  const MIN_POP_PTS = 1;
   const popQueue = [];
   let popping = false;
 
-  // One pop at a time. On a busy slate only the three biggest plays of a poll
-  // pop (the feed has the rest), and a new poll replaces plays still waiting.
   function celebrate(events) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const ranked = events.filter((ev) => isBig(ev) || maxImpact(ev) >= MIN_POP_PTS).sort((x, y) => (Number(isBig(y)) - Number(isBig(x))) || (maxImpact(y) - maxImpact(x)));
@@ -462,18 +425,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <div class="what">${esc(ev.text)}</div>
         <div class="where">${impactChips(ev)}</div>
       </div>`;
-    // No headshot (rookies, some defenders): the jersey carries the figure alone.
     pop.querySelectorAll('img').forEach((img) => img.addEventListener('error', () => img.remove()));
     layer.append(pop);
     layer.classList.remove('glow-good', 'glow-bad');
-    void layer.offsetWidth; // restart the glow animation
+    void layer.offsetWidth;
     if (mood !== 'even') layer.classList.add(`glow-${mood}`);
     if (big) burst(layer, mood, c);
 
     setTimeout(() => { pop.remove(); setTimeout(nextPop, POP_GAP_MS); }, POP_MS);
   }
 
-  // Why the Games tab is empty, and when it won't be.
   function gamesIdleText() {
     const games = state.schedule.games;
     if (games.length && games.every((g) => g.status === 'complete' || g.status === 'canceled')) {
@@ -483,13 +444,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return next ? `No games on right now. Next kickoff ${NightOwl.format.dayTime(next.kickoff)}.` : 'No games on right now.';
   }
 
-  // Between plays the stage shows the last one, or what it's waiting on.
   function renderIdle() {
     if (!root || popping) return;
     const last = state.events.find((ev) => !ev.catchUp);
     const recap = !last && state.events[0];
     const live = state.schedule.games.find((g) => g.status === 'in_game');
-    // Nothing playing and nothing to show: give the room to the list.
     $('stage').classList.toggle('dormant', !last && !live);
     $('stage-idle').innerHTML = last
       ? `<span class="muted small">Last play · ${clockOf(last.ts)}</span>
@@ -500,8 +459,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
          ${recap && !recap.firstLook ? `<span class="muted small">Caught up on everything since ${clockOf(recap.since || recap.ts)}</span>` : ''}`;
   }
 
-  // The player in uniform: a jersey in team colors with their number, their
-  // headshot on the collar. Defenses get the team logo instead.
   function figure(ev, p, team, c) {
     if (ev.pos === 'DEF' || teams.isDefenseId(ev.pid)) {
       return `<img class="logo" alt="" src="${teams.logo(team)}">`;
@@ -537,13 +494,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  // 0.995 shows as ">99%", never a misleading 100%.
   const pctLabel = (p) => (p > 0.99 && p < 1 ? '>99%' : p < 0.01 && p > 0 ? '<1%' : `${Math.round(p * 100)}%`);
 
-  // Matchup scores always carry two decimals, as on Sleeper (178.20).
   const score = (n) => (Math.round(n * 100) / 100).toFixed(2);
 
-  // Your share of the combined score, as the teal/pink bar Sleeper draws.
   const share = (a, b) => (a + b > 0 ? Math.round((a / (a + b)) * 100) : 50);
 
   function avatarImg(src, name, cls) {
@@ -573,19 +527,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const before = prev[lg.leagueId];
       const moved = before && (before.mine !== s.mine || before.opp !== s.opp);
       const chance = winChance(lg);
-      // Every starter on both sides has played: show the result, not odds.
       const decided = s.opp != null && stillToPlay(lg.matchup.mine) === 0 && stillToPlay(lg.matchup.opp) === 0 && chance != null;
       if (s.opp != null) {
         if (!decided) final.open++;
         else if (s.margin > 0) final.won++;
         else if (s.margin < 0) final.lost++;
       }
-      // Once odds exist the card's tone follows them, so a card never says
-      // "losing" next to "Win 96%". The score gap stays neutral.
       const mood = chance != null ? (chance >= 0.5 ? 'win' : 'lose') : s.margin > 0 ? 'win' : s.margin < 0 ? 'lose' : 'tie';
       if (chance != null) { withChance++; if (chance >= 0.5) favored++; }
-      // The bar shows your chance to win once projections are in, else your
-      // share of the combined score.
       const pct = s.opp == null ? 100 : chance == null ? share(s.mine, s.opp) : Math.round(chance * 100);
       const odds = decided
         ? `<span class="winpct ${s.margin >= 0 ? 'good' : 'bad'}">${s.margin > 0 ? 'Won by' : s.margin < 0 ? 'Lost by' : 'Tied'}</span>`
@@ -618,8 +567,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }).join('') || '<p class="muted small">No in-season leagues found.</p>';
     const changed = dom.setHtml($('scoreboard'), html);
 
-    // Once win odds exist, count where you're favored (what matters); before
-    // that, where you're ahead right now.
     $('net-total').innerHTML = withOpp && !final.open
       ? `<span class="pill-count ${final.won >= final.lost ? 'good' : 'bad'}" title="This week's results">${final.won}–${final.lost}</span>`
       : withChance
@@ -628,7 +575,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (changed) root.querySelectorAll('.match .big[data-to]').forEach(countUp);
   }
 
-  // Scores tick up (or down) to their new value instead of jumping.
   function countUp(el) {
     const from = parseFloat(el.dataset.from);
     const to = parseFloat(el.dataset.to);
@@ -643,8 +589,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     requestAnimationFrame(step);
   }
 
-  // Per league, from your side: + when it helps you (your starter), − when it
-  // hurts (your opponent's). Never summed: leagues are separate contests.
   const forMe = (im) => (im.side === 'me' ? im.pts : -im.pts);
 
   function shownImpacts(ev) {
@@ -667,8 +611,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return 'even';
   }
 
-  // What the play was worth to the player: one number when every league scores
-  // it alike, else the range ("+1.8–2.3 pts").
   function playValue(ev) {
     const pts = [...new Set(ev.impacts.map((im) => im.pts))].sort((x, y) => x - y);
     if (pts.length === 1) return `${signed(pts[0])}<small> pts</small>`;
@@ -696,9 +638,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </li>`;
   }
 
-  // Everything that changed while the panel was closed, folded into one card.
   function recapCard(group) {
-    const since = group[0].since || group[0].ts; // events saved before 3.0.1 lack it
+    const since = group[0].since || group[0].ts;
     const key = `${since}-${group[0].ts}`;
     const rows = group.map((ev) => `
       <div class="recap-row">
@@ -713,7 +654,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </details></li>`;
   }
 
-  // Newest first, grouped by update so a busy slate reads in bursts.
   function renderFeed() {
     const list = state.events.filter(matchesFilters);
     $('feed-empty').hidden = list.length > 0;
@@ -774,14 +714,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (!root) return;
     $('error').hidden = !msg;
     $('error').textContent = msg || '';
-    // No endless placeholders under an error.
     const skel = msg && $('scoreboard').querySelector('.skel');
     if (skel) skel.remove();
   }
 
-  // ---- wiring -----------------------------------------------------------
-  // Username is shared with the draft board (set in the popup); league
-  // exclusions are the tracker's own.
   async function saveSettings() {
     await storage.set({ 'live.settings': { excluded: state.settings.excluded, view: state.view, bigOnly: state.bigOnly } });
   }
@@ -794,7 +730,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.bigOnly = !!own.bigOnly;
   }
 
-  // Username changed in the popup: start over for the new account.
   storage.onChanged(async (changes) => {
     if (!changes.settings) return;
     const before = state.settings.username;
@@ -807,7 +742,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     poll(true);
   });
 
-  // Background tabs throttle timers; catch up as soon as we're visible.
   document.addEventListener('visibilitychange', () => {
     if (root && !document.hidden && Date.now() - state.lastPoll > LIVE_POLL_MS) poll(false);
   });
@@ -818,7 +752,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     root.classList.add('tool', 'intro');
     setTimeout(() => el.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
-    // A league avatar that fails to load becomes a dot (other images just hide: see dom.hideBrokenImages).
     root.addEventListener('error', (e) => {
       const img = e.target;
       if (img && img.tagName === 'IMG' && img.classList.contains('av')) {
@@ -834,7 +767,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       $('settings-btn').setAttribute('aria-expanded', String(!$('settings').hidden));
     });
     $('refresh').addEventListener('click', () => poll(true));
-    // Double-click the week label to preview the pop-ups.
     $('week-label').addEventListener('dblclick', () => celebrate([
       { pid: '6786', name: 'CeeDee Lamb', pos: 'WR', team: 'DAL', text: '+1 rec · +15 rec yds', net: 2.5,
         impacts: [{ leagueName: 'Your league', side: 'me', pts: 2.5 }] },
@@ -851,7 +783,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (e.target.checked) excluded.delete(id); else excluded.add(id);
       state.settings.excluded = [...excluded];
       await saveSettings();
-      // Newly tracked players need a baseline before their plays count.
       if (state.snapshot) state.snapshot.stats = Object.assign(tracker.trimSnapshot(state.stats, activeLeagues()), state.snapshot.stats);
       render();
     });
@@ -897,7 +828,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
 
     await loadSettings();
-    if (root !== el) return; // switched away while loading
+    if (root !== el) return;
     state.ctx = await storage.get('live.ctx', null);
     if (state.ctx && state.ctx.username !== state.settings.username) state.ctx = null;
     state.snapshot = await storage.get('live.snapshot', null);

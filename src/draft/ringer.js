@@ -1,15 +1,3 @@
-// The Ringer's rankings, read from the data the page ships rather than the table
-// it renders.
-//
-// The article is a Next.js app that embeds its complete dataset in the RSC
-// payload (`self.__next_f.push([...])` script tags): 424 players, each with a
-// rank per scoring format, positional rank, auction value, and team. Reading
-// that is exact and stable, where scraping the rendered table meant fighting
-// duplicated headshot alt-text, nickname teams, and lazy client-side rendering.
-//
-// Note: the Google Sheet the article links for its printable PDF is a DIFFERENT
-// snapshot and disagrees with the page (it had McCaffrey 4th where the page has
-// Nacua). The page payload is the source of truth.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -24,12 +12,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     { id: 'superflex', label: 'Superflex' }
   ];
 
-  // 9999 marks "unranked in this format".
   const UNRANKED = 9000;
 
-  // The payload uses team nicknames; Sleeper uses abbreviations. Mapping here
-  // keeps defense matching and tie-breaks working. (The sheet says JAC where
-  // Sleeper says JAX — going through nicknames sidesteps that too.)
   const TEAM_ABBR = {
     '49ers': 'SF', Bears: 'CHI', Bengals: 'CIN', Bills: 'BUF', Broncos: 'DEN',
     Browns: 'CLE', Buccaneers: 'TB', Cardinals: 'ARI', Chargers: 'LAC', Chiefs: 'KC',
@@ -42,22 +26,25 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const PUSH_RE = /self\.__next_f\.push\(\[\d+,("(?:[^"\\]|\\[\s\S])*")\]\)/g;
 
-  /** Reassemble the streamed RSC payload from the page's script tags. */
+  function parseJsonOrNull(text) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  }
+
   function readPayload(html) {
     let payload = '';
     let match;
     PUSH_RE.lastIndex = 0;
     while ((match = PUSH_RE.exec(html)) !== null) {
-      try {
-        payload += JSON.parse(match[1]);
-      } catch {
-        // A chunk that isn't a clean string literal is not the one we need.
-      }
+      const chunk = parseJsonOrNull(match[1]);
+      if (chunk !== null) payload += chunk;
     }
     return payload;
   }
 
-  /** Pull the balanced `"players":[...]` array out of the payload. */
   function extractPlayers(payload) {
     const key = payload.indexOf('"players":[');
     if (key === -1) return null;
@@ -90,7 +77,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return null;
   }
 
-  /** Auction values arrive as strings with a doubled sigil: "$$65" -> 65. */
   function parseValue(raw) {
     if (typeof raw === 'number') return raw;
     if (typeof raw !== 'string') return null;
@@ -98,7 +84,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return digits === '' ? null : Number(digits);
   }
 
-  /** Shape the raw payload into ranking rows for the chosen format. */
   function toRankings(players, format) {
     return players
       .filter((player) => {
@@ -111,7 +96,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         name: player.name,
         position: (player.position || '').toUpperCase(),
         team: TEAM_ABBR[player.team] || '',
-        // Kept for context; the board doesn't display these yet.
         positionRank: (player.positionalRankings && player.positionalRankings[format]) || null,
         value: parseValue(player.auctionValues && player.auctionValues[format])
       }));
@@ -130,10 +114,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { ok: true, rankings };
   }
 
-  /**
-   * Fetch and parse. Runs from the popup/options page, which has host
-   * permission for theringer.com — so syncing never requires visiting the site.
-   */
   async function fetchRankings(format) {
     let html;
     try {
@@ -148,14 +128,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return parseHtml(html, format);
   }
 
-  /** The board's identity for "is this still what the last sync produced": name and position in order. */
   const fingerprint = (rankings) => (rankings || []).map((r) => `${r.name}|${r.position}`);
 
-  /**
-   * Has the board been left as the last Ringer sync made it (or is it empty)? Only then may a background
-   * refresh replace it; a board someone has reordered, added to or trimmed is theirs.
-   *   synced   the fingerprint saved by the last sync, or null when the board never came from one
-   */
   function isUntouched(current, synced) {
     if (!current || !current.length) return true;
     const now = fingerprint(current);

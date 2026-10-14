@@ -1,17 +1,3 @@
-// Replacement level, byes and the fading of far-off projections: what a player
-// is worth is what he scores over the free agent you would start in his place,
-// not over an empty slot. Pure: no DOM, no network.
-//
-// Why it matters for trades. A lineup with no quarterback in a bye week scores
-// zero there, so any quarterback "adds" a full week of points; in truth a
-// streamer fills that slot for free. Measured against replacement, a backup
-// quarterback is worth the bye and injury weeks he covers over the best free
-// agent, and a starter is worth what he adds over one.
-//
-//   levels      points per game of the free agent a team would start, by position
-//   wrap        weeks, positions and pools with those free agents in every lineup,
-//               and projections that fade toward them the further out they are
-//   nflByes     the NFL schedule as who plays when, to tell a bye from an absence
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -19,20 +5,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const { canPlay, NOT_STARTING_SLOTS } = NightOwl.lineups;
 
-  // Free agents averaged for the level: the best one is a waiver claim away for
-  // one manager only, the third is what a typical manager can really get.
   const LEVEL_RANKS = 3;
-  // At most this many free agents of a position in one lineup (byes and injuries rarely hit more).
   const MAX_FILL = 3;
-  // Each week further out, a projection keeps this share of itself: injuries,
-  // role changes and trades make a week-14 projection less certain than next
-  // week's, so it drifts toward what a free agent would give.
   const FADE = 0.985;
 
   const VIRTUAL = 'rep:';
   const isVirtual = (pid) => String(pid).startsWith(VIRTUAL);
 
-  /** Sleeper's NFL schedule rows ({ week, home, away }) -> { week: [teams playing] }. */
   function playing(games) {
     const out = {};
     for (const g of games || []) {
@@ -44,50 +23,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const SCHEDULE_TTL_MS = 24 * 3600000;
 
-  /**
-   * The season's NFL schedule as { week: [teams playing] }, cached for a day (it is fixed once published).
-   * Shared by the tools and the background refresh, so a warm cache is a warm cache for both.
-   */
   async function schedule(seasonYear) {
     const { api, storage } = NightOwl;
     const key = `season.nflschedule.${seasonYear}`;
     const cached = await storage.get(key, null);
     if (cached && Date.now() - cached.at < SCHEDULE_TTL_MS) return cached.weeks;
-    try {
-      const weeks = playing(await api.schedule(seasonYear, 'regular'));
-      if (Object.keys(weeks).length) {
-        await storage.set({ [key]: { at: Date.now(), weeks } });
-        return weeks;
-      }
-    } catch { /* fall through to whatever is cached */ }
-    return (cached && cached.weeks) || null; // without it, byes show up as missing projections: still zero, just less exact
+    const games = await api.schedule(seasonYear, 'regular').catch(() => null);
+    const weeks = playing(games);
+    if (Object.keys(weeks).length) {
+      await storage.set({ [key]: { at: Date.now(), weeks } });
+      return weeks;
+    }
+    return (cached && cached.weeks) || null;
   }
 
-  /**
-   * Is this team off that week? Only when the week's schedule is known and the
-   * team has no game in it: an unknown team (a free agent, a typo) is never "on bye".
-   */
   function onBye(schedule, team, week) {
     const teams = schedule && schedule[week];
     return !!(teams && teams.length && team && !teams.includes(team));
   }
 
-  // Below this a "starter" is a roster filler, not a player anyone would start in a hole.
   const MIN_STARTABLE = 3;
 
-  /**
-   * The free agent a team would start at each position, as points per game
-   * (the mean of the best few by rest-of-season points who play most weeks).
-   * Where the league has picked a position clean (every quarterback in a
-   * superflex league), the weakest rostered players who still project to play
-   * stand in: that is what a team with a hole there scrapes together.
-   *   free        pids nobody on the league's rosters holds
-   *   weeks       [{ projOf, isOut }]
-   *   positionsOf pid -> positions
-   *   positions   the positions to price
-   *   rostered    pids on rosters (for the fallback)
-   * -> Map position -> points per game
-   */
   function levels(free, weeks, positionsOf, positions, rostered = []) {
     const need = Math.min(3, weeks.length);
     const sample = (pids) => {
@@ -122,23 +78,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  /** The positions a league's lineup can start. */
   function startingPositions(slots) {
     const all = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
     const starting = slots.filter((s) => !NOT_STARTING_SLOTS.has(s));
     return new Set(all.filter((p) => starting.some((s) => canPlay(s, [p]))));
   }
 
-  /**
-   * Put replacement level into a league's lineups.
-   *   slots, weeks, positionsOf   as the value engine takes them
-   *   rates    levels() output
-   * -> { weeks, positionsOf, pool(pids), isVirtual, rate(pos), over(pid) }
-   *   weeks         the same weeks with projections faded toward replacement and free agents never "out"
-   *   positionsOf   knows the stand-ins' positions
-   *   pool(pids)    the pids plus the stand-ins a lineup may draw on
-   *   over(pid)     a player's points over replacement across the weeks he plays
-   */
   function wrap({ slots, weeks, positionsOf, rates, fade = FADE }) {
     const starting = slots.filter((s) => !NOT_STARTING_SLOTS.has(s));
     const stand = [];

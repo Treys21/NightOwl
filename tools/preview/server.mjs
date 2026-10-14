@@ -1,8 +1,3 @@
-// Local preview server: serves the repo, a page that loads every content
-// script in manifest order (with tools/preview/shim.js standing in for the
-// extension), and the ESPN relay the background worker normally provides.
-//
-//   node tools/preview/server.mjs [port]   then open http://127.0.0.1:8765/?user=<name>
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
@@ -35,7 +30,6 @@ export function startServer(port = 8765) {
         return res.end(await page());
       }
       if (url.pathname === '/ktc') {
-        // What the background worker does: fetch the page, send the trimmed table.
         const html = await (await fetch(ktc.URLS[url.searchParams.get('kind') === 'redraft' ? 'redraft' : 'dynasty'])).text();
         const rows = ktc.parse(html);
         res.writeHead(200, { 'content-type': 'application/json' });

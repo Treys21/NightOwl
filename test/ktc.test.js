@@ -1,4 +1,3 @@
-// KeepTradeCut values: parsing the page, format and scoring adjustments.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -36,11 +35,11 @@ test('league format picks the value: superflex vs 1QB, and tight-end premium onl
 });
 
 test('scoring shifts value by how the league treats the player compared with PPR', () => {
-  assert.equal(ktc.scoringFactor(120, 160), 0.75); // a receiver in standard scoring
+  assert.equal(ktc.scoringFactor(120, 160), 0.75);
   assert.equal(ktc.scoringFactor(200, 200), 1);
-  assert.equal(ktc.scoringFactor(500, 200), 1.4); // capped
+  assert.equal(ktc.scoringFactor(500, 200), 1.4);
   assert.equal(ktc.scoringFactor(10, 200), 0.6);
-  assert.equal(ktc.scoringFactor(0, 200), 1); // no projection: leave the value alone
+  assert.equal(ktc.scoringFactor(0, 200), 1);
 });
 
 test('a trade side is worth less than its pieces added up, so depth does not buy a star', () => {
@@ -68,7 +67,7 @@ test('draft picks: priced by year, round and where in the round, in the league f
   assert.equal(ktc.pickValue(picks, { year: 2027, round: 1, tier: 'early', superflex: true }), 6967);
   assert.equal(ktc.pickValue(picks, { year: 2027, round: 1, tier: 'early', superflex: false }), 7125);
   assert.equal(ktc.pickValue(picks, { year: 2031, round: 1, tier: 'mid', superflex: false }), 0);
-  assert.deepEqual(Object.keys(ktc.matchAll(rows, [{ id: '1', name: 'Josh Allen', position: 'QB', team: 'BUF' }])), ['1']); // picks are not players
+  assert.deepEqual(Object.keys(ktc.matchAll(rows, [{ id: '1', name: 'Josh Allen', position: 'QB', team: 'BUF' }])), ['1']);
 });
 
 test('pick tier follows the standings: the worst teams pick early', () => {
@@ -86,7 +85,7 @@ test('projected draft slots turn into pick tiers: the team projected to finish l
   const teams = [1, 2, 3, 4].map((rosterId) => ({ rosterId, wins: 2, losses: 2, ties: 0, pf: 400, max: 450, efficiency: 1 }));
   const p = projection.projectSeason({ teams, weeks: [week, week], sims: 1500, seed: 3, draft: { method: 'linear' } });
   const order = projection.projectedDraft(p, { method: 'linear' });
-  assert.equal(order[0].rosterId, 4); // the weakest roster picks first
+  assert.equal(order[0].rosterId, 4);
   assert.equal(order[3].rosterId, 1);
   assert.equal(ktc.pickTier(order[0].pick, 12), 'early');
   assert.equal(ktc.pickTier(order[3].pick, 4), 'late');

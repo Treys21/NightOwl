@@ -1,6 +1,3 @@
-// The trade history pane of the Moves tool: every trade in a league (this
-// season and last) with a grade for each side, and how each manager trades.
-// The finder reads the same history to judge who is likely to deal.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -9,28 +6,22 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const { players, tradeLoader, ktc } = NightOwl;
   const { escape: esc } = NightOwl.format;
 
-  const SHOWN = 12; // trades listed before "Show more"
+  const SHOWN = 12;
   const sum = (xs) => xs.reduce((a, b) => a + b, 0);
   const pct = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.round(Math.abs(n) * 100)}%`;
 
-  /** deps: { state, V, league(), render, active() } */
   function create(deps) {
     const { state, V, league, render, active } = deps;
     const hs = state.history;
 
-    // ---- loading ---------------------------------------------------------
-
-    // How the market prices an asset now. Redraft has no long-run price, so its trades are graded on points alone.
     function pricing(lg) {
       if (!V.usesKtc(lg)) return { sideValue: sum, assetValue: () => 0 };
       return {
         sideValue: (vs) => ktc.sideValue(vs),
-        // A pick is worth the player to whoever used it, and its slot to whoever passed it on.
         assetValue: (a) => (a.pick ? V.pickAsset(lg, a.pick) : V.dynastyValue(lg, a.pid))
       };
     }
 
-    /** Load (once) a league's trades; resolves to the history, or null when Sleeper can't be reached. */
     function ensure(lg) {
       if (lg.historyPromise) return lg.historyPromise;
       lg.historyPromise = tradeLoader.load(lg, state.nfl, pricing(lg)).then((h) => {
@@ -45,7 +36,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return lg.historyPromise;
     }
 
-    /** What the finder wants from a history: the league's tolerance and each current manager's appetite for deals. */
     function summarize(lg, h) {
       const seasons = Math.max(1, h.seasons.length);
       const appetite = new Map();
@@ -57,8 +47,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
       return { band: h.band, appetite, record, seasons };
     }
-
-    // ---- words -----------------------------------------------------------
 
     const nameOfOwner = (lg, userId) => (userId && lg.names.get(userId)) || 'Former manager';
     const assetText = (lg, a) => {
@@ -72,7 +60,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         .concat((which === 'got' ? side.gotPicks : side.gavePicks).map((pick) => ({ pick })));
     }
 
-    // Players one to a line; picks nobody has used yet gathered by year ("2027 picks · R1 R2 R3").
     function assetList(lg, assets) {
       const lines = assets.filter((a) => !a.pick || a.pick.player || a.pick.passed).map((a) => `<li>${esc(assetText(lg, a))}</li>`);
       const byYear = new Map();
@@ -121,8 +108,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const table = managers(lg, h);
       return table ? `<details class="mv-fold"><summary>Managers</summary>${table}</details>` : '';
     };
-
-    // ---- markup ----------------------------------------------------------
 
     function pane() {
       const lg = league();

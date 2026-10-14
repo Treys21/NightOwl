@@ -1,7 +1,3 @@
-// Fantasy scoring from Sleeper stat lines. Sleeper's stat rows already carry
-// the derived keys (bonus_*, pts_allow_14_20, yds_allow_300_349, fgm_40_49 ...),
-// so a league's score for a player is just sum(stat[key] * scoring[key]) —
-// this matches the players_points Sleeper reports in matchups exactly.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -19,7 +15,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return round2(total);
   }
 
-  // Keys whose value changed between two stat lines -> { key: change }.
   function statDelta(prev, cur) {
     const out = {};
     const keys = new Set([...Object.keys(prev || {}), ...Object.keys(cur || {})]);
@@ -30,10 +25,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return out;
   }
 
-  // Points change from a stat delta under one league's scoring.
   const deltaPoints = (delta, scoring) => points(delta, scoring);
 
-  // Ordered so a play reads naturally: "+1 rec, +15 rec yds, +1 rec TD".
   /** @type {Array<[string, string]>} */
   const LABELS = [
     ['pass_cmp', 'cmp'], ['pass_yd', 'pass yds'], ['pass_td', 'pass TD'], ['pass_int', 'INT thrown'],
@@ -55,15 +48,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   ];
   const LABEL = new Map(LABELS);
   const ORDER = new Map(LABELS.map(([key], i) => [key, i]));
-  // Shown even when unscored: they explain what happened on the play.
   const ALWAYS = new Set(['pass_yd', 'rush_yd', 'rec', 'rec_yd', 'pts_allow', 'yds_allow']);
-  // Tier keys flip on/off as a total crosses a band; the raw total says it better.
   const HIDDEN = /^(pts_allow_|yds_allow_|fgm_yds|fgm_lng|pos_rank|pts_(std|ppr|half_ppr|idp))/;
 
   const UNIT = { pass_yd: 'pass yds', rush_yd: 'rush yds', rec_yd: 'rec yds', pass_cmp: 'cmp', rec: 'rec', rush_att: 'rush att' };
 
-  // Bonus and long-play keys Sleeper adds per league: pass_td_40p -> "40+ yd pass TD",
-  // bonus_rec_yd_100 -> "100+ rec yds bonus".
   function humanize(key) {
     let m = key.match(/^(pass|rush|rec)_td_(\d+)p$/);
     if (m) return `${m[2]}+ yd ${m[1]} TD`;
@@ -78,7 +67,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return key.replace(/^bonus_(.+)$/, '$1 bonus').replace(/_/g, ' ');
   }
 
-  // "+1 rec · +15 rec yds" for the keys that matter in any of `scorings`.
   function describe(delta, scorings) {
     const parts = [];
     const tags = [];
@@ -89,8 +77,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!scored && !ALWAYS.has(key)) continue;
       const v = delta[key];
       if (LABEL.has(key)) parts.push({ key, text: `${v > 0 ? '+' : ''}${v} ${LABEL.get(key)}` });
-      // A one-off bonus reads as a tag ("40+ yd pass TD"). Repeated ones
-      // (a summed catch-up) just echo stats already listed, so they fold away.
       else if (v === 1) tags.push(humanize(key));
       else if (v > 1) fold = true;
     }

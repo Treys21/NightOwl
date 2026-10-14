@@ -1,6 +1,3 @@
-// The drafts pane of the Moves tool: each of the league's drafts as a board
-// (rounds down, draft slots across), every pick coloured by how it has turned
-// out against the picks around it, and a grade for each team's draft.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -9,32 +6,25 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const { players, tradeDrafts, tradeHistory, ktc } = NightOwl;
   const { escape: esc } = NightOwl.format;
 
-  // A draft's team score runs about half as wide as a trade's, so it is scaled before it becomes a letter.
   const GRADE_SCALE = 0.5;
   const TEAM_NAME_MAX = 12;
 
-  /** deps: { state, V, league(), render, active(), ensureHistory(lg) } */
   function create(deps) {
     const { state, V, league, render, active, ensureHistory } = deps;
     const ds = state.drafts;
 
-    /** What a drafted player is worth now in this league: dynasty value, or the redraft consensus. Null when no market is loaded. */
     function valueFn(lg) {
       if (V.usesKtc(lg)) return (pid) => V.dynastyValue(lg, pid);
       if (V.consensus(lg)) return (pid) => V.redraftValue(lg, pid);
       return null;
     }
 
-    // Colour is the only signal: a pick near what was expected fades back, and past ±15% the colour comes in,
-    // full by ±100%, so the steals and busts are what the eye finds. A late pick's shortfall is shown at the
-    // weight it counts for in the grade (see tradeDrafts.board), so a bust in round 10 doesn't shout.
     const NEAR = 0.15;
     const colour = (score) => {
       const m = Math.max(0, Math.min(1, (Math.abs(score) - NEAR) / (1 - NEAR)));
       const alpha = (0.04 + 0.8 * Math.pow(m, 0.75)).toFixed(2);
       return score >= 0 ? `rgba(0, 206, 184, ${alpha})` : `rgba(247, 92, 141, ${alpha})`;
     };
-    // How good the player is, whatever the slot: red at nothing, green at the draft's best, neutral at the middle.
     const absoluteScore = (value, mid, top) => (value >= mid ? (top > mid ? (value - mid) / (top - mid) : 0) : (value - mid) / Math.max(mid, 1));
     const pctText = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.round(Math.abs(n) * 100)}%`;
 
@@ -63,18 +53,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     function board(lg, draft) {
       const value = valueFn(lg);
       if (!value) return '<p class="empty muted">Draft grades need KeepTradeCut values, which are not loaded.</p>';
-      // The pick chart sets what each slot was worth (dynasty); without it the picks around each one do.
       const chart = V.usesKtc(lg) && state.ktc && state.ktc.picks;
       const b = tradeDrafts.board(draft, value, chart ? ({ round, slot, teams }) => ktc.pickBaseline(chart, { round, slot, teams, superflex: lg.superflex }) : null);
       const slots = Array.from({ length: b.teams }, (_, i) => i + 1);
       const sorted = b.picks.map((c) => c.value).sort((x, y) => x - y);
       const mid = sorted[Math.floor(sorted.length / 2)] || 0;
       const top = sorted[sorted.length - 1] || 0;
-      // vs the pick chart: how far each pick is from its slot, shortfalls at the weight they count for; or the player's value alone.
       const scoreOf = ds.color === 'value' ? (c) => absoluteScore(c.value, mid, top) : (c) => (c.score < 0 ? c.score * c.weight : c.score);
       const head = slots.map((s) => `<div class="dv-head" title="${esc(teamName(lg, draft.slotToRoster ? draft.slotToRoster[s] : s))}">${esc(short(teamName(lg, draft.slotToRoster ? draft.slotToRoster[s] : s)))}</div>`).join('');
       const rows = b.rows.map((row, r) => `<div class="dv-round">${r + 1}</div>${slots.map((s) => cell(lg, draft, row[s - 1], scoreOf)).join('')}`).join('');
-      // Graded after trades: a team that bought a pick paid for it, one that sold a pick was paid.
       const worthOf = (a) => (a.pick ? V.pickAsset(lg, a.pick) : value(a.pid));
       const net = tradeDrafts.afterTrades(b, draft, (lg.history.graded || []).map((g) => g.trade), worthOf);
       const grades = Object.entries(net)
@@ -88,8 +75,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <p class="muted small mv-note dv-legend" title="Values are today's, so older drafts carry hindsight. Team grades include what was paid or received in pick trades."><i class="dv-key up"></i> ${ds.color === 'value' ? 'worth the most' : 'beat its slot'} <i class="dv-key down"></i> ${ds.color === 'value' ? 'worth little' : 'fell short'} · ↔ traded pick</p>
         ${table}`;
     }
-
-    // ---- markup ----------------------------------------------------------
 
     function pane() {
       const lg = league();

@@ -1,6 +1,3 @@
-// Snake-order math drives the "you are on the clock" banner, so it gets tested.
-// These expectations were validated against 204 real picks from a completed
-// 12-team snake draft (every draft_slot matched).
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -35,9 +32,6 @@ test('slotOnClock returns null without team count', () => {
 });
 
 test('slotForUser reads the draft order', () => {
-  // Shape taken from the real league draft: user_id -> slot.
-  // Keys MUST stay quoted — these 19-digit ids exceed Number.MAX_SAFE_INTEGER,
-  // so an unquoted literal silently becomes ...491900. JSON.parse yields strings.
   const draft = { draft_order: { '730717096874491904': 8, '726734936429641728': 11 } };
   assert.equal(api.slotForUser(draft, '730717096874491904'), 8);
   assert.equal(api.slotForUser(draft, '999'), null);

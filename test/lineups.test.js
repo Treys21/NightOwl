@@ -1,5 +1,3 @@
-// Start/sit logic behind the Lineups tab: kickoff windows from ESPN's
-// scoreboard and the per-league lineup read-out with swap suggestions.
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -14,7 +12,6 @@ const event = (date, away, home, state = 'pre') => ({
   ] }]
 });
 
-// Real week-5 2026 shape: London game, then the 1 PM slate.
 const espn = [
   event('2026-10-11T17:00Z', 'NYG', 'WSH'),
   event('2026-10-11T13:30Z', 'PHI', 'JAX'),
@@ -25,7 +22,7 @@ const espn = [
 test('games become kickoff windows in order, with ESPN codes mapped to Sleeper', () => {
   const wins = core.windows(core.parseGames(espn));
   assert.deepEqual(wins.map((w) => w.games.length), [1, 1, 2]);
-  assert.ok(wins[0].started); // Thursday night is done
+  assert.ok(wins[0].started);
   assert.deepEqual([...wins[1].teams].sort(), ['JAX', 'PHI']);
   assert.ok(wins[2].teams.has('WAS'), 'WSH -> WAS');
 });
@@ -66,7 +63,6 @@ test('every rostered player is listed as starting, bench or IR with their slot',
 
 test('the best lineup is found and turned into moves', () => {
   const out = run();
-  // Benchstud (15) belongs in FLEX over Slowpoke (4): +11.
   assert.equal(out.best.gain, 11);
   assert.deepEqual(out.best.moves.map((m) => [m.type, m.name, m.slot]), [
     ['start', 'Benchstud', 'FLEX'],
@@ -81,7 +77,7 @@ test('the best lineup is found and turned into moves', () => {
 
 test('injured bench players are never suggested or offered', () => {
   const rows = byPid(run());
-  assert.equal(rows.get('hurt').notes.length, 0); // Out, despite projecting 18
+  assert.equal(rows.get('hurt').notes.length, 0);
   assert.equal(rows.get('hurt').options.length, 0);
   assert.ok(!rows.get('rb').options.some((o) => o.name === 'Hurt'));
 });
@@ -103,7 +99,7 @@ test('an Out starter counts as zero, so a healthy bench option is offered', () =
 });
 
 test('players whose game has kicked off are locked: no swaps into or out of them', () => {
-  const rows = byPid(run(2500)); // PHI/JAX started, GB hasn't
+  const rows = byPid(run(2500));
   assert.ok(rows.get('stud').locked);
   assert.equal(rows.get('stud').notes.length, 0);
 });
@@ -125,17 +121,15 @@ test('slot eligibility follows Sleeper flex rules', () => {
 
 test('a bench player lists every starter he could push out, best first', () => {
   const opts = byPid(run()).get('stud').options;
-  // WR straight into WR or FLEX; QB/RB/K slots don't fit a WR.
   assert.deepEqual(opts.map((o) => [o.name, o.slot, o.gain]), [['Slowpoke', 'FLEX', 11], ['Thomas', 'WR', 3]]);
 });
 
 test('starters list every bench player who could take their spot, skipping byes, injuries, wrong positions', () => {
   const rows = byPid(run());
   assert.deepEqual(rows.get('wr').options.map((o) => o.name), ['Benchstud']);
-  // gain is what the swap does to the lineup: Benchstud (15) for Thomas (12) helps by 3.
   assert.equal(rows.get('wr').options[0].gain, 3);
-  assert.deepEqual(rows.get('rb').options, []); // Hurt is Out, Stash is on IR
-  assert.deepEqual(rows.get('k').options, []); // nobody else kicks
+  assert.deepEqual(rows.get('rb').options, []);
+  assert.deepEqual(rows.get('k').options, []);
 });
 
 test('flex chains: a bench RB can replace the WR by sliding the FLEX RB... and a TE via the FLEX', () => {
@@ -150,10 +144,8 @@ test('flex chains: a bench RB can replace the WR by sliding the FLEX RB... and a
   const out = core.lineup({ slots, scoring: {} }, { starters: ['rb1', 'wr1', 'flexwr'], players: Object.keys(P) },
     (pid) => Object.assign({ positions: [P[pid].pos] }, P[pid]), (pid) => pr[pid], () => 3000, 1000);
   const rows = new Map(out.rows.map((r) => [r.pid, r]));
-  // RB2 can't play WR, but FlexWR can slide into WR and RB2 take the FLEX: WR1 goes to the bench.
   const viaChain = rows.get('rb2').options.find((o) => o.name === 'WR1');
   assert.deepEqual(viaChain, { pid: 'wr1', name: 'WR1', proj: 6, gain: 6, slot: 'FLEX', via: { name: 'FlexWR', slot: 'WR' } });
-  // The solver finds the same thing: RB2 in at FLEX, FlexWR to WR, WR1 benched, +6.
   assert.equal(out.best.gain, 6);
   assert.deepEqual(out.best.moves.map((m) => [m.type, m.name, m.slot]),
     [['start', 'RB2', 'FLEX'], ['move', 'FlexWR', 'WR'], ['bench', 'WR1', undefined]]);
@@ -167,7 +159,7 @@ test('the solver leaves a good lineup alone (no churn on ties)', () => {
 });
 
 test('locked players never move and are never offered', () => {
-  const out = run(2500); // PHI/JAX kicked off: Hurts, Etienne, Thomas, Benchstud locked
+  const out = run(2500);
   const rows = byPid(out);
   assert.deepEqual(rows.get('stud').options, []);
   assert.ok(!out.best.moves.some((m) => ['qb', 'rb', 'wr', 'stud'].includes(m.pid)));
@@ -188,7 +180,6 @@ test('without ESPN, Sleeper schedule dates still make day windows', () => {
 
 test('swap gains read the same way from both sides of a swap', () => {
   const rows = byPid(run());
-  // Thomas (WR, 12) out for Benchstud (15) gains 3 whether you look from Thomas's row or Benchstud's.
   const fromStarter = rows.get('wr').options.find((o) => o.name === 'Benchstud').gain;
   const fromBench = rows.get('stud').options.find((o) => o.name === 'Thomas').gain;
   assert.equal(fromStarter, 3);
@@ -196,7 +187,7 @@ test('swap gains read the same way from both sides of a swap', () => {
 });
 
 test('swapping out a starter who projects more is negative', () => {
-  const r = Object.assign({}, roster, { starters: ['qb', 'rb', 'stud', 'flex', 'k'] }); // Benchstud starts, Thomas sits
+  const r = Object.assign({}, roster, { starters: ['qb', 'rb', 'stud', 'flex', 'k'] });
   const rows = byPid(run(1000, r));
   assert.equal(rows.get('stud').options.find((o) => o.name === 'Thomas').gain, -3);
 });

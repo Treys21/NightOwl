@@ -1,8 +1,3 @@
-// Bets tool for the floating panel: every player you start (optionally your
-// opponents' starters too), grouped by kickoff window, with their Sleeper
-// Picks lines, implied odds, recent hit rates, projection vs line, DraftKings
-// milestone ladders, game lines and defense-vs-position context — and, once
-// their game starts, live progress bars against each line. Information only.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -16,30 +11,30 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
 
-  const REFRESH_MS = 5 * 60000; // lines, rosters, odds
-  const LIVE_MS = 20000; // live stats while a shown game is on
+  const REFRESH_MS = 5 * 60000;
+  const LIVE_MS = 20000;
   const PROPS_TTL_MS = 15 * 60000;
   const DEF_TTL_MS = 6 * 3600000;
 
   const state = {
     showOpp: false,
     ui: { q: '', pos: 'ALL', win: 'all', sort: 'kickoff' },
-    open: new Set(), // expanded player rows
-    justOpened: new Set(), // rows to animate open on this render only
-    rendered: new Map(), // block key -> last markup (for in-place patching)
+    open: new Set(),
+    justOpened: new Set(),
+    rendered: new Map(),
     renderedKeys: '',
     nfl: null,
-    people: new Map(), // pid -> [{ leagueName, side }]
+    people: new Map(),
     games: [],
-    lines: {}, // pid -> markets (closing lines kept)
+    lines: {},
     linesKey: '',
-    ladders: {}, // pid -> milestone ladders
-    propsAt: new Map(), // espn event id -> fetched at
+    ladders: {},
+    propsAt: new Map(),
     ranks: {},
     ranksAt: 0,
     proj: {},
     live: {},
-    hits: new Set(), // `${pid}:${type}` already cashed (for the flash)
+    hits: new Set(),
     previewing: false,
     fresh: new Set(),
     loadedAt: 0,
@@ -85,7 +80,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </div>
   `;
 
-  // ---- data -------------------------------------------------------------
   async function loadPeople(userId, season, week) {
     const playing = (await api.leagues(userId, season)).filter(isPlaying);
     state.leagueCount = playing.length;
@@ -109,7 +103,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   async function loadProps(force) {
-    // Only games with someone we show, and only before or during them.
     const shownTeams = new Set([...state.people.keys()].map((pid) => players.info(pid).team));
     const games = state.games.filter((g) => g.state !== 'post' && g.id && (shownTeams.has(g.home) || shownTeams.has(g.away)));
     for (const g of games) {
@@ -122,7 +115,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         }
         state.propsAt.set(g.id, Date.now());
       } catch (err) {
-        // No DraftKings props for this game (or ESPN is down): ladders just don't show.
         console.warn('[Night Owl bets] props unavailable for', g.id, err.message || err);
         state.propsAt.set(g.id, Date.now());
       }
@@ -151,7 +143,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       state.games = NightOwl.lineups.gamesFromSchedule(await api.schedule(season, seasonType), week);
     }
 
-    // Lines: merge fresh ones over the stored closing lines for this week.
     const key = `${season}-${seasonType}-${week}`;
     const stored = await storage.get('bets.lines', null);
     const previous = stored && stored.key === key ? stored.lines : {};
@@ -184,7 +175,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const rows = await api.weekStats(state.nfl.season, displayWeek(state.nfl), seasonTypeOf(state.nfl));
     const live = {};
     for (const r of rows) live[r.player_id] = r.stats || {};
-    // Lines that just cashed get a flash.
     state.fresh = new Set();
     for (const [pid, markets] of Object.entries(state.lines)) {
       if (!state.people.has(pid)) continue;
@@ -192,7 +182,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const p = core.progress(m, live[pid]);
         const k = `${pid}:${m.type}`;
         if (p && p.hit && !state.hits.has(k)) {
-          if (state.loadedAt) state.fresh.add(k); // not on first load
+          if (state.loadedAt) state.fresh.add(k);
           state.hits.add(k);
         }
       }
@@ -227,13 +217,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }, LIVE_MS);
   }
 
-  // ---- view -------------------------------------------------------------
-
   function face(pid, team) {
     return `<img class="face" alt="" src="${teams.photo(pid, team)}" style="border-color:${teams.colors(team).primary}">`;
   }
 
-  // Last-10 bars for this exact stat, with the line drawn across them.
   function sparkline(recent, line) {
     const values = recent.map((r) => r.value).filter((v) => v != null);
     if (!values.length) return '';
@@ -245,9 +232,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `<span class="bt-spark">${bars}<b style="bottom:${Math.round((line / top) * 100)}%"></b></span>`;
   }
 
-  // One compact table row per line: market, line, over/under prices, last-10
-  // hit rate (with a tiny bar chart), projection edge — and a thin live bar
-  // underneath once the game is on.
   function marketRow(pid, m, inPlay) {
     const hr = core.hitRate(m.recent, m.line);
     const projected = core.statValue(state.proj[pid], m.keys);
@@ -295,7 +279,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `<div class="bt-ctx">${parts.join('')}</div>`;
   }
 
-  // Full detail for one player (shown when his row is expanded).
   function detail(pid, spots, game, inPlay) {
     const p = players.info(pid);
     const markets = state.lines[pid] || [];
@@ -316,14 +299,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     </div>`;
   }
 
-  // One collapsible row per player: the essentials in the summary, everything
-  // else one tap away.
   function item(pid, spots, game, showWindow) {
     const p = players.info(pid);
     const markets = state.lines[pid] || [];
     const td = markets.find((m) => m.type === 'anytime_touchdowns');
     const key = core.keyMarket(markets, p.pos);
-    // Live numbers only once this player's game has kicked off (or in the preview).
     const inPlay = state.previewing || !!(game && game.state !== 'pre');
     const liveTd = td && inPlay ? core.progress(td, state.live[pid]) : null;
     const keyLive = key && inPlay ? core.progress(key, state.live[pid]) : null;
@@ -336,7 +316,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const open = state.open.has(pid);
     const keyHtml = key
       ? `<span class="bt-key">${keyLive
-        // In play: progress against the line, "38 of 54.5 rec yds".
         ? `<span class="bt-key-live${keyLive.hit ? ' hit' : ''}">${keyLive.hit ? '✓ ' : ''}${num(keyLive.value)}</span> <span class="bt-key-lbl">of ${num(key.line)} ${esc(key.label)}</span>`
         : `<span class="bt-key-lbl">${esc(key.label)}</span> <b>${num(key.line)}</b>${keyHr ? ` <span class="bt-key-hr${keyHr.over * 2 > keyHr.games ? ' good' : ''}">${keyHr.over}/${keyHr.games}</span>` : ''}${keyLean != null && Math.abs(keyLean) >= 0.5 ? ` <span class="bt-key-lean ${keyLean > 0 ? 'up' : 'down'}">${keyLean > 0 ? '▲' : '▼'}</span>` : ''}`}</span>`
       : `<span class="muted small">${inPlay ? esc(core.liveLine(p.pos, state.live[pid]) || 'No line for this game') : 'No lines yet'}</span>`;
@@ -369,7 +348,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     for (const b of $('bt-pos').children) b.classList.toggle('on', b.dataset.pos === ui.pos);
     $('bt-sort').value = ui.sort;
     $('bt-toggle-all').textContent = state.open.size ? 'Collapse all' : 'Expand all';
-    // Window headers pin just under the (pinned) toolbar.
     root.style.setProperty('--bt-tb', `${root.querySelector('.bt-toolbar').offsetHeight}px`);
   }
 
@@ -380,7 +358,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (state.nfl) $('bt-week').textContent = `Week ${displayWeek(state.nfl)}`;
     for (const b of $('bt-who').children) b.classList.toggle('on', (b.dataset.who === 'all') === state.showOpp);
     if (!state.loadedAt) {
-      if (state.error) $('bt-body').innerHTML = ''; // no endless placeholders under an error
+      if (state.error) $('bt-body').innerHTML = '';
       return;
     }
 
@@ -403,7 +381,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       .filter((r) => ui.win === 'all' || (ui.win === 'live' ? phaseOf(r.win) === 0 : String(r.win.kickoff) === ui.win));
 
     const mineFirst = (a, b) => (b.spots.some((s) => s.side === 'me') - a.spots.some((s) => s.side === 'me')) || b.spots.length - a.spots.length;
-    const blocks = []; // [{ key, html }] — headers and player rows, in order
+    const blocks = [];
     const header = (key, inner, count) => blocks.push({ key, html: `<h3 class="bt-group-h" data-key="${esc(key)}">${inner}<span>${count}</span></h3>` });
     if (ui.sort === 'kickoff') {
       const sortedWins = wins.slice().sort((a, b) => phaseOf(a) - phaseOf(b) || a.kickoff - b.kickoff);
@@ -427,9 +405,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.justOpened.clear();
   }
 
-  // Update the list in place: when the same rows are showing in the same
-  // order, only rows whose markup changed are swapped, so the other rows (and
-  // their headshots) are left alone — no flicker on live updates or toggles.
   function patch(blocks, filtered) {
     const body = $('bt-body');
     const keys = blocks.map((b) => b.key).join('|');
@@ -468,7 +443,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!state.people.has(pid)) continue;
       const s = (fake[pid] = {});
       for (const m of markets) {
-        const share = 0.35 + Math.random() * 0.95; // some short, some cashed
+        const share = 0.35 + Math.random() * 0.95;
         const target = (m.td ? 1 : m.line) * share;
         m.keys.forEach((k, i) => { s[k] = Math.round((i === 0 ? target : 0) * 10) / 10; });
       }
@@ -487,7 +462,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     setTimeout(() => { state.live = real; state.hits = realHits; state.fresh = new Set(); state.previewing = false; render(); }, 10000);
   }
 
-  // ---- mount ------------------------------------------------------------
   function mount(el) {
     if (root === el) return;
     root = el;
@@ -495,8 +469,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     setTimeout(() => el.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
     $('bt-refresh').addEventListener('click', () => refresh(true));
-    // Double-click the title to preview live tracking: fake in-game stats for
-    // ~10 seconds so the progress bars, cashed lines and ladders animate.
     root.querySelector('.title strong').title = 'Double-click to preview live tracking';
     root.querySelector('.title strong').addEventListener('dblclick', preview);
     $('bt-who').addEventListener('click', async (e) => {
@@ -525,7 +497,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       state.ui.win = e.target.value;
       render();
     });
-    // Expanding a row renders its detail on demand (keeps the list light).
     $('bt-body').addEventListener('toggle', (e) => {
       const d = e.target;
       if (!d.classList || !d.classList.contains('bt-item')) return;

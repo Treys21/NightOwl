@@ -1,7 +1,3 @@
-// Who you are: the Sleeper username from settings and its user id, resolved
-// once and shared by every tool (each one used to look it up for itself).
-// The username and id are saved together by the popup and the first-run form,
-// so a stored id belongs to the stored name.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -10,9 +6,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const { api, storage } = NightOwl;
 
   const NEED_USERNAME = 'Add your Sleeper username to get started.';
-  let cache = null; // { username, userId }
+  let cache = null;
 
-  /** -> { username, userId }. Throws NEED_USERNAME, or when Sleeper has no such user. */
   async function resolve() {
     const settings = await storage.getSettings();
     const username = (settings.username || '').trim();
@@ -30,7 +25,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return cache;
   }
 
-  /** League ids the user switched off in Live's settings. */
   async function excluded() {
     return new Set(((await storage.get('live.settings', {})).excluded) || []);
   }

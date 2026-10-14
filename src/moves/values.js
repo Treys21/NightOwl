@@ -1,7 +1,3 @@
-// What things are worth in a league, for the Moves tool: draft picks (who
-// holds them, where they land), KeepTradeCut values in the league's format and
-// scoring, and the price of a lineup point. One valuer per view, reading the
-// view's loaded state.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
@@ -9,19 +5,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const { season, value, ktc } = NightOwl;
 
-  const PICK_ROUNDS = 4; // rounds KeepTradeCut prices
-  const PICK_YEARS = 3; // drafts ahead that can be traded
-  // KeepTradeCut prices picks a little under what managers pay for them, the first round most: a pick is
-  // liquid, takes no roster spot and is the currency every contender and rebuilder in a league accepts.
+  const PICK_ROUNDS = 4;
+  const PICK_YEARS = 3;
   const PICK_PREMIUM = { 1: 1.1, 2: 1.05 };
-  const REDRAFT_UNLISTED_CAP = 1200; // consensus value given to a player the redraft rankings don't list
+  const REDRAFT_UNLISTED_CAP = 1200;
 
-  // A pick is traded like a player: its id carries the draft year, the round
-  // and the roster it originally belonged to ("pick:2027:1:4").
   const isPick = (pid) => String(pid).startsWith('pick:');
   const pickOf = (pid) => { const [, year, round, from] = String(pid).split(':'); return { year: Number(year), round: Number(round), from: Number(from) }; };
 
-  /** Standings order, worst first (rank 1 picks first): wins, then points. */
   function standingsRanks(rosters) {
     const pts = (ro) => ((ro.settings && ro.settings.fpts) || 0) + ((ro.settings && ro.settings.fpts_decimal) || 0) / 100;
     const order = rosters.slice().sort((a, b) => ((a.settings && a.settings.wins) || 0) - ((b.settings && b.settings.wins) || 0) || pts(a) - pts(b));
@@ -29,18 +20,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function create(state) {
-    /**
-     * Where a team's pick will land in the next draft (1 = first). The best
-     * guess is the season played out 2,000 times (standings, then every
-     * remaining week's projected lineups and the playoffs) and sorted by the
-     * league's draft formula; until that runs, today's standings stand in.
-     */
     const pickSlot = (lg, rosterId) => (lg.slots && lg.slots.get(rosterId)) || lg.ranks.get(rosterId) || 1;
 
-    /** Early, mid or late for a pick. Only the next draft has a guessable slot; later ones are priced mid. */
     const pickTierOf = (lg, pick) => (pick.year === Number(lg.raw.season) + 1 ? ktc.pickTier(pickSlot(lg, pick.from), lg.raw.rosters.length) : 'mid');
 
-    /** roster id -> the future picks that roster holds right now, after trades. */
     function ownedPicks(lg) {
       const held = new Map(lg.raw.rosters.map((ro) => [ro.roster_id, []]));
       const rounds = Math.min(PICK_ROUNDS, (lg.draftRounds || PICK_ROUNDS));
@@ -59,14 +42,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const ordinalRound = (n) => `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n] || 'th'}`;
 
     const rosPoints = (lg, pid) => value.restOfSeason(pid, lg.weeks);
-    // Points over the free agent who would take his place: what a player really adds to a lineup.
     const overReplacement = (lg, pid) => (lg.rep ? Math.max(0, lg.rep.over(pid)) : rosPoints(lg, pid));
 
-    // Dynasty and keeper leagues price players for the long run: KeepTradeCut's
-    // value in the league's format (superflex or 1QB, tight-end premium), scaled
-    // by how this league's scoring treats the player against KTC's PPR baseline
-    // (projected points in the league over projected PPR points). Redraft has no
-    // long run: a player is worth the points he scores here.
     const usesKtc = (lg) => lg.kind !== 'redraft' && !!state.ktc;
     function dynastyValue(lg, pid) {
       lg.dyn = lg.dyn || new Map();
@@ -84,9 +61,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return out;
     }
 
-    // Redraft leagues price players on KeepTradeCut's fantasy rankings: what the
-    // season-long crowd would pay for the rest of this season. The few players
-    // it doesn't list are priced off their projection, capped low.
     const consensus = (lg) => lg.kind === 'redraft' && !!state.ktcRedraft;
     function redraftValue(lg, pid) {
       lg.red = lg.red || new Map();
@@ -99,12 +73,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return out;
     }
 
-    /** What a player is worth in this league: the blend of dynasty value and production for keeper and dynasty leagues (see blendedValue), fantasy (redraft) values for redraft. 0 when the market is not loaded. */
     const marketValue = (lg, pid) => (consensus(lg) ? redraftValue(lg, pid) : usesKtc(lg) ? blendedValue(lg, pid) : 0);
 
-    // League points over PPR points for the rest of the season, unadjusted.
     function scoringRatio(lg, pid) {
-      // Tight-end premium is already in KTC's TE+ columns: score without it.
       const plain = Object.assign({}, lg.raw.scoring, { bonus_rec_te: 0 });
       let mine = 0;
       let ppr = 0;
@@ -116,10 +87,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return mine > 0 && ppr > 0 ? mine / ppr : null;
     }
 
-    // A standard league scores every skill player below PPR; that lowers everyone
-    // alike and says nothing about who is worth more. What matters is a player's
-    // ratio against the league's typical one, so a receiver loses to a runner in
-    // standard scoring but picks keep their value against players.
     function scoringFactor(lg, pid, listed, kind) {
       lg.ratioBase = lg.ratioBase || {};
       if (lg.ratioBase[kind] === undefined) {
@@ -131,13 +98,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
     const worth = (n) => Math.round(n).toLocaleString();
 
-    // ---- a team's window ------------------------------------------------
-
-    // Contenders pay for production now; rebuilders discount age and want picks.
-    // w runs from 0 (rebuilding) to 1 (contending).
     const AGE_PRIME = 27;
     function windowFactor(lg, id, w) {
-      if (isPick(id)) return w > 0.6 ? 0.97 : w < 0.3 ? 1.06 : 1; // contenders and rebuilders differ by a few percent, not the 20% that made picks the cheap thing to give
+      if (isPick(id)) return w > 0.6 ? 0.97 : w < 0.3 ? 1.06 : 1;
       const entry = state.ktc && state.ktc.players[id];
       const age = entry && entry.a;
       if (!age) return 1;
@@ -146,18 +109,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return 1;
     }
 
-    // KeepTradeCut overvalues the young at the low end (a 22-year-old is priced for what he may become) and
-    // undervalues vets who produce now. So a player's price mixes the two: his KeepTradeCut value and what
-    // his projected points over replacement are worth at this league's price per point. Contenders lean on
-    // production, rebuilders on the market.
     const MIX = { now: 0.45, mixed: 0.3, rebuild: 0.15 };
     const mixFor = (w) => (w > 0.6 ? MIX.now : w < 0.3 ? MIX.rebuild : MIX.mixed);
     const YOUTH_AGE = 23;
-    const YOUTH_CAP = 4500; // KeepTradeCut value under which a young player's price is mostly hope
+    const YOUTH_CAP = 4500;
     const YOUTH_HAIRCUT = 0.92;
-    const PRODUCTION_CAP = 1.5; // production never prices a player above this multiple of his market value
+    const PRODUCTION_CAP = 1.5;
 
-    /** Market value mixed with production, at a given weight on production (0 = pure KeepTradeCut). Picks and players out for the year stay at market. */
     function blendedValue(lg, pid, mix = MIX.mixed) {
       const market = dynastyValue(lg, pid);
       if (!market || isPick(pid) || !lg.rep || !lg.rep.weeks.some((w) => !w.isOut(pid))) return market;
@@ -173,10 +131,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return v;
     }
 
-    /** The value a team sees in an asset, given its window: the blend it leans on, then its age preference. */
     const valueFor = (lg, id, w) => blendedValue(lg, id, mixFor(w)) * windowFactor(lg, id, w);
 
-    /** Value units one rest-of-season lineup point over replacement is worth in this league (market value per point above a free agent, for players who matter). */
     function pointValue(lg) {
       if (lg.pointPrice !== undefined) return lg.pointPrice;
       const listed = consensus(lg) ? state.ktcRedraft.players : state.ktc && state.ktc.players;
@@ -194,10 +150,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return lg.pointPrice;
     }
 
-    /**
-     * What a traded pick is worth now. Spent by the manager who held it: the player he took. Passed on before its draft:
-     * its slot on the pick chart. Not drafted yet: the chart for its year and round.
-     */
     function pickAsset(lg, pick) {
       if (pick.player) return dynastyValue(lg, pick.player);
       if (pick.passed && state.ktc) {
@@ -207,7 +159,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return dynastyValue(lg, `pick:${pick.season}:${pick.round}:${pick.from}`);
     }
 
-    /** What a package of players and picks is worth in this league: the best player in full, the rest over replacement. */
     function packageValue(lg, pids) {
       const items = pids.map((pid) => ({ v: marketValue(lg, pid), pick: isPick(pid) }));
       return ktc.packageValue(items, consensus(lg)
