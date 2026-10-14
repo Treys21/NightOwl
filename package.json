@@ -30,7 +30,7 @@
     "@types/chrome": "^0.3.5",
     "eslint": "^9.39.5",
     "globals": "^15.15.0",
-    "puppeteer-core": "^23.11.1",
+    "puppeteer-core": "^25.13.0",
     "typescript": "5.9"
   }
 }
