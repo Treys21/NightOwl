@@ -13,16 +13,19 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "lint": "eslint .",
+    "typecheck": "tsc -p .",
     "check": "node scripts/check.mjs",
     "package": "node scripts/package.mjs",
-    "verify": "npm run lint && npm run check && npm test",
+    "verify": "npm run lint && npm run typecheck && npm run check && npm test",
     "preview": "node tools/preview/shoot.mjs"
   },
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@types/chrome": "^0.3.5",
     "eslint": "^9.39.5",
     "globals": "^15.15.0",
-    "puppeteer-core": "^23.11.1"
+    "puppeteer-core": "^23.11.1",
+    "typescript": "5.9"
   }
 }

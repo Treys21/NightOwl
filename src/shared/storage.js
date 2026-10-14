@@ -35,8 +35,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
-  const set = (items) => new Promise((resolve) => chrome.storage.local.set(items, resolve));
-  const remove = (keys) => new Promise((resolve) => chrome.storage.local.remove(keys, resolve));
+  const set = (items) => new Promise((resolve) => chrome.storage.local.set(items, () => resolve()));
+  const remove = (keys) => new Promise((resolve) => chrome.storage.local.remove(keys, () => resolve()));
 
   async function merged(key, patch) {
     const current = Object.assign({}, DEFAULTS[key], await get(key, {}));

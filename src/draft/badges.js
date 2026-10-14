@@ -56,7 +56,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       for (const element of document.querySelectorAll(selector)) {
         const existing = element.querySelector(`.${BADGE_CLASS}`);
         if (existing) {
-          const row = rankByName.get(existing.dataset.key);
+          const row = rankByName.get(/** @type {HTMLElement} */ (existing).dataset.key);
           if (row) {
             paint(existing, row);
           } else { // his row left the board (rankings edited)

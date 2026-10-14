@@ -104,9 +104,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   /**
    * Draw the board into el.
-   * @param state { status, rows, myTurn, message, kind } from draft.js
-   * @param prefs the ui settings (position, hideDrafted, sortBy, sortDir); edited in place
-   * @param onChange called after the user changes a filter or sort
+   * @param {Element} el
+   * @param {{status?: string, rows?: any[], myTurn?: boolean, message?: string, kind?: string}} state from draft.js
+   * @param {any} prefs the ui settings (position, hideDrafted, sortBy, sortDir); edited in place
+   * @param {() => void} onChange called after the user changes a filter or sort
    */
   function render(el, state, prefs, onChange) {
     if (!live.has(el)) bind(el);

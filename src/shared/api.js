@@ -28,6 +28,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const timeoutSignal = () => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(TIMEOUT_MS) : undefined);
 
   // Which feed a URL belongs to, so an outage can be named in the panel.
+  /** @type {Array<[string, string, (url: string) => boolean]>} */
   const SOURCES = [
     ['picks', 'Sleeper Picks lines', (u) => u.startsWith(`${SLEEPER_APP}/lines`)],
     ['sleeper', 'Sleeper', (u) => u.startsWith(V1)],

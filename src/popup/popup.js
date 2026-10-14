@@ -3,12 +3,15 @@
 (function (NightOwl) {
   'use strict';
 
-  const listEl = document.getElementById('list');
-  const formatEl = document.getElementById('format');
-  const syncedEl = document.getElementById('synced');
-  const usernameEl = document.getElementById('username');
-  const userStatusEl = document.getElementById('user-status');
-  const rankStatusEl = document.getElementById('rank-status');
+  // The popup's markup is fixed, so every id exists; any covers the element subtypes.
+  const byId = (id) => /** @type {any} */ (document.getElementById(id));
+
+  const listEl = byId('list');
+  const formatEl = byId('format');
+  const syncedEl = byId('synced');
+  const usernameEl = byId('username');
+  const userStatusEl = byId('user-status');
+  const rankStatusEl = byId('rank-status');
   // How long ago, in plain words: "just now", "5m ago", "3h ago", "Oct 2".
   const ago = (ms) => {
     const mins = Math.round((Date.now() - ms) / 60000);
@@ -30,7 +33,7 @@
   async function init() {
     chrome.tabs.getCurrent((tab) => {
       inTab = Boolean(tab);
-      document.getElementById('open-tab').hidden = inTab;
+      byId('open-tab').hidden = inTab;
     });
 
     rankings = await NightOwl.storage.getRankings();
@@ -42,7 +45,7 @@
     formatEl.value = settings.format || 'half-ppr';
     formatEl.addEventListener('change', () => NightOwl.storage.saveSettings({ format: formatEl.value }));
 
-    const alertsEl = document.getElementById('alerts');
+    const alertsEl = byId('alerts');
     alertsEl.checked = settings.alerts !== false;
     alertsEl.addEventListener('change', () => NightOwl.storage.saveSettings({ alerts: alertsEl.checked }));
 
@@ -119,10 +122,10 @@
     render();
   }
 
-  document.getElementById('add').addEventListener('click', async () => {
-    const nameEl = document.getElementById('add-name');
-    const posEl = document.getElementById('add-pos');
-    const teamEl = document.getElementById('add-team');
+  byId('add').addEventListener('click', async () => {
+    const nameEl = byId('add-name');
+    const posEl = byId('add-pos');
+    const teamEl = byId('add-team');
     const name = nameEl.value.trim();
     if (!name) return;
 
@@ -136,7 +139,7 @@
     await persist();
   });
 
-  document.getElementById('save-user').addEventListener('click', async () => {
+  byId('save-user').addEventListener('click', async () => {
     const username = usernameEl.value.trim();
     if (!username) return;
     status(userStatusEl, 'Looking you up…');
@@ -154,7 +157,7 @@
     }
   });
 
-  const syncButton = document.getElementById('sync');
+  const syncButton = byId('sync');
   syncButton.addEventListener('click', async () => {
     const format = formatEl.value;
     syncButton.disabled = true;
@@ -179,7 +182,7 @@
     syncButton.textContent = 'Sync from Ringer';
   });
 
-  document.getElementById('export').addEventListener('click', () => {
+  byId('export').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(rankings, null, 2)], { type: 'application/json' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -188,7 +191,7 @@
     URL.revokeObjectURL(link.href);
   });
 
-  const importFile = document.getElementById('import-file');
+  const importFile = byId('import-file');
 
   // Opened as a plain tab rather than via chrome.runtime.openOptionsPage():
   // this page doubles as the toolbar popup, and Chrome refuses to treat one
@@ -197,9 +200,9 @@
     chrome.tabs.create({ url: chrome.runtime.getURL('src/popup/popup.html') });
   }
 
-  document.getElementById('open-tab').addEventListener('click', openInTab);
+  byId('open-tab').addEventListener('click', openInTab);
 
-  document.getElementById('import').addEventListener('click', () => {
+  byId('import').addEventListener('click', () => {
     if (!inTab) {
       // The file dialog steals focus and Chrome tears the popup down with it,
       // so the change event would never fire. Do it in a tab instead.

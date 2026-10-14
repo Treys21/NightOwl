@@ -34,6 +34,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const deltaPoints = (delta, scoring) => points(delta, scoring);
 
   // Ordered so a play reads naturally: "+1 rec, +15 rec yds, +1 rec TD".
+  /** @type {Array<[string, string]>} */
   const LABELS = [
     ['pass_cmp', 'cmp'], ['pass_yd', 'pass yds'], ['pass_td', 'pass TD'], ['pass_int', 'INT thrown'],
     ['pass_2pt', '2-pt pass'], ['pass_sack', 'sacked'],
@@ -81,6 +82,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function describe(delta, scorings) {
     const parts = [];
     const tags = [];
+    let fold = false;
     for (const key of Object.keys(delta)) {
       if (HIDDEN.test(key)) continue;
       const scored = scorings.some((s) => s && s[key]);
@@ -90,10 +92,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       // A one-off bonus reads as a tag ("40+ yd pass TD"). Repeated ones
       // (a summed catch-up) just echo stats already listed, so they fold away.
       else if (v === 1) tags.push(humanize(key));
-      else if (v > 1) tags.fold = true;
+      else if (v > 1) fold = true;
     }
     parts.sort((a, b) => ORDER.get(a.key) - ORDER.get(b.key));
-    const extra = tags.length > 2 || (tags.fold && !tags.length) ? ['big-play bonus'] : tags;
+    const extra = tags.length > 2 || (fold && !tags.length) ? ['big-play bonus'] : tags;
     return parts.map((p) => p.text).concat(extra).join(' · ');
   }
 

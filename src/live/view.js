@@ -366,7 +366,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     // Games on now come first, then the rest of today's in schedule order.
     const games = state.schedule.games
       .filter((g) => g.status === 'in_game' || (g.status === 'pre_game' && g.date === today))
-      .sort((a, b) => (b.status === 'in_game') - (a.status === 'in_game'));
+      .sort((a, b) => Number(b.status === 'in_game') - Number(a.status === 'in_game'));
 
     const html = games.map((g) => {
       const rows = [...watch].filter(([pid]) => [g.home, g.away].includes(info(pid).team)).map(([pid, spots]) => {
@@ -413,7 +413,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   // pop (the feed has the rest), and a new poll replaces plays still waiting.
   function celebrate(events) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const ranked = events.filter((ev) => isBig(ev) || maxImpact(ev) >= MIN_POP_PTS).sort((x, y) => (isBig(y) - isBig(x)) || (maxImpact(y) - maxImpact(x)));
+    const ranked = events.filter((ev) => isBig(ev) || maxImpact(ev) >= MIN_POP_PTS).sort((x, y) => (Number(isBig(y)) - Number(isBig(x))) || (maxImpact(y) - maxImpact(x)));
     if (!ranked.length) return;
     popQueue.length = 0;
     popQueue.push(...ranked.slice(0, MAX_POPS));
