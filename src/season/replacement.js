@@ -14,11 +14,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function playing(games) {
     const out = {};
-    for (const g of games || []) {
-      if (!g || !g.week) continue;
-      (out[g.week] = out[g.week] || new Set()).add(g.home).add(g.away);
+    for (const game of games || []) {
+      if (!game || !game.week) continue;
+      (out[game.week] = out[game.week] || new Set()).add(game.home).add(game.away);
     }
-    return Object.fromEntries(Object.entries(out).map(([w, teams]) => [w, [...teams]]));
+    return Object.fromEntries(Object.entries(out).map(([week, teams]) => [week, [...teams]]));
   }
 
   const SCHEDULE_TTL_MS = 24 * 3600000;
@@ -53,10 +53,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (!positions.has(pos)) continue;
         let total = 0;
         let games = 0;
-        for (const w of weeks) {
-          if (w.isOut(playerId)) continue;
-          const p = w.projOf(playerId);
-          if (p > 0) { total += p; games++; }
+        for (const week of weeks) {
+          if (week.isOut(playerId)) continue;
+          const projected = week.projOf(playerId);
+          if (projected > 0) { total += projected; games++; }
         }
         if (games < need || !games) continue;
         if (!byPos.has(pos)) byPos.set(pos, []);
@@ -70,47 +70,47 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     for (const pos of positions) {
       const best = (open.get(pos) || []).sort((a, b) => b.total - a.total).slice(0, LEVEL_RANKS);
       if (best.length < LEVEL_RANKS) {
-        const scraps = (taken.get(pos) || []).filter((x) => x.rate >= MIN_STARTABLE).sort((a, b) => a.total - b.total);
+        const scraps = (taken.get(pos) || []).filter((candidate) => candidate.rate >= MIN_STARTABLE).sort((a, b) => a.total - b.total);
         best.push(...scraps.slice(0, LEVEL_RANKS - best.length));
       }
-      out.set(pos, best.length ? best.reduce((s, x) => s + x.rate, 0) / best.length : 0);
+      out.set(pos, best.length ? best.reduce((total, candidate) => total + candidate.rate, 0) / best.length : 0);
     }
     return out;
   }
 
   function startingPositions(slots) {
     const all = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
-    const starting = slots.filter((s) => !NOT_STARTING_SLOTS.has(s));
-    return new Set(all.filter((p) => starting.some((s) => canPlay(s, [p]))));
+    const starting = slots.filter((slot) => !NOT_STARTING_SLOTS.has(slot));
+    return new Set(all.filter((position) => starting.some((slot) => canPlay(slot, [position]))));
   }
 
   function wrap({ slots, weeks, positionsOf, rates, fade = FADE }) {
-    const starting = slots.filter((s) => !NOT_STARTING_SLOTS.has(s));
+    const starting = slots.filter((slot) => !NOT_STARTING_SLOTS.has(slot));
     const stand = [];
     for (const [pos, rate] of rates) {
       if (!(rate > 0)) continue;
-      const fits = starting.filter((s) => canPlay(s, [pos])).length;
+      const fits = starting.filter((slot) => canPlay(slot, [pos])).length;
       for (let i = 0; i < Math.min(MAX_FILL, fits); i++) stand.push(`${VIRTUAL}${pos}:${i}`);
     }
     const posOf = (playerId) => (isVirtual(playerId) ? [String(playerId).split(':')[1]] : positionsOf(playerId));
     const rateOf = (playerId) => rates.get(isVirtual(playerId) ? String(playerId).split(':')[1] : (positionsOf(playerId) || [])[0]) || 0;
-    const wrapped = weeks.map((w, k) => {
+    const wrapped = weeks.map((week, k) => {
       const keep = Math.pow(fade, k + 1);
-      return Object.assign({}, w, {
-        isOut: (playerId) => !isVirtual(playerId) && w.isOut(playerId),
+      return Object.assign({}, week, {
+        isOut: (playerId) => !isVirtual(playerId) && week.isOut(playerId),
         projOf: (playerId) => {
           if (isVirtual(playerId)) return rateOf(playerId);
-          const p = w.projOf(playerId);
-          return p > 0 ? keep * p + (1 - keep) * rateOf(playerId) : 0;
+          const projected = week.projOf(playerId);
+          return projected > 0 ? keep * projected + (1 - keep) * rateOf(playerId) : 0;
         }
       });
     });
     const over = (playerId) => {
       let total = 0;
-      for (const w of wrapped) {
-        if (w.isOut(playerId)) continue;
-        const p = w.projOf(playerId);
-        if (p > 0) total += (p - rateOf(playerId)) * (w.weight || 1);
+      for (const wrappedWeek of wrapped) {
+        if (wrappedWeek.isOut(playerId)) continue;
+        const projected = wrappedWeek.projOf(playerId);
+        if (projected > 0) total += (projected - rateOf(playerId)) * (wrappedWeek.weight || 1);
       }
       return total;
     };

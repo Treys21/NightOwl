@@ -82,11 +82,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     if (candidates && candidates.length > 1) {
       const byBoth = candidates.find(
-        (c) => normalizePosition(c.position) === position && (c.team || '').toUpperCase() === team
+        (candidate) => normalizePosition(candidate.position) === position && (candidate.team || '').toUpperCase() === team
       );
       if (byBoth) return byBoth;
 
-      const byPosition = candidates.filter((c) => normalizePosition(c.position) === position);
+      const byPosition = candidates.filter((candidate) => normalizePosition(candidate.position) === position);
       if (byPosition.length === 1) return byPosition[0];
       return null;
     }

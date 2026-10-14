@@ -16,19 +16,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function compact(raw) {
     const next = {};
-    for (const [playerId, p] of Object.entries(raw)) {
-      if (!p) continue;
-      const name = p.position === 'DEF'
-        ? `${p.first_name} ${p.last_name}`
-        : (p.full_name || `${p.first_name || ''} ${p.last_name || ''}`.trim());
+    for (const [playerId, rawPlayer] of Object.entries(raw)) {
+      if (!rawPlayer) continue;
+      const name = rawPlayer.position === 'DEF'
+        ? `${rawPlayer.first_name} ${rawPlayer.last_name}`
+        : (rawPlayer.full_name || `${rawPlayer.first_name || ''} ${rawPlayer.last_name || ''}`.trim());
       next[playerId] = [
         name,
-        p.position || '',
-        p.team || '',
-        p.number == null ? '' : String(p.number),
-        p.injury_status || '',
-        (p.fantasy_positions || []).join(','),
-        p.espn_id == null ? '' : String(p.espn_id)
+        rawPlayer.position || '',
+        rawPlayer.team || '',
+        rawPlayer.number == null ? '' : String(rawPlayer.number),
+        rawPlayer.injury_status || '',
+        (rawPlayer.fantasy_positions || []).join(','),
+        rawPlayer.espn_id == null ? '' : String(rawPlayer.espn_id)
       ];
     }
     return next;
@@ -58,16 +58,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return loading;
   }
 
-  function remember(playerId, name, pos, team) {
-    if (!map[playerId]) map[playerId] = [name, pos, team, '', '', pos, ''];
+  function remember(playerId, name, position, team) {
+    if (!map[playerId]) map[playerId] = [name, position, team, '', '', position, ''];
   }
 
   function info(playerId) {
-    const p = map[playerId];
-    if (p) {
+    const entry = map[playerId];
+    if (entry) {
       return {
-        name: p[0], pos: p[1], team: p[2], number: p[3] || '',
-        injury: p[4] || null, positions: p[5] ? p[5].split(',') : [p[1]]
+        name: entry[0], pos: entry[1], team: entry[2], number: entry[3] || '',
+        injury: entry[4] || null, positions: entry[5] ? entry[5].split(',') : [entry[1]]
       };
     }
     const def = NightOwl.teams.isDefenseId(playerId);
@@ -76,9 +76,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function list() {
     const out = [];
-    for (const [id, p] of Object.entries(map)) {
-      const position = p[1] || (p[5] ? p[5].split(',')[0] : '');
-      if (FANTASY.has(position)) out.push({ id, name: p[0], position, team: p[2] });
+    for (const [playerId, entry] of Object.entries(map)) {
+      const position = entry[1] || (entry[5] ? entry[5].split(',')[0] : '');
+      if (FANTASY.has(position)) out.push({ id: playerId, name: entry[0], position, team: entry[2] });
     }
     return out;
   }
@@ -86,7 +86,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function byEspn(espnId) {
     if (!espnIndex) {
       espnIndex = new Map();
-      for (const [playerId, p] of Object.entries(map)) if (p[6]) espnIndex.set(p[6], playerId);
+      for (const [playerId, entry] of Object.entries(map)) if (entry[6]) espnIndex.set(entry[6], playerId);
     }
     return espnIndex.get(String(espnId)) || null;
   }

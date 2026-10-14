@@ -18,22 +18,22 @@ test('half-PPR board comes out in rank order', () => {
   const { ok, rankings } = ringer.parseHtml(html, 'half-ppr');
   assert.equal(ok, true);
   assert.deepEqual(
-    rankings.slice(0, 5).map((r) => `${r.rank} ${r.name}`),
+    rankings.slice(0, 5).map((ranking) => `${ranking.rank} ${ranking.name}`),
     ['1 Bijan Robinson', '2 Ja’Marr Chase', '3 Christian McCaffrey', '4 Justin Jefferson', '5 Ashton Jeanty']
   );
 });
 
 test('players unranked in a format (9999) are left out', () => {
-  const half = ringer.parseHtml(html, 'half-ppr').rankings.map((r) => r.name);
+  const half = ringer.parseHtml(html, 'half-ppr').rankings.map((ranking) => ranking.name);
   assert.ok(!half.includes('Dynasty Only Prospect'));
   assert.equal(half.length, 14);
-  const superflex = ringer.parseHtml(html, 'superflex').rankings.map((r) => r.name);
+  const superflex = ringer.parseHtml(html, 'superflex').rankings.map((ranking) => ranking.name);
   assert.ok(!superflex.includes('Travis Kelce'));
 });
 
 test('teams are converted to Sleeper abbreviations', () => {
   const { rankings } = ringer.parseHtml(html, 'half-ppr');
-  const byName = new Map(rankings.map((r) => [r.name, r]));
+  const byName = new Map(rankings.map((ranking) => [ranking.name, ranking]));
   assert.equal(byName.get('Christian McCaffrey').team, 'SF');
   assert.equal(byName.get('Ashton Jeanty').team, 'LV');
   assert.equal(byName.get('Puka Nacua').team, 'LAR');
@@ -57,14 +57,14 @@ test('every scoring format produces a board with unique ascending ranks', () => 
   for (const format of ['half-ppr', 'ppr', 'zero-ppr', 'superflex']) {
     const result = ringer.parseHtml(html, format);
     assert.equal(result.ok, true, `${format} should parse`);
-    const ranks = result.rankings.map((r) => r.rank);
+    const ranks = result.rankings.map((ranking) => ranking.rank);
     assert.deepEqual(ranks, [...ranks].sort((a, b) => a - b));
     assert.equal(new Set(ranks).size, ranks.length);
   }
 });
 
 test('defenses keep a matchable team', () => {
-  const defenses = ringer.parseHtml(html, 'half-ppr').rankings.filter((r) => r.position === 'DEF');
+  const defenses = ringer.parseHtml(html, 'half-ppr').rankings.filter((ranking) => ranking.position === 'DEF');
   assert.equal(defenses.length, 1);
   assert.equal(defenses[0].team, 'DAL');
 });

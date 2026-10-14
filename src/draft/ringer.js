@@ -13,6 +13,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   ];
 
   const UNRANKED = 9000;
+  const FETCH_TIMEOUT_MS = 20000;
 
   const TEAM_ABBR = {
     '49ers': 'SF', Bears: 'CHI', Bengals: 'CIN', Bills: 'BUF', Broncos: 'DEN',
@@ -117,7 +118,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   async function fetchRankings(format) {
     let html;
     try {
-      const response = await fetch(RINGER_URL, { credentials: 'omit', signal: AbortSignal.timeout(20000) });
+      const response = await fetch(RINGER_URL, { credentials: 'omit', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (!response.ok) {
         return { ok: false, rankings: [], reason: `The Ringer returned ${response.status}.` };
       }
@@ -128,7 +129,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return parseHtml(html, format);
   }
 
-  const fingerprint = (rankings) => (rankings || []).map((r) => `${r.name}|${r.position}`);
+  const fingerprint = (rankings) => (rankings || []).map((player) => `${player.name}|${player.position}`);
 
   function isUntouched(current, synced) {
     if (!current || !current.length) return true;

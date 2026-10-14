@@ -3,30 +3,30 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const sum = (xs) => xs.reduce((a, b) => a + b, 0);
-  const median = (xs) => {
-    if (!xs.length) return null;
-    const s = xs.slice().sort((a, b) => a - b);
-    const mid = Math.floor(s.length / 2);
-    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  const sum = (values) => values.reduce((total, value) => total + value, 0);
+  const median = (values) => {
+    if (!values.length) return null;
+    const sorted = values.slice().sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
   };
 
   function parse(transactions, season) {
     const out = [];
-    for (const tx of transactions || []) {
-      if (!tx || tx.type !== 'trade' || tx.status !== 'complete') continue;
-      const ids = (tx.roster_ids || []).slice();
+    for (const transaction of transactions || []) {
+      if (!transaction || transaction.type !== 'trade' || transaction.status !== 'complete') continue;
+      const ids = (transaction.roster_ids || []).slice();
       if (ids.length < 2) continue;
       const sides = {};
-      for (const id of ids) sides[id] = { got: [], gave: [], gotPicks: [], gavePicks: [] };
-      for (const [playerId, rosterId] of Object.entries(tx.adds || {})) if (sides[rosterId]) sides[rosterId].got.push(playerId);
-      for (const [playerId, rosterId] of Object.entries(tx.drops || {})) if (sides[rosterId]) sides[rosterId].gave.push(playerId);
-      for (const p of tx.draft_picks || []) {
-        const pick = { season: String(p.season), round: p.round, from: p.roster_id };
-        if (sides[p.owner_id]) sides[p.owner_id].gotPicks.push(pick);
-        if (sides[p.previous_owner_id]) sides[p.previous_owner_id].gavePicks.push(pick);
+      for (const rosterId of ids) sides[rosterId] = { got: [], gave: [], gotPicks: [], gavePicks: [] };
+      for (const [playerId, rosterId] of Object.entries(transaction.adds || {})) if (sides[rosterId]) sides[rosterId].got.push(playerId);
+      for (const [playerId, rosterId] of Object.entries(transaction.drops || {})) if (sides[rosterId]) sides[rosterId].gave.push(playerId);
+      for (const tradedPick of transaction.draft_picks || []) {
+        const pick = { season: String(tradedPick.season), round: tradedPick.round, from: tradedPick.roster_id };
+        if (sides[tradedPick.owner_id]) sides[tradedPick.owner_id].gotPicks.push(pick);
+        if (sides[tradedPick.previous_owner_id]) sides[tradedPick.previous_owner_id].gavePicks.push(pick);
       }
-      out.push({ id: tx.transaction_id, season: String(season), week: tx.leg || 1, at: tx.created || 0, sides });
+      out.push({ id: transaction.transaction_id, season: String(season), week: transaction.leg || 1, at: transaction.created || 0, sides });
     }
     return out.sort((a, b) => b.at - a.at);
   }
@@ -36,9 +36,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     for (const [rosterId, side] of Object.entries(trade.sides)) {
       let started = 0;
       let bench = 0;
-      for (const w of weekly) {
-        if (w.week <= trade.week) continue;
-        const entry = w.rosters[rosterId];
+      for (const weekEntry of weekly) {
+        if (weekEntry.week <= trade.week) continue;
+        const entry = weekEntry.rosters[rosterId];
         if (!entry) continue;
         const starters = new Set(entry.starters || []);
         for (const playerId of side.got) {
@@ -59,8 +59,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function grade(trade, context, real) {
     const ids = Object.keys(trade.sides);
     const assets = (rosterId, which) => {
-      const s = trade.sides[rosterId];
-      return (which === 'got' ? s.got : s.gave).map((playerId) => ({ pid: playerId })).concat((which === 'got' ? s.gotPicks : s.gavePicks).map((pick) => ({ pick })));
+      const side = trade.sides[rosterId];
+      return (which === 'got' ? side.got : side.gave).map((playerId) => ({ pid: playerId })).concat((which === 'got' ? side.gotPicks : side.gavePicks).map((pick) => ({ pick })));
     };
     const out = {};
     for (const rosterId of ids) {
@@ -68,9 +68,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const gave = context.sideValue(assets(rosterId, 'gave').map(context.assetValue));
       const size = Math.max(got, gave, 1);
       const valueNet = got - gave;
-      const others = ids.filter((o) => o !== rosterId);
+      const others = ids.filter((otherId) => otherId !== rosterId);
       const mine = real && real[rosterId] ? real[rosterId].started : 0;
-      const theirs = sum(others.map((o) => (real && real[o] ? real[o].started : 0)));
+      const theirs = sum(others.map((other) => (real && real[other] ? real[other].started : 0)));
       const ptsNet = mine - theirs;
       const hasValue = got > 0 || gave > 0;
       const ptsSize = Math.max(mine, theirs, hasValue ? 60 : 30);
@@ -87,25 +87,25 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     for (const { trade, grades } of graded) {
       for (const [rosterId, side] of Object.entries(trade.sides)) {
         const key = keyOf(trade, rosterId);
-        const p = out[key] || (out[key] = { trades: 0, pcts: [], picks: 0, assets: 0, gave: 0, got: 0, partners: {} });
-        p.trades++;
-        p.pcts.push(grades[rosterId].valuePct);
-        p.picks += side.gotPicks.length + side.gavePicks.length;
-        p.assets += side.got.length + side.gave.length + side.gotPicks.length + side.gavePicks.length;
-        p.gave += side.gave.length;
-        p.got += side.got.length;
-        for (const o of Object.keys(trade.sides)) if (o !== rosterId) p.partners[keyOf(trade, o)] = (p.partners[keyOf(trade, o)] || 0) + 1;
+        const profile = out[key] || (out[key] = { trades: 0, pcts: [], picks: 0, assets: 0, gave: 0, got: 0, partners: {} });
+        profile.trades++;
+        profile.pcts.push(grades[rosterId].valuePct);
+        profile.picks += side.gotPicks.length + side.gavePicks.length;
+        profile.assets += side.got.length + side.gave.length + side.gotPicks.length + side.gavePicks.length;
+        profile.gave += side.gave.length;
+        profile.got += side.got.length;
+        for (const otherRosterId of Object.keys(trade.sides)) if (otherRosterId !== rosterId) profile.partners[keyOf(trade, otherRosterId)] = (profile.partners[keyOf(trade, otherRosterId)] || 0) + 1;
       }
     }
     const done = {};
-    for (const [rosterId, p] of Object.entries(out)) {
+    for (const [rosterId, profile] of Object.entries(out)) {
       done[rosterId] = {
-        trades: p.trades,
-        avgPct: Math.round(sum(p.pcts) / p.pcts.length * 1000) / 1000,
-        picksShare: p.assets ? p.picks / p.assets : 0,
-        avgGave: p.gave / p.trades,
-        avgGot: p.got / p.trades,
-        partners: p.partners
+        trades: profile.trades,
+        avgPct: Math.round(sum(profile.pcts) / profile.pcts.length * 1000) / 1000,
+        picksShare: profile.assets ? profile.picks / profile.assets : 0,
+        avgGave: profile.gave / profile.trades,
+        avgGot: profile.got / profile.trades,
+        partners: profile.partners
       };
     }
     return done;
@@ -113,7 +113,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function league(graded, seasons) {
     const abs = [];
-    for (const { grades } of graded) for (const g of Object.values(grades)) if (g.valuePct) abs.push(Math.abs(g.valuePct));
+    for (const { grades } of graded) for (const grade of Object.values(grades)) if (grade.valuePct) abs.push(Math.abs(grade.valuePct));
     const med = median(abs);
     return {
       count: graded.length,

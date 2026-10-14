@@ -26,7 +26,7 @@ enforces it).
 | --- | --- | --- |
 | Shared | `storage`, `dom`, `format`, `leagues`, `api`, `account`, `teams`, `players` | `api` is the only module that touches the network (every request times out after 20 s). `account` resolves your username and user id once for every tool; `leagues` holds the league plumbing they all share (your roster, team names, the week to show). `players` is the single cached copy of Sleeper's ~5 MB player directory. |
 | Pure logic | `scoring`, `tracker`, `lineups`, `bets`, `season`, `match`, `draftOrder`, `ringer` | No DOM, no network. They also export via `module.exports` and are unit-tested in Node. |
-| Views | `NightOwl.views.{draft, live, lineups, bets, season}` | Each one is `{ mount(el), unmount(), navigated?() }`. Only the visible view is mounted, and an unmounted view must stop all timers. |
+| Views | `NightOwl.views.{draft, live, lineups, bets, season, moves}` | Each one is `{ mount(el), unmount(), navigated?() }`. Only the visible view is mounted, and an unmounted view must stop all timers. |
 | Shell | `panel/shell.js`, `panel/main.js` | The shell owns the shadow root, the tool switch, drag and resize. `main.js` is the entry point and follows Sleeper's SPA navigation. |
 
 Views render on every poll, and most polls change nothing. Write markup with
@@ -50,7 +50,8 @@ icons/                 extension icons (16/32/48/128); SVG sources in icons/src/
 docs/                  README images, brand assets (logo, avatar, social preview)
 scripts/               check.mjs (static checks), package.mjs (release zip)
 src/
-  background.js        fetch relay for ESPN (allow-listed hosts only)
+  background.js        ESPN fetch relay (allow-listed hosts only), lineup alerts,
+                       and a twice-daily refresh of KeepTradeCut and Ringer data
   shared/              storage, DOM helpers and styles loader, formatting,
                        league helpers, API client, account, team colors,
                        shared player directory
@@ -60,18 +61,23 @@ src/
   live/                view.js, scoring.js, tracker.js
   lineups/             view.js, core.js (windows, optimal lineup)
   bets/                view.js, core.js (lines, odds, hit rates)
-  season/              view.js, core.js (all-play, luck, max points, win odds,
+  season/              view.js, extras-view.js (path and recap), path.js, recap.js,
+                       replacement.js (replacement level, byes, fading projections),
+                       core.js (all-play, luck, max points, win odds,
                        live week, draft order, power rating), project.js
                        (rest-of-season simulation), value.js (what a roster
                        move is worth in lineup points), model.js (calendar,
                        schedule, projections, shared by Season and Moves),
                        finder.js (trade proposals: how each side judges a deal)
-  trades/              history.js (parse, grade, manager profiles), loader.js (fetch and cache)
+  trades/              history.js (parse, grade, manager profiles), drafts.js (draft
+                       boards and pick ownership), loader.js (fetch and cache)
   moves/               view.js (waivers, trade analyzer), finder-view.js (trade
-                       finder), values.js (picks, KTC values, windows)
+                       finder), history-view.js, drafts-view.js, values.js (picks,
+                       KTC values, blended price, windows)
   styles/              panel, draft, common, live, bets, lineups, season, moves (.css)
   shared/ktc.js        KeepTradeCut dynasty values (page parsed in the background worker)
   popup/               username, rankings editor, Ringer sync
+tools/preview/         preview server and shim (fault switches: fault=, nfl=, leagues=, status=)
 tools/backtest/        run.mjs: replays real trades through the finder's gates (npm run backtest -- --user <name>)
 test/                  node --test, with real captured fixtures
 ```
@@ -93,8 +99,6 @@ panel sizes into `.preview/`, using real data with league and owner names
 anonymized. `node tools/preview/server.mjs` serves the same page for a live
 look at `http://127.0.0.1:8765/?user=<name>&tool=live`.
 
-`.claude/agents/ux-reviewer.md` defines a design-review agent for Claude Code
-that takes these screenshots and returns prioritized look-and-feel findings.
 
 ## Ground rules
 

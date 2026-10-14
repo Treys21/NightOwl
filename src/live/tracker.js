@@ -6,29 +6,29 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const { points, statDelta, deltaPoints, describe, round2 } = NightOwl.scoring;
 
   function pickMatchup(matchups, myRosterId) {
-    const mine = matchups.find((m) => m.roster_id === myRosterId);
+    const mine = matchups.find((matchup) => matchup.roster_id === myRosterId);
     if (!mine) return null;
     const opponent = mine.matchup_id == null
       ? null
-      : matchups.find((m) => m.matchup_id === mine.matchup_id && m.roster_id !== myRosterId) || null;
-    const side = (m) => m && {
-      rosterId: m.roster_id,
-      slots: m.starters || [],
-      starters: (m.starters || []).filter((playerId) => playerId && playerId !== '0')
+      : matchups.find((matchup) => matchup.matchup_id === mine.matchup_id && matchup.roster_id !== myRosterId) || null;
+    const side = (matchup) => matchup && {
+      rosterId: matchup.roster_id,
+      slots: matchup.starters || [],
+      starters: (matchup.starters || []).filter((playerId) => playerId && playerId !== '0')
     };
     return { mine: side(mine), opp: side(opponent) };
   }
 
   function watchList(leagues) {
     const out = new Map();
-    const add = (playerId, leagueId, side) => {
+    const addSpot = (playerId, leagueId, side) => {
       if (!out.has(playerId)) out.set(playerId, []);
       out.get(playerId).push({ leagueId, side });
     };
     for (const league of leagues) {
       if (!league.matchup) continue;
-      for (const playerId of league.matchup.mine.starters) add(playerId, league.leagueId, 'me');
-      if (league.matchup.opp) for (const playerId of league.matchup.opp.starters) add(playerId, league.leagueId, 'opp');
+      for (const playerId of league.matchup.mine.starters) addSpot(playerId, league.leagueId, 'me');
+      if (league.matchup.opp) for (const playerId of league.matchup.opp.starters) addSpot(playerId, league.leagueId, 'opp');
     }
     return out;
   }
@@ -46,12 +46,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
-  function diffEvents(prev, cur, leagues, info, ts) {
+  function diffEvents(previous, current, leagues, info, timestamp) {
     const byId = new Map(leagues.map((league) => [league.leagueId, league]));
     const events = [];
     for (const [playerId, spots] of watchList(leagues)) {
-      if (!(playerId in prev)) continue;
-      const delta = statDelta(prev[playerId], cur[playerId]);
+      if (!(playerId in previous)) continue;
+      const delta = statDelta(previous[playerId], current[playerId]);
       if (!Object.keys(delta).length) continue;
 
       const impacts = spots.map(({ leagueId, side }) => {
@@ -60,16 +60,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       });
       if (impacts.every((i) => i.pts === 0)) continue;
 
-      const net = round2(impacts.reduce((s, i) => s + (i.side === 'me' ? i.pts : -i.pts), 0));
-      const p = info(playerId);
+      const net = round2(impacts.reduce((total, i) => total + (i.side === 'me' ? i.pts : -i.pts), 0));
+      const player = info(playerId);
       events.push({
-        id: `${ts}-${playerId}`,
-        ts,
+        id: `${timestamp}-${playerId}`,
+        ts: timestamp,
         pid: playerId,
-        name: p.name,
-        pos: p.pos,
-        team: p.team,
-        text: describe(delta, spots.map((s) => byId.get(s.leagueId).scoring)),
+        name: player.name,
+        pos: player.pos,
+        team: player.team,
+        text: describe(delta, spots.map((spot) => byId.get(spot.leagueId).scoring)),
         impacts,
         net
       });

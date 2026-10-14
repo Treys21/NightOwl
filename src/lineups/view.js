@@ -4,7 +4,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, scoring, teams, players, storage, account, dom } = NightOwl;
-  const { escape: escapeHtml, tenths: fmt, windowTitle, countdown } = NightOwl.format;
+  const { escape: escapeHtml, tenths: fmt, windowTitle, countdown, dayTime } = NightOwl.format;
   const { isPlaying, mine, startingSlots, slotLabel, lookaheadWeek, seasonType: seasonTypeOf, teamUrl } = NightOwl.leagues;
   const core = NightOwl.lineups;
   let root = null;
@@ -25,6 +25,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     projAt: 0,
     loadedAt: 0,
     open: new Set(),
+    collapsed: new Set(),
     timers: [],
     busy: false,
     error: null
@@ -134,74 +135,212 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { leagues, wins: core.windows(state.games).filter((w) => !w.started && w.kickoff > now) };
   }
 
-  function optionsList(r) {
-    if (!r.options || !r.options.length) return '';
-    const anyGain = r.options.some((o) => o.gain > 0);
-    const [label, unit] = !anyGain && r.status === 'start' ? ['Backup if he sits', 'proj']
-      : [r.status === 'start' ? 'Swap out for' : 'Start over', anyGain ? 'pts gained' : 'pts lost'];
-    const chip = (o) => {
-      const cls = o.gain > 0 ? 'up' : o.gain < 0 ? 'down' : '';
-      const effect = o.gain > 0 ? `gains ${fmt(o.gain)}` : o.gain < 0 ? `loses ${fmt(-o.gain)}` : 'is a wash';
-      const where = o.via
-        ? `${escapeHtml(slotLabel(o.slot))} (${escapeHtml(o.via.name)} moves to ${escapeHtml(slotLabel(o.via.slot))})`
-        : escapeHtml(slotLabel(o.slot));
-      const title = r.status === 'start'
-        ? `Benching ${r.name} for ${o.name} (${fmt(o.proj)} proj) ${effect}`
-        : `Starting ${r.name} over ${o.name} (${fmt(o.proj)} proj) ${effect}`;
-      return `<span class="lu-opt ${cls}" title="${escapeHtml(title)}${o.via ? ` (${escapeHtml(o.via.name)} slides to ${escapeHtml(slotLabel(o.via.slot))})` : ''}">
-        <b>${escapeHtml(o.name)}</b><span class="lu-opt-slot">${where}</span>${!anyGain && r.status === 'start'
-    ? `<span class="lu-gain">${fmt(o.proj)}</span>`
-    : `<span class="lu-gain ${cls}">${o.gain > 0 ? '+' : o.gain < 0 ? '−' : '±'}${fmt(Math.abs(o.gain))}</span>`}</span>`;
-    };
-    const shown = anyGain ? 3 : 1;
-    const top = r.options.slice(0, shown).map(chip).join('');
-    const rest = r.options.slice(shown);
-    return `<div class="lu-opts${anyGain ? '' : ' quiet'}"><span class="lu-opts-label"><span>${label}</span><span>${unit}</span></span>${top}${rest.length
-      ? `<details class="lu-more"><summary>+${rest.length} more</summary>${rest.map(chip).join('')}</details>` : ''}</div>`;
+  const RISK_LABEL = { bye: 'Bye week', out: 'Out', questionable: 'Questionable' };
+  const MOVE_VERB = { start: 'Start', slide: 'Slide', move: 'Slide', bench: 'Bench' };
+
+  function optionChip(row, option, showProjection) {
+    const direction = option.gain > 0 ? 'up' : option.gain < 0 ? 'down' : '';
+    const effect = option.gain > 0 ? `gains ${fmt(option.gain)}` : option.gain < 0 ? `loses ${fmt(-option.gain)}` : 'is a wash';
+    const verb = row.status === 'start' ? `Benching ${row.name} for` : `Starting ${row.name} over`;
+    const slideNote = option.via ? ` (${option.via.name} slides to ${slotLabel(option.via.slot)})` : '';
+    const title = `${verb} ${option.name} (${fmt(option.proj)} proj) ${effect}${slideNote}`;
+    const sign = option.gain > 0 ? '+' : option.gain < 0 ? '−' : '±';
+    const figure = showProjection ? fmt(option.proj) : `${sign}${fmt(Math.abs(option.gain))}`;
+    return `<span class="lu-opt ${direction}" title="${escapeHtml(title)}">
+      <b>${escapeHtml(option.name)}</b><span class="lu-opt-slot">${escapeHtml(slotLabel(option.slot))}</span>
+      <span class="lu-gain ${showProjection ? '' : direction}">${figure}</span>
+    </span>`;
+  }
+
+  function rowOptions(row) {
+    const options = row.options || [];
+    if (!options.length || row.locked || row.move) return '';
+    const startsAtRisk = row.status === 'start' && core.riskOf(row);
+    const improves = options[0].gain >= core.MIN_GAIN;
+    if (!startsAtRisk && !improves) return '';
+    const showProjection = !improves;
+    const label = showProjection ? 'Backup' : row.status === 'start' ? 'Swap for' : 'Start over';
+    const [best] = options;
+    if (options.length === 1) {
+      return `<div class="lu-row-options single"><span class="lu-row-options-label">${label}</span>${optionChip(row, best, showProjection)}</div>`;
+    }
+    return `<details class="lu-row-options">
+      <summary><span class="lu-row-options-label">${label}</span>${optionChip(row, best, showProjection)}<span class="lu-row-options-more">+${options.length - 1} more</span></summary>
+      <div class="lu-row-options-list">${options.slice(1).map((option) => optionChip(row, option, showProjection)).join('')}</div>
+    </details>`;
   }
 
   function bestBanner(league) {
     if (!league.best || !league.best.moves.length) return '';
-    const verb = { start: 'Start', move: 'Slide', bench: 'Bench' };
     return `<div class="lu-best">
-      <div class="lu-best-head"><span>Optimal lineup</span><span class="lu-best-gain">+${fmt(league.best.gain)} proj</span></div>
-      <div class="lu-best-moves">${league.best.moves.map((m) => `<span class="lu-move ${m.type}">${verb[m.type]} <b>${escapeHtml(m.name)}</b>${m.slot ? ` → ${escapeHtml(slotLabel(m.slot))}` : ''}</span>`).join('')}</div>
+      <div class="lu-best-head"><span>Best lineup</span><span class="lu-best-gain">+${fmt(league.best.gain)} pts</span></div>
+      <ul class="lu-best-moves">${league.best.moves.map((move) => `<li class="lu-move ${move.type}">
+        <span class="lu-move-verb">${MOVE_VERB[move.type]}</span><b>${escapeHtml(move.name)}</b>${move.slot ? `<span class="lu-move-slot">${escapeHtml(slotLabel(move.slot))}</span>` : ''}
+      </li>`).join('')}</ul>
     </div>`;
   }
 
-  function playerRow(league, r) {
-    const tag = r.status === 'start'
-      ? `<span class="lu-pill start">${escapeHtml(slotLabel(r.slot))}</span>`
-      : `<span class="lu-pill ${r.status}">${r.status === 'ir' ? 'IR' : r.status === 'taxi' ? 'TAXI' : 'BENCH'}</span>`;
-    const inj = r.injury ? `<span class="lu-inj ${core.OUT.has(r.injury) ? 'out' : ''}">${escapeHtml(r.injury === 'Questionable' ? 'Q' : r.injury)}</span>` : '';
-    const head = teams.photo(r.pid, r.team);
-    const notes = r.notes.map((n) => `<div class="lu-note ${n.kind}">${n.kind === 'swap' ? '⇄' : '⚠'} ${escapeHtml(n.text)}</div>`).join('');
-    const opts = optionsList(r);
-    return `<li class="lu-row ${r.status}${r.notes.some((n) => n.kind !== 'info') ? ' flagged' : ''}" style="--tc:${teams.colors(r.team).primary}">
-      <img class="lu-head" alt="" src="${head}" style="border-color:${teams.colors(r.team).primary}">
-      <div class="lu-main">
-        <div><span class="lu-name">${escapeHtml(r.name)}</span> <span class="muted small">${escapeHtml(r.pos)} · ${escapeHtml(r.team)}</span> ${inj}</div>
+  function rowFlag(row) {
+    if (row.status === 'ir' && row.injury === 'IR') return '';
+    if (row.bye) return { text: RISK_LABEL.bye, tone: 'warn' };
+    if (!row.injury) return '';
+    const tone = core.OUT.has(row.injury) ? 'out' : 'warn';
+    return { text: row.injury, tone };
+  }
+
+  function rowMove(row) {
+    if (!row.move || row.locked) return '';
+    const text = row.move === 'bench' ? 'Bench' : `${MOVE_VERB[row.move]} ${row.move === 'start' ? 'at' : 'to'} ${slotLabel(row.moveSlot)}`;
+    return `<span class="lu-row-move ${row.move}">${row.move === 'start' ? '↑' : row.move === 'bench' ? '↓' : '↔'} ${escapeHtml(text)}</span>`;
+  }
+
+  function playerRow(league, row) {
+    const risk = core.riskOf(row);
+    const flag = rowFlag(row);
+    const colors = teams.colors(row.team).primary;
+    const scoresZero = row.status === 'start' && (row.bye || core.OUT.has(row.injury));
+    const projection = row.status === 'ir' || row.status === 'taxi' ? '–' : scoresZero ? `<s>${fmt(row.proj)}</s>` : fmt(row.proj);
+    const slotCell = row.status === 'start' ? slotLabel(row.slot) : row.status === 'bench' ? 'BN' : row.status === 'ir' ? 'IR' : 'TAXI';
+    const extra = `${rowMove(row)}${rowOptions(row)}`;
+    return `<li class="lu-row ${row.status}${risk === 'bye' || risk === 'out' ? ' at-risk' : ''}${row.move && !row.locked ? ' moving' : ''}" style="--tc:${colors}">
+      <img class="lu-head" alt="" src="${teams.photo(row.pid, row.team)}" style="border-color:${colors}">
+      <div class="lu-row-who">
+        <span class="lu-name">${escapeHtml(row.name)}</span>
+        <span class="lu-row-meta">${escapeHtml(row.pos)} · ${escapeHtml(row.team)}${flag ? ` <span class="lu-row-flag ${flag.tone}">${escapeHtml(flag.text)}</span>` : ''}</span>
       </div>
-      <div class="lu-side">${tag}<span class="lu-proj">${fmt(r.proj)}</span>${r.inBest && league.best && league.best.moves.length ? '<span class="lu-inbest" title="In the optimal lineup">★ best</span>' : ''}</div>
-      <div class="lu-extra">${notes}${opts}</div>
+      <span class="lu-row-slot ${row.status}">${escapeHtml(slotCell)}</span>
+      <span class="lu-row-proj${scoresZero ? ' zero' : ''}"${scoresZero ? ` title="Projected ${fmt(row.proj)}, but not expected to score"` : ''}>${projection}</span>
+      ${extra ? `<div class="lu-row-extra">${extra}</div>` : ''}
     </li>`;
   }
 
+  function emptySlotRow(slot) {
+    return `<li class="lu-row vacant at-risk">
+      <span class="lu-row-hole">+</span>
+      <div class="lu-row-who"><span class="lu-name">Empty slot</span><span class="lu-row-meta">Fill before kickoff</span></div>
+      <span class="lu-row-slot start">${escapeHtml(slotLabel(slot))}</span>
+      <span class="lu-row-proj">–</span>
+    </li>`;
+  }
+
+  function verdictChip(verdict) {
+    if (verdict.state === 'fix') return `<span class="lu-block-verdict fix">${verdict.problems} to fix</span>`;
+    if (verdict.state === 'better') return `<span class="lu-block-verdict better">+${fmt(verdict.gain)} available</span>`;
+    return '<span class="lu-block-verdict set">✓ Set</span>';
+  }
+
+  function rowGroup(name, rows, renderRow, withColumns) {
+    if (!rows.length) return '';
+    return `<li class="lu-block-group"><span class="lu-block-group-name">${name}<i>${rows.length}</i></span>${withColumns ? '<span class="lu-block-group-column">Slot</span><span class="lu-block-group-column">Proj</span>' : ''}</li>${rows.map(renderRow).join('')}`;
+  }
+
   function leagueBlock(league, rows, showBest) {
-    const flags = rows.filter((r) => r.notes.some((n) => n.kind !== 'info')).length;
+    const atRiskFirst = (a, b) => Number(!(core.riskOf(a) === 'bye' || core.riskOf(a) === 'out')) - Number(!(core.riskOf(b) === 'bye' || core.riskOf(b) === 'out'));
+    const starters = rows.filter((row) => row.status === 'start').sort(atRiskFirst);
+    const bench = rows.filter((row) => row.status === 'bench');
+    const reserve = rows.filter((row) => row.status === 'ir' || row.status === 'taxi');
+    const emptySlots = showBest ? league.empty : [];
+    const renderRow = (row) => playerRow(league, row);
     return `<div class="lu-league">
       <div class="lu-league-head">
         <span class="lname">${escapeHtml(league.name)}</span>
-        ${flags ? `<span class="lu-flagcount">${flags} to fix</span>` : ''}
+        ${showBest ? verdictChip(core.verdictOf(league)) : ''}
         <a class="lu-edit" href="${teamUrl(league.leagueId)}">Edit lineup ↗</a>
       </div>
       ${showBest ? bestBanner(league) : ''}
-      <ol class="lu-list">${rows.map((r) => playerRow(league, r)).join('')}</ol>
+      <ol class="lu-list">
+        ${starters.length || emptySlots.length ? `<li class="lu-block-group"><span class="lu-block-group-name">Starters<i>${starters.length + emptySlots.length}</i></span><span class="lu-block-group-column">Slot</span><span class="lu-block-group-column">Proj</span></li>${emptySlots.map(emptySlotRow).join('')}${starters.map(renderRow).join('')}` : ''}
+        ${rowGroup('Bench', bench, renderRow, !starters.length && !emptySlots.length)}
+        ${rowGroup('IR and taxi', reserve, renderRow, false)}
+      </ol>
     </div>`;
   }
 
   const ORDER = { start: 0, bench: 1, taxi: 2, ir: 3 };
   const sortRows = (rows) => rows.slice().sort((a, b) => ORDER[a.status] - ORDER[b.status] || (a.slotIndex ?? 99) - (b.slotIndex ?? 99) || b.proj - a.proj);
+
+  function fixSentence(fix) {
+    if (fix.kind === 'empty') return fix.replacement ? `Start ${fix.replacement} at ${slotLabel(fix.slot)}` : `Fill the empty ${slotLabel(fix.slot)} slot`;
+    return fix.replacement ? `Start ${fix.replacement} over ${fix.playerName} (${fix.problem})` : `${fix.playerName} is ${fix.problem}: pick a replacement`;
+  }
+
+  function improvementSentence(improvement) {
+    const starts = improvement.moves.filter((move) => move.type === 'start').map((move) => `${move.name}${move.slot ? ` at ${slotLabel(move.slot)}` : ''}`);
+    const benches = improvement.moves.filter((move) => move.type === 'bench').map((move) => move.name);
+    const startPart = starts.length ? `Start ${starts.slice(0, 2).join(', ')}` : '';
+    const benchPart = benches.length ? `${startPart ? 'bench' : 'Bench'} ${benches[0]}` : '';
+    const hiddenCount = Math.max(0, starts.length - 2) + Math.max(0, benches.length - 1);
+    const sentence = [startPart, benchPart].filter(Boolean).join(', ') || `Better lineup (+${fmt(improvement.gain)} pts)`;
+    return hiddenCount ? `${sentence} +${hiddenCount} more` : sentence;
+  }
+
+  function bannerDetail(summary, upcomingWindows) {
+    const nextWindow = upcomingWindows[0];
+    if (summary.status === 'improve') {
+      const count = summary.improvements.length;
+      return `+${fmt(summary.totalGain)} pts available in ${count} league${count === 1 ? '' : 's'}`;
+    }
+    if (!nextWindow) return '';
+    if (nextWindow.approx) return 'Kickoff times unavailable';
+    if (summary.status === 'fix') {
+      const dueWindow = upcomingWindows[Math.min(...summary.fixes.map((fix) => fix.windowIndex))] || nextWindow;
+      return `Before ${dayTime(dueWindow.kickoff)}`;
+    }
+    return `Next lock ${dayTime(nextWindow.kickoff)}`;
+  }
+
+  function statusBanner(summary, upcomingWindows) {
+    const fixCount = summary.fixes.length;
+    const heading = {
+      fix: { icon: '!', title: `${fixCount} fix${fixCount === 1 ? '' : 'es'} needed` },
+      improve: { icon: '↑', title: 'No fixes needed' },
+      set: { icon: '✓', title: 'All set' }
+    }[summary.status];
+    const item = (text, leagueName, leagueId, extra = '') => `<li><a class="lu-top-item" href="${teamUrl(leagueId)}"><span class="lu-top-action">${escapeHtml(text)}</span><span class="lu-top-league">${escapeHtml(leagueName)}${extra}</span></a></li>`;
+    const items = summary.status === 'fix'
+      ? summary.fixes.map((fix) => item(fixSentence(fix), fix.leagueName, fix.leagueId))
+      : summary.status === 'improve'
+        ? summary.improvements.map((improvement) => item(improvementSentence(improvement), improvement.leagueName, improvement.leagueId, ` · +${fmt(improvement.gain)}`))
+        : [];
+    return `<section class="lu-top lu-top-${summary.status}">
+      <div class="lu-top-head">
+        <span class="lu-top-icon" aria-hidden="true">${heading.icon}</span>
+        <div><strong class="lu-top-title">${escapeHtml(heading.title)}</strong><span class="lu-top-sub">${escapeHtml(bannerDetail(summary, upcomingWindows))}</span></div>
+      </div>
+      ${items.length ? `<ul class="lu-top-list">${items.join('')}</ul>` : ''}
+    </section>`;
+  }
+
+  function windowStatus({ blocks, fixCount, possibleGain }) {
+    if (!blocks.length) return '';
+    if (fixCount) return `<span class="lu-win-status fix">${fixCount} to fix</span>`;
+    if (possibleGain) return `<span class="lu-win-status tip">+${fmt(possibleGain)} available</span>`;
+    return '<span class="lu-win-status set">✓ Set</span>';
+  }
+
+  function windowCard({ lockWindow, windowIndex, blocks, startersPlaying, fixCount, possibleGain }) {
+    const isNext = windowIndex === 0;
+    const isOpen = state.open.has(lockWindow.kickoff) || (isNext && !state.collapsed.has(lockWindow.kickoff));
+    const soon = lockWindow.kickoff - Date.now() < 3600000;
+    const withinHalfDay = lockWindow.kickoff - Date.now() < 12 * 3600000;
+    const logos = lockWindow.games.slice(0, 8).map((game) => `<span class="lu-game"><img alt="" src="${teams.logo(game.away)}"><img alt="" src="${teams.logo(game.home)}"></span>`).join('');
+    const lockText = lockWindow.approx ? '' : `<span class="lu-lock${soon ? ' soon' : ''}">${withinHalfDay ? ring(lockWindow.kickoff, soon) : ''}locks in ${countdown(lockWindow.kickoff)}</span>`;
+    const startersText = startersPlaying ? `<span class="lu-win-count">${startersPlaying} of your starters</span>` : '';
+    return `<details class="lu-window${isNext ? ' next' : ''}" data-k="${lockWindow.kickoff}"${isOpen ? ' open' : ''}>
+      <summary>
+        <div class="lu-win-main">
+          <span class="lu-win-label">${isNext ? '<span class="lu-win-next">Next</span>' : ''}${escapeHtml(windowLabel(lockWindow))}</span>
+          ${windowStatus({ blocks, fixCount, possibleGain })}
+        </div>
+        <div class="lu-win-sub">
+          <div class="lu-games">${logos}</div>
+          ${lockText}
+          ${startersText}
+        </div>
+      </summary>
+      ${blocks.length ? `<div class="lu-leagues">${blocks.join('')}</div>` : '<p class="muted small empty">Nobody on your rosters plays in this window.</p>'}
+    </details>`;
+  }
 
   function render() {
     if (!root) return;
@@ -218,57 +357,28 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const { leagues, wins } = computed();
     const html = [];
+    const upcomingWindows = leagues.length ? wins : [];
+    const summary = core.lineupSummary(leagues, upcomingWindows);
 
-    const byes = leagues.flatMap((league) => league.rows.filter((r) => r.status === 'start' && r.bye).map((r) => ({ lg: league, r })));
-    const empties = leagues.filter((league) => league.empty.length);
-    if (byes.length || empties.length) {
-      html.push(`<div class="lu-alert">
-        <strong>Fix before kickoff</strong>
-        ${byes.map(({ lg: league, r }) => `<div>${escapeHtml(r.name)} is on bye but starting in <a href="${teamUrl(league.leagueId)}">${escapeHtml(league.name)}</a></div>`).join('')}
-        ${empties.map((league) => `<div>Empty ${escapeHtml(league.empty.join(', '))} slot${league.empty.length > 1 ? 's' : ''} in <a href="${teamUrl(league.leagueId)}">${escapeHtml(league.name)}</a></div>`).join('')}
-      </div>`);
-    }
-
-    const shownWins = leagues.length ? wins : [];
     if (!leagues.length) html.push('<p class="muted small empty">No in-season leagues right now.</p>');
     else if (!wins.length) html.push('<p class="muted small empty">Every game this week has kicked off. Lineups are locked.</p>');
+    if (leagues.length && (wins.length || summary.fixes.length)) html.push(statusBanner(summary, upcomingWindows));
 
-    const bannered = new Set();
-    shownWins.forEach((w, i) => {
+    const leaguesShown = new Set();
+    upcomingWindows.forEach((lockWindow, windowIndex) => {
       const blocks = [];
-      let starting = 0;
-      let benched = 0;
-      let flags = 0;
-      let better = 0;
+      let startersPlaying = 0;
+      let possibleGain = 0;
       for (const league of leagues) {
-        const rows = sortRows(league.rows.filter((r) => w.teams.has(r.team)));
+        const rows = sortRows(league.rows.filter((r) => lockWindow.teams.has(r.team)));
         if (!rows.length) continue;
-        starting += rows.filter((r) => r.status === 'start').length;
-        benched += rows.filter((r) => r.status === 'bench').length;
-        flags += rows.filter((r) => r.notes.some((n) => n.kind !== 'info')).length;
-        if (!bannered.has(league.leagueId) && league.best && league.best.moves.length) better++;
-        blocks.push(leagueBlock(league, rows, !bannered.has(league.leagueId)));
-        bannered.add(league.leagueId);
+        startersPlaying += rows.filter((r) => r.status === 'start').length;
+        if (!leaguesShown.has(league.leagueId) && league.best && league.best.moves.length) possibleGain += league.best.gain;
+        blocks.push(leagueBlock(league, rows, !leaguesShown.has(league.leagueId)));
+        leaguesShown.add(league.leagueId);
       }
-      const open = i === 0 || state.open.has(w.kickoff);
-      const soon = w.kickoff - Date.now() < 3600000;
-      const toFix = flags + (i === 0 ? byes.length + empties.length : 0);
-      const allSet = i === 0 && blocks.length && !toFix && !better;
-      const logos = w.games.slice(0, 8).map((g) => `<span class="lu-game"><img alt="" src="${teams.logo(g.away)}"><img alt="" src="${teams.logo(g.home)}"></span>`).join('');
-      html.push(`<details class="lu-window${i === 0 ? ' next' : ''}" data-k="${w.kickoff}"${open ? ' open' : ''}>
-        <summary>
-          ${i === 0 ? '<span class="lu-eyebrow">Next lock</span>' : ''}
-          <div class="lu-when">
-            <span class="lu-label">${escapeHtml(windowLabel(w))}</span>
-            ${w.approx ? '' : `<span class="lu-lock${soon ? ' soon' : ''}">${w.kickoff - Date.now() < 12 * 3600000 ? ring(w.kickoff, soon) : ''}locks in ${countdown(w.kickoff)}</span>`}
-          </div>
-          <div class="lu-meta">
-            <div class="lu-games">${logos}</div>
-            <div class="lu-counts">${starting} starting · ${benched} benched${toFix ? ` · <span class="lu-flagcount">${toFix} to fix</span>` : ''}${allSet ? '<span class="lu-allset">✓ All set</span>' : ''}</div>
-          </div>
-        </summary>
-        ${blocks.length ? `<div class="lu-leagues">${blocks.join('')}</div>` : '<p class="muted small empty">Nobody on your rosters plays in this window.</p>'}
-      </details>`);
+      const fixCount = summary.fixes.filter((fix) => fix.windowIndex === windowIndex).length;
+      html.push(windowCard({ lockWindow, windowIndex, blocks, startersPlaying, fixCount, possibleGain }));
     });
 
     dom.setHtml($('lu-body'), html.join(''));
@@ -284,7 +394,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     $('lu-body').addEventListener('toggle', (e) => {
       const k = Number(e.target.dataset && e.target.dataset.k);
       if (!k) return;
-      if (e.target.open) state.open.add(k); else state.open.delete(k);
+      if (e.target.open) {
+        state.open.add(k);
+        state.collapsed.delete(k);
+      } else {
+        state.open.delete(k);
+        state.collapsed.add(k);
+      }
     }, true);
     state.timers.push(setInterval(() => refresh(false), REFRESH_MS));
     state.timers.push(setInterval(render, TICK_MS));

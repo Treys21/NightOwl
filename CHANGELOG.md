@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+- **Lineups reads at a glance.** A status banner at the top says "All set", "No fixes needed"
+  or "N fixes needed" with one specific line per fix; kickoff windows are compact cards with a
+  status chip; each league block has a verdict, problems first, starters and bench in aligned
+  columns, and backups only when a starter is at risk.
+- **Season.** Projected standings add first-round exit, third-place and, for leagues with a
+  draft, first-pick and top-3-pick odds. The "what you could have scored" line is gone.
+- **Bets** shows just the touchdown odds (+150), not the implied percentage.
+- **Tabs** are ordered Live, Lineups, Season, Moves, Draft, Bets.
+- **Code and repo.** Comments are gone and names are spelled out across the source and tests;
+  the repo is tidier (CI on Node 22 with read-only permissions, Dependabot, unused screenshots
+  removed, package metadata filled in).
+
 ## 3.13.0
 **A cleaner, calmer widget, a scheduled refresh, and a sweep of every state.**
 - **Moves is simpler to read.** Finder cards show three stat tiles (points for you, your title

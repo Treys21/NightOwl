@@ -11,7 +11,7 @@ const root = path.join(__dirname, '..');
 function load(files, extra = {}) {
   const store = {};
   const chrome = {
-    runtime: { id: 'test', getURL: (p) => p },
+    runtime: { id: 'test', getURL: (relativePath) => relativePath },
     storage: {
       local: {
         get: (key, callback) => callback({ [key]: store[key] }),
@@ -85,10 +85,10 @@ test('the week to show: display_week lags after Monday night, lookahead does not
 });
 
 test('a kickoff window is titled by its games', () => {
-  const w = (n) => ({ kickoff: Date.parse('2026-10-18T17:00:00Z'), games: Array.from({ length: n }, (_, i) => ({ away: `A${i}`, home: `H${i}` })) });
-  assert.match(format.windowTitle(w(7)), /· 7 games$/);
-  assert.match(format.windowTitle(w(2)), /· A0 @ H0, A1 @ H1$/);
-  assert.match(format.windowTitle(w(1)), /· A0 @ H0$/);
+  const kickoffWindow = (gameCount) => ({ kickoff: Date.parse('2026-10-18T17:00:00Z'), games: Array.from({ length: gameCount }, (_, i) => ({ away: `A${i}`, home: `H${i}` })) });
+  assert.match(format.windowTitle(kickoffWindow(7)), /· 7 games$/);
+  assert.match(format.windowTitle(kickoffWindow(2)), /· A0 @ H0, A1 @ H1$/);
+  assert.match(format.windowTitle(kickoffWindow(1)), /· A0 @ H0$/);
 });
 
 test('account: resolves once, prefers the stored id, looks up and saves when missing', async () => {
@@ -118,19 +118,19 @@ test('account: resolves once, prefers the stored id, looks up and saves when mis
 test('dom.setHtml only touches an element when its markup changes', () => {
   const { NightOwl } = load(['src/shared/dom.js']);
   let writes = 0;
-  const element = { set innerHTML(v) { writes++; this.html = v; } };
+  const element = { set innerHTML(markup) { writes++; this.html = markup; } };
   assert.equal(NightOwl.dom.setHtml(element, '<b>1</b>'), true);
   assert.equal(NightOwl.dom.setHtml(element, '<b>1</b>'), false);
   assert.equal(NightOwl.dom.setHtml(element, '<b>2</b>'), true);
   assert.equal(writes, 2);
-  const other = { set innerHTML(v) { this.html = v; } };
+  const other = { set innerHTML(markup) { this.html = markup; } };
   assert.equal(NightOwl.dom.setHtml(other, '<b>2</b>'), true);
 });
 
 test('api: positions follow IDP leagues, and every request carries a timeout signal', async () => {
   let init;
   const { NightOwl } = load(['src/shared/leagues.js', 'src/shared/api.js'], {
-    fetch: async (url, opts) => { init = opts; return { ok: true, json: async () => ({}) }; }
+    fetch: async (url, options) => { init = options; return { ok: true, json: async () => ({}) }; }
   });
   const { api } = NightOwl;
   assert.deepEqual(api.positionsFor([['QB', 'RB']]), api.OFFENSE);
@@ -153,13 +153,13 @@ test('the draft board redraws only when something changed, and keeps its scroll'
   const bodies = [];
   const listeners = {};
   const element = {
-    addEventListener: (type, fn) => { listeners[type] = fn; },
+    addEventListener: (type, listener) => { listeners[type] = listener; },
     querySelector: (sel) => (sel === '.body' ? bodies[bodies.length - 1] || null : null),
-    set innerHTML(v) { this.html = v; bodies.push({ scrollTop: 0 }); }
+    set innerHTML(markup) { this.html = markup; bodies.push({ scrollTop: 0 }); }
   };
   const prefs = { position: 'ALL', hideDrafted: false, sortBy: 'rank', sortDir: 'asc' };
-  const rows = (n) => Array.from({ length: n }, (_, i) => ({ rank: i + 1, name: `Player ${i}`, position: 'WR', team: 'KC', matched: true, pickNo: null, delta: null }));
-  const draw = (n) => NightOwl.draftBoard.render(element, { status: 'ok', rows: rows(n), myTurn: false, message: 'rd 1 · pick 2', kind: '' }, prefs, () => {});
+  const rows = (count) => Array.from({ length: count }, (_, i) => ({ rank: i + 1, name: `Player ${i}`, position: 'WR', team: 'KC', matched: true, pickNo: null, delta: null }));
+  const draw = (count) => NightOwl.draftBoard.render(element, { status: 'ok', rows: rows(count), myTurn: false, message: 'rd 1 · pick 2', kind: '' }, prefs, () => {});
 
   draw(30);
   assert.equal(bodies.length, 1);

@@ -20,11 +20,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     error: 'Couldn\'t load this draft. Check your connection, then reopen the Draft tab.'
   };
 
-  const missing = (n) => n === null || n === undefined;
+  const missing = (value) => value === null || value === undefined;
 
-  function filterRows(rows, prefs) {
-    return rows.filter((row) => !(prefs.hideDrafted && row.pickNo)
-      && (prefs.position === 'ALL' || row.position === prefs.position));
+  function filterRows(rows, preferences) {
+    return rows.filter((row) => !(preferences.hideDrafted && row.pickNo)
+      && (preferences.position === 'ALL' || row.position === preferences.position));
   }
 
   function sortValue(row, key) {
@@ -33,16 +33,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return row[key];
   }
 
-  function sortRows(rows, prefs) {
-    const dir = prefs.sortDir === 'asc' ? 1 : -1;
-    const sinkDrafted = prefs.sortBy !== 'status' && prefs.sortBy !== 'delta';
+  function sortRows(rows, preferences) {
+    const direction = preferences.sortDir === 'asc' ? 1 : -1;
+    const sinkDrafted = preferences.sortBy !== 'status' && preferences.sortBy !== 'delta';
     return rows.slice().sort((a, b) => {
       if (sinkDrafted && !a.pickNo !== !b.pickNo) return a.pickNo ? 1 : -1;
-      const av = sortValue(a, prefs.sortBy);
-      const bv = sortValue(b, prefs.sortBy);
-      if (typeof av === 'string' || typeof bv === 'string') return String(av || '').localeCompare(String(bv || '')) * dir;
-      if (av === bv) return 0;
-      return (av < bv ? -1 : 1) * dir;
+      const leftValue = sortValue(a, preferences.sortBy);
+      const rightValue = sortValue(b, preferences.sortBy);
+      if (typeof leftValue === 'string' || typeof rightValue === 'string') return String(leftValue || '').localeCompare(String(rightValue || '')) * direction;
+      if (leftValue === rightValue) return 0;
+      return (leftValue < rightValue ? -1 : 1) * direction;
     });
   }
 
@@ -62,60 +62,60 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       </tr>`;
   }
 
-  function tableHtml(rows, prefs) {
-    const head = COLUMNS.map((col) => {
-      const arrow = prefs.sortBy === col.key ? `<span class="sort">${prefs.sortDir === 'asc' ? '↑' : '↓'}</span>` : '';
-      return `<th data-sort="${col.key}"${col.title ? ` title="${escapeHtml(col.title)}"` : ''}>${col.label}${arrow}</th>`;
+  function tableHtml(rows, preferences) {
+    const head = COLUMNS.map((column) => {
+      const arrow = preferences.sortBy === column.key ? `<span class="sort">${preferences.sortDir === 'asc' ? '↑' : '↓'}</span>` : '';
+      return `<th data-sort="${column.key}"${column.title ? ` title="${escapeHtml(column.title)}"` : ''}>${column.label}${arrow}</th>`;
     }).join('');
     return `<table><thead><tr>${head}</tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody></table>`;
   }
 
   const live = new WeakMap();
 
-  function bind(element) {
+  function bindEvents(element) {
     const change = (patch) => {
-      const { prefs, onChange } = live.get(element);
-      Object.assign(prefs, patch);
+      const { prefs: preferences, onChange } = live.get(element);
+      Object.assign(preferences, patch);
       NightOwl.storage.saveUi(patch);
       onChange();
     };
-    element.addEventListener('click', (e) => {
-      const chip = e.target.closest('[data-pos]');
+    element.addEventListener('click', (event) => {
+      const chip = event.target.closest('[data-pos]');
       if (chip) return change({ position: chip.dataset.pos });
-      const th = e.target.closest('[data-sort]');
-      if (th) {
-        const { prefs } = live.get(element);
-        const key = th.dataset.sort;
-        change({ sortBy: key, sortDir: prefs.sortBy === key && prefs.sortDir === 'asc' ? 'desc' : 'asc' });
+      const header = event.target.closest('[data-sort]');
+      if (header) {
+        const { prefs: preferences } = live.get(element);
+        const key = header.dataset.sort;
+        change({ sortBy: key, sortDir: preferences.sortBy === key && preferences.sortDir === 'asc' ? 'desc' : 'asc' });
       }
       return undefined;
     });
-    element.addEventListener('change', (e) => {
-      if (e.target.matches('[data-act="hide-drafted"]')) change({ hideDrafted: e.target.checked });
+    element.addEventListener('change', (event) => {
+      if (event.target.matches('[data-act="hide-drafted"]')) change({ hideDrafted: event.target.checked });
     });
   }
 
   /**
    * @param {Element} element
    * @param {{status?: string, rows?: any[], myTurn?: boolean, message?: string, kind?: string}} state
-   * @param {any} prefs
+   * @param {any} preferences
    * @param {() => void} onChange
    */
-  function render(element, state, prefs, onChange) {
-    if (!live.has(element)) bind(element);
-    live.set(element, { prefs, onChange });
+  function render(element, state, preferences, onChange) {
+    if (!live.has(element)) bindEvents(element);
+    live.set(element, { prefs: preferences, onChange });
     const allRows = state.rows || [];
-    const rows = sortRows(filterRows(allRows, prefs), prefs);
-    const unmatched = allRows.filter((r) => !r.matched).length;
+    const rows = sortRows(filterRows(allRows, preferences), preferences);
+    const unmatched = allRows.filter((allRow) => !allRow.matched).length;
     const body = state.status !== 'ok'
       ? `<div class="empty">${EMPTY[state.status] || EMPTY.loading}</div>`
-      : rows.length ? tableHtml(rows, prefs) : '<div class="empty">Nothing matches the current filter.</div>';
+      : rows.length ? tableHtml(rows, preferences) : '<div class="empty">Nothing matches the current filter.</div>';
 
     const html = `
       ${state.myTurn ? `<div class="turn">You're on the clock${state.message ? ` · ${escapeHtml(state.message)}` : ''}</div>` : ''}
       ${state.status !== 'ok' ? '' : `<div class="controls">
-        ${POSITIONS.map((p) => `<button class="chip ${prefs.position === p ? 'active' : ''}" data-pos="${p}">${p === 'ALL' ? 'All' : p}</button>`).join('')}
-        <label class="toggle"><input type="checkbox" data-act="hide-drafted" ${prefs.hideDrafted ? 'checked' : ''}/> Hide drafted</label>
+        ${POSITIONS.map((position) => `<button class="chip ${preferences.position === position ? 'active' : ''}" data-pos="${position}">${position === 'ALL' ? 'All' : position}</button>`).join('')}
+        <label class="toggle"><input type="checkbox" data-act="hide-drafted" ${preferences.hideDrafted ? 'checked' : ''}/> Hide drafted</label>
         <span class="status ${state.kind || ''}">${state.myTurn ? '' : escapeHtml(state.message || '')}</span>
       </div>`}
       ${unmatched > 0 && state.status === 'ok'

@@ -18,7 +18,7 @@ const ALLOWED = ['https://site.api.espn.com/', 'https://sports.core.api.espn.com
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || !message || message.type !== 'nightowl-ktc') return false;
   fetch(globalThis.NightOwl.ktc.URLS[message.kind === 'redraft' ? 'redraft' : 'dynasty'], { credentials: 'omit', signal: AbortSignal.timeout(30000) })
-    .then((res) => (res.ok ? res.text() : Promise.reject(new Error(`KeepTradeCut ${res.status}`))))
+    .then((response) => (response.ok ? response.text() : Promise.reject(new Error(`KeepTradeCut ${response.status}`))))
     .then(
       (html) => sendResponse({ ok: true, data: globalThis.NightOwl.ktc.parse(html) }),
       (error) => sendResponse({ ok: false, error: String(error.message || error) })
@@ -34,7 +34,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
   fetch(message.url, { signal: AbortSignal.timeout(api.TIMEOUT_MS) })
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`${res.status} ${message.url}`))))
+    .then((response) => (response.ok ? response.json() : Promise.reject(new Error(`${response.status} ${message.url}`))))
     .then(
       (data) => sendResponse({ ok: true, data }),
       (error) => sendResponse({ ok: false, error: String(error.message || error) })
@@ -61,9 +61,9 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 async function fetchKtc(kind) {
-  const res = await fetch(globalThis.NightOwl.ktc.URLS[kind], { credentials: 'omit', signal: AbortSignal.timeout(30000) });
-  if (!res.ok) throw new Error(`KeepTradeCut ${res.status}`);
-  return globalThis.NightOwl.ktc.parse(await res.text());
+  const response = await fetch(globalThis.NightOwl.ktc.URLS[kind], { credentials: 'omit', signal: AbortSignal.timeout(30000) });
+  if (!response.ok) throw new Error(`KeepTradeCut ${response.status}`);
+  return globalThis.NightOwl.ktc.parse(await response.text());
 }
 
 async function refreshData() {
@@ -88,35 +88,35 @@ async function refreshData() {
 async function checkLineups() {
   const settings = await storage.getSettings();
   if (!settings.username) return;
-  const nfl = await api.state();
-  if (nfl.season_type !== 'regular' && nfl.season_type !== 'post') return;
-  const week = leagues.lookaheadWeek(nfl);
-  const seasonType = leagues.seasonType(nfl);
+  const nflState = await api.state();
+  if (nflState.season_type !== 'regular' && nflState.season_type !== 'post') return;
+  const week = leagues.lookaheadWeek(nflState);
+  const seasonType = leagues.seasonType(nflState);
 
-  const games = lineups.parseGames(await api.kickoffs(nfl.season, week, seasonType));
-  await saveClosingLines(games, `${nfl.season}-${seasonType}-${week}`).catch((error) => console.warn('[Night Owl lines]', error));
+  const games = lineups.parseGames(await api.kickoffs(nflState.season, week, seasonType));
+  await saveClosingLines(games, `${nflState.season}-${seasonType}-${week}`).catch((error) => console.warn('[Night Owl lines]', error));
   if (settings.alerts === false) return;
 
   const { userId } = await account.resolve();
   const excluded = await account.excluded();
-  const playing = (await api.leagues(userId, nfl.season)).filter((league) => leagues.isPlaying(league) && !excluded.has(league.league_id));
+  const playing = (await api.leagues(userId, nflState.season)).filter((league) => leagues.isPlaying(league) && !excluded.has(league.league_id));
   if (!playing.length) return;
 
   const lineupsByLeague = (await Promise.all(playing.map(async (league) => {
     const [rosters, matchups] = await Promise.all([api.rosters(league.league_id), api.matchups(league.league_id, week)]);
     const roster = leagues.mine(rosters, userId);
-    const set = roster && (matchups || []).find((m) => m.roster_id === roster.roster_id);
+    const set = roster && (matchups || []).find((matchup) => matchup.roster_id === roster.roster_id);
     return set ? { leagueId: league.league_id, name: league.name.trim(), starters: set.starters || [] } : null;
   }))).filter(Boolean);
 
   const [injuries] = await Promise.all([api.injuries().then(alerts.parseInjuries), players.load()]);
   const kickoff = new Map();
-  for (const g of games) { kickoff.set(g.home, g.kickoff); kickoff.set(g.away, g.kickoff); }
+  for (const game of games) { kickoff.set(game.home, game.kickoff); kickoff.set(game.away, game.kickoff); }
 
   const sent = new Set(await storage.get(SENT_KEY, []));
   const found = alerts.findAlerts({
     leagues: lineupsByLeague,
-    week: `${nfl.season}-${seasonType}-${week}`,
+    week: `${nflState.season}-${seasonType}-${week}`,
     now: Date.now(),
     sent,
     teamOf: (playerId) => players.info(playerId).team,
@@ -140,16 +140,16 @@ async function checkLineups() {
 
 async function saveClosingLines(games, key) {
   const now = Date.now();
-  if (!games.some((g) => g.kickoff > now && g.kickoff - now < LINES_WINDOW_MS)) return;
+  if (!games.some((game) => game.kickoff > now && game.kickoff - now < LINES_WINDOW_MS)) return;
   const saved = await storage.get(LINES_KEY, null);
   const previous = saved && saved.key === key ? saved.lines : {};
   const fresh = bets.parseLines(await api.lines());
   await storage.set({ [LINES_KEY]: { key, lines: bets.mergeLines(previous, fresh) } });
 }
 
-chrome.notifications.onClicked.addListener((id) => {
-  const [kind, leagueId] = id.split('|');
+chrome.notifications.onClicked.addListener((notificationId) => {
+  const [kind, leagueId] = notificationId.split('|');
   if (kind !== 'lineup' || !/^\d+$/.test(leagueId)) return;
   chrome.tabs.create({ url: `https://sleeper.com/leagues/${leagueId}/team` });
-  chrome.notifications.clear(id);
+  chrome.notifications.clear(notificationId);
 });

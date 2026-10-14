@@ -8,7 +8,7 @@
   const NAMES = ['GridironGus', 'WaiverWendy', 'TheCommish', 'PuntGod', 'RedZoneRay', 'BenchMob', 'TankCommander', 'FlexLuthor', 'HailMaryHank', 'SnapCountSam', 'TwoPointTina', 'TrustTheProcess', 'BlitzBrigade', 'FourthAndLong', 'MondayMagic'];
   const COLORS = ['#00ceb8', '#56c9f8', '#bd66ff', '#f75c8d', '#feae58', '#3df5ff', '#ff4fd8', '#7ee081'];
 
-  let me = null;
+  let currentUserId = null;
   let staged = false;
   const leagueNames = new Map();
   const userNames = new Map();
@@ -23,17 +23,17 @@
 
   function scrub(url, data) {
     if (/\/v1\/user\/[^/]+$/.test(url) && data && data.user_id) {
-      me = data.user_id;
+      currentUserId = data.user_id;
       return Object.assign({}, data, { display_name: 'nightowl', username: 'nightowl', avatar: null });
     }
     if (Array.isArray(data) && data[0] && data[0].league_id && 'name' in data[0]) {
-      return data.map((l) => Object.assign({}, l, { name: pick(leagueNames, l.league_id, LEAGUES), avatar: null }, params.get('status') ? { status: params.get('status') } : {}));
+      return data.map((league) => Object.assign({}, league, { name: pick(leagueNames, league.league_id, LEAGUES), avatar: null }, params.get('status') ? { status: params.get('status') } : {}));
     }
     if (Array.isArray(data) && data[0] && data[0].display_name !== undefined) {
-      return data.map((u) => {
-        const name = u.user_id === me ? 'You' : pick(userNames, u.user_id, NAMES);
-        const meta = Object.assign({}, u.metadata, { team_name: name, avatar: avatar(name, [...userNames.keys()].indexOf(u.user_id) + 1) });
-        return Object.assign({}, u, { display_name: name, avatar: null, metadata: meta });
+      return data.map((user) => {
+        const name = user.user_id === currentUserId ? 'You' : pick(userNames, user.user_id, NAMES);
+        const meta = Object.assign({}, user.metadata, { team_name: name, avatar: avatar(name, [...userNames.keys()].indexOf(user.user_id) + 1) });
+        return Object.assign({}, user, { display_name: name, avatar: null, metadata: meta });
       });
     }
     return data;
@@ -46,27 +46,27 @@
     const url = String(input);
     if (fault === 'sleeper' && /api\.sleeper\.(app|com)/.test(url)) throw new TypeError('Failed to fetch');
     if (fault === 'projections' && /\/projections\//.test(url)) throw new TypeError('Failed to fetch');
-    if (fault === 'slow') await new Promise((r) => setTimeout(r, 2500));
-    const res = await realFetch(input, init);
+    if (fault === 'slow') await new Promise((resolve) => setTimeout(resolve, 2500));
+    const response = await realFetch(input, init);
     if (nflOverride && /\/v1\/state\/nfl$/.test(url)) {
-      const real = await res.clone().json();
+      const real = await response.clone().json();
       return json(Object.assign({}, real, nflOverride));
     }
     if (params.get('leagues') === 'none' && /\/v1\/user\/[^/]+\/leagues\//.test(url)) return json([]);
 
     const picks = Number(params.get('picks'));
     if (picks && /\/v1\/draft\/\d+(\/picks)?$/.test(url)) {
-      const data = await res.clone().json();
+      const data = await response.clone().json();
       return json(Array.isArray(data) ? data.slice(0, picks) : Object.assign({}, data, { status: 'drafting' }));
     }
 
     const week = url.match(/\/v1\/league\/(\d+)\/matchups\/\d+$/);
-    if (params.get('stage') && week && me && !staged) {
+    if (params.get('stage') && week && currentUserId && !staged) {
       staged = true;
-      const data = await res.clone().json();
-      const rosters = await realFetch(`https://api.sleeper.app/v1/league/${week[1]}/rosters`).then((r) => r.json());
-      const own = rosters.find((r) => r.owner_id === me);
-      const mine = own && data.find((m) => m.roster_id === own.roster_id);
+      const data = await response.clone().json();
+      const rosters = await realFetch(`https://api.sleeper.app/v1/league/${week[1]}/rosters`).then((response) => response.json());
+      const own = rosters.find((roster) => roster.owner_id === currentUserId);
+      const mine = own && data.find((matchup) => matchup.roster_id === own.roster_id);
       if (mine && mine.starters && mine.starters.length > 3) {
         mine.starters = mine.starters.slice();
         mine.starters[3] = '0';
@@ -74,9 +74,9 @@
       return json(data);
     }
 
-    if (!/api\.sleeper\.app\/v1\/(user|league)/.test(url)) return res;
-    const data = await res.clone().json().catch(() => null);
-    return data == null ? res : json(scrub(url, data), res.status);
+    if (!/api\.sleeper\.app\/v1\/(user|league)/.test(url)) return response;
+    const data = await response.clone().json().catch(() => null);
+    return data == null ? response : json(scrub(url, data), response.status);
   };
 
   const mem = {
@@ -90,28 +90,28 @@
       id: 'preview',
       lastError: null,
       getURL: (path) => `/${path}`,
-      sendMessage: (msg, cb) => (fault === 'espn' && msg.type !== 'nightowl-ktc') || (fault === 'ktc' && msg.type === 'nightowl-ktc')
-        ? cb({ ok: false, error: 'Failed to fetch' })
-        : realFetch(msg.type === 'nightowl-ktc' ? `/ktc?kind=${msg.kind || 'dynasty'}` : `/relay?url=${encodeURIComponent(msg.url)}`)
-        .then((r) => r.json())
-        .then((data) => cb({ ok: true, data }), (err) => cb({ ok: false, error: String(err) }))
+      sendMessage: (message, callback) => (fault === 'espn' && message.type !== 'nightowl-ktc') || (fault === 'ktc' && message.type === 'nightowl-ktc')
+        ? callback({ ok: false, error: 'Failed to fetch' })
+        : realFetch(message.type === 'nightowl-ktc' ? `/ktc?kind=${message.kind || 'dynasty'}` : `/relay?url=${encodeURIComponent(message.url)}`)
+        .then((response) => response.json())
+        .then((data) => callback({ ok: true, data }), (err) => callback({ ok: false, error: String(err) }))
     },
     storage: {
       local: {
-        get: (key, cb) => cb({ [key]: mem[key] }),
-        set: (items, cb) => {
+        get: (key, callback) => callback({ [key]: mem[key] }),
+        set: (items, callback) => {
           const changes = {};
-          for (const [k, v] of Object.entries(items)) changes[k] = { newValue: v };
+          for (const [key, value] of Object.entries(items)) changes[key] = { newValue: value };
           Object.assign(mem, items);
-          if (cb) cb();
-          listeners.forEach((fn) => fn(changes, 'local'));
+          if (callback) callback();
+          listeners.forEach((listener) => listener(changes, 'local'));
         },
-        remove: (keys, cb) => {
-          [].concat(keys).forEach((k) => delete mem[k]);
-          if (cb) cb();
+        remove: (keys, callback) => {
+          [].concat(keys).forEach((key) => delete mem[key]);
+          if (callback) callback();
         }
       },
-      onChanged: { addListener: (fn) => listeners.push(fn) }
+      onChanged: { addListener: (listener) => listeners.push(listener) }
     }
   };
 })();

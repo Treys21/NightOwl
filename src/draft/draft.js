@@ -10,7 +10,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   let root = null;
   let session = 0;
-  let prefs = null;
+  let preferences = null;
   let timer = null;
   let backoffMs = 0;
 
@@ -34,7 +34,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (route.kind === 'draft') return route.id;
     const drafts = await api.leagueDrafts(route.id);
     if (!Array.isArray(drafts) || drafts.length === 0) return null;
-    return drafts.reduce((a, b) => ((b.created || 0) > (a.created || 0) ? b : a)).draft_id;
+    return drafts.reduce((total, draft) => ((draft.created || 0) > (total.created || 0) ? draft : total)).draft_id;
   }
 
   async function resolveUserId() {
@@ -80,61 +80,61 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function render() {
-    if (root) draftBoard.render(root, board, prefs, render);
+    if (root) draftBoard.render(root, board, preferences, render);
   }
 
-  function show(next, message = '', kind = '') {
+  function showBoard(next, message = '', kind = '') {
     board = Object.assign({ message, kind }, next);
     render();
   }
 
-  async function tick(id) {
-    if (id !== session) return;
+  async function pollDraft(sessionId) {
+    if (sessionId !== session) return;
     clearTimeout(timer);
     try {
       const [nextDraft, picks = []] = await Promise.all([api.draft(draftId), api.draftPicks(draftId)]);
-      if (id !== session) return;
+      if (sessionId !== session) return;
       draft = nextDraft;
       const rows = buildRows(picks);
-      show({ status: rankings.length ? 'ok' : 'no-rankings', rows, myTurn: isMyTurn(picks) }, statusText(picks));
+      showBoard({ status: rankings.length ? 'ok' : 'no-rankings', rows, myTurn: isMyTurn(picks) }, statusText(picks));
       badges.update(rows);
       backoffMs = 0;
     } catch (error) {
-      if (id !== session) return;
+      if (sessionId !== session) return;
       backoffMs = Math.min(backoffMs ? backoffMs * 2 : POLL_MS, MAX_BACKOFF_MS);
-      show(Object.assign({}, board, { message: 'reconnecting…', kind: 'warn' }));
+      showBoard(Object.assign({}, board, { message: 'reconnecting…', kind: 'warn' }));
       console.warn('[Night Owl draft] poll failed', error);
     }
     clearTimeout(timer);
-    timer = setTimeout(() => tick(id), backoffMs || POLL_MS);
+    timer = setTimeout(() => pollDraft(sessionId), backoffMs || POLL_MS);
   }
 
   async function start() {
-    stop();
-    const id = session;
+    stopPolling();
+    const sessionId = session;
     const route = parseRoute(location.href);
-    show({ status: route ? 'loading' : 'no-draft', rows: [] });
+    showBoard({ status: route ? 'loading' : 'no-draft', rows: [] });
     if (!route) return;
 
     try {
       draftId = await resolveDraftId(route);
-      if (id !== session) return;
+      if (sessionId !== session) return;
       if (!draftId) {
-        show({ status: 'no-draft', rows: [] });
+        showBoard({ status: 'no-draft', rows: [] });
         return;
       }
       [rankings, userId] = await Promise.all([storage.getRankings(), resolveUserId(), players.load()]);
-      if (id !== session) return;
+      if (sessionId !== session) return;
       index = match.buildIndex(players.list());
     } catch (error) {
       console.warn('[Night Owl draft] could not load the draft', error);
-      if (id === session) show({ status: 'error', rows: [] }, 'load failed', 'err');
+      if (sessionId === session) showBoard({ status: 'error', rows: [] }, 'load failed', 'err');
       return;
     }
-    tick(id);
+    pollDraft(sessionId);
   }
 
-  function stop() {
+  function stopPolling() {
     session++;
     clearTimeout(timer);
     timer = null;
@@ -144,20 +144,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   storage.onChanged(async (changes) => {
     if (!root || !draftId || !(changes.rankings || changes.settings)) return;
-    const id = session;
+    const sessionId = session;
     if (changes.settings) userId = await resolveUserId();
     rankings = await storage.getRankings();
-    tick(id);
+    pollDraft(sessionId);
   });
 
   async function mount(element) {
     root = element;
-    prefs = await storage.getUi();
+    preferences = await storage.getUi();
     if (root === element) start();
   }
 
   function unmount() {
-    stop();
+    stopPolling();
     badges.stop();
     root = null;
   }

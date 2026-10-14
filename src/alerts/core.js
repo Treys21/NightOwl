@@ -10,9 +10,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     for (const team of (feed && feed.injuries) || []) {
       for (const item of team.injuries || []) {
         const athlete = item.athlete || {};
-        const link = (athlete.links || []).map((l) => l.href || '').find((h) => /\/id\/\d+/.test(h)) || '';
-        const id = athlete.id || (link.match(/\/id\/(\d+)/) || [])[1];
-        if (id) out.set(String(id), { status: item.status || '', note: item.shortComment || '' });
+        const link = (athlete.links || []).map((athleteLink) => athleteLink.href || '').find((href) => /\/id\/\d+/.test(href)) || '';
+        const athleteId = athlete.id || (link.match(/\/id\/(\d+)/) || [])[1];
+        if (athleteId) out.set(String(athleteId), { status: item.status || '', note: item.shortComment || '' });
       }
     }
     return out;
@@ -41,11 +41,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function message(alert, name) {
-    const where = alert.leagues.map((l) => l.name).join(', ');
-    const what = alert.status === 'Bye' ? 'is on bye' : alert.status === 'Injured Reserve' ? 'is on injured reserve' : `is ${alert.status.toLowerCase()}`;
+    const leagueNames = alert.leagues.map((league) => league.name).join(', ');
+    const description = alert.status === 'Bye' ? 'is on bye' : alert.status === 'Injured Reserve' ? 'is on injured reserve' : `is ${alert.status.toLowerCase()}`;
     return {
-      title: `${name} ${what}`,
-      body: `Still in your lineup in ${where}.${alert.note ? ` ${alert.note}` : ''}`
+      title: `${name} ${description}`,
+      body: `Still in your lineup in ${leagueNames}.${alert.note ? ` ${alert.note}` : ''}`
     };
   }
 
