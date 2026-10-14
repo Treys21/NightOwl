@@ -28,7 +28,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
    *         render(), openTrade(item), positionsOf }
    */
   function create(deps) {
-    const { state, V, nameOf, league, render, openTrade, positionsOf, active, ensureHistory } = deps;
+    const { state, V, nameOf, league, render, openTrade, active, ensureHistory } = deps;
     const fs = state.finder;
 
     // ---- windows ---------------------------------------------------------
@@ -58,6 +58,30 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     // ---- the search ------------------------------------------------------
 
+    const hasPick = (p) => p.give.concat(p.get).some(isPick);
+
+    /**
+     * The best `limit` deals, at most PER_PARTNER with one partner and PER_ASSET using one asset
+     * (`limits` false skips both for a list already thinned), with at least half the places
+     * for deals `wanted` picks out, when there are that many.
+     */
+    function varied(sorted, limit, wanted, limits = true) {
+      const chosen = new Set();
+      const perPartner = new Map();
+      const used = new Map();
+      const admit = (p) => {
+        if (chosen.has(p)) return;
+        const ids = p.give.concat(p.get);
+        if (limits && ((perPartner.get(p.partnerId) || 0) >= PER_PARTNER || ids.some((id) => (used.get(id) || 0) >= PER_ASSET))) return;
+        chosen.add(p);
+        perPartner.set(p.partnerId, (perPartner.get(p.partnerId) || 0) + 1);
+        for (const id of ids) used.set(id, (used.get(id) || 0) + 1);
+      };
+      for (const p of sorted.filter(wanted)) { if (chosen.size >= Math.ceil(limit / 2)) break; admit(p); }
+      for (const p of sorted) { if (chosen.size >= limit) break; admit(p); }
+      return sorted.filter((p) => chosen.has(p));
+    }
+
     const dynasty = (lg) => lg.kind !== 'redraft' && V.usesKtc(lg);
 
     function context(lg) {
@@ -67,17 +91,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         mode: dyn ? 'dynasty' : 'redraft',
         consensus: cons,
         slots: lg.raw.slots,
-        weeks: lg.weeks,
-        positionsOf,
+        weeks: lg.rep.weeks,
+        positionsOf: lg.rep.positionsOf,
+        isVirtual: lg.rep.isVirtual,
         isPick,
         // Who a full roster may cut to make room: anyone outside the lineup in dynasty (the cut is charged at his value), only throwaways in redraft.
         canCut: dyn ? () => true : (id) => V.rosPoints(lg, id) <= 25,
-        rawOf: dyn ? (id) => V.dynastyValue(lg, id) : cons ? (id) => V.redraftValue(lg, id) : (id) => V.rosPoints(lg, id),
+        rawOf: dyn ? (id) => V.dynastyValue(lg, id) : cons ? (id) => V.redraftValue(lg, id) : (id) => V.overReplacement(lg, id),
         valueOf: dyn ? (team, id, w) => V.valueFor(lg, id, w) : (team, id) => V.redraftValue(lg, id),
         sideValue: dyn ? ktc.sideValue : cons ? (values) => ktc.sideValue(values, ktc.EXPONENT_REDRAFT) : sum,
         pointValue: dyn || cons ? V.pointValue(lg) : 1,
         // What this league's own trades say other managers will accept (dynasty prices only).
         fairTolerance: dyn && lg.trade ? lg.trade.band.tolerance : null,
+        // Points thresholds scale with this league's scoring and the weeks left (see pointScale in the view).
+        params: { minPoints: { me: finder.DEFAULTS.minPoints.me * lg.scale, them: finder.DEFAULTS.minPoints.them * lg.scale } },
         goal: fs.goal,
         focus: { shop: fs.shop, target: fs.target }
       };
@@ -89,7 +116,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const priced = (id) => (dyn ? V.dynastyValue(lg, id) > 0 : V.rosPoints(lg, id) > 0);
       const assets = (dyn ? (ro.players || []) : pool).filter(priced).concat(dyn ? (lg.picks.get(ro.roster_id) || []).filter(priced) : []);
       const appetite = lg.trade ? lg.trade.appetite.get(ro.roster_id) : null;
-      return { id: ro.roster_id, pool, assets, players: ro.players || [], count: (ro.players || []).length, capacity: lg.capacity, w, appetite };
+      return { id: ro.roster_id, pool: lg.rep.pool(pool), assets, players: ro.players || [], count: (ro.players || []).length, capacity: lg.capacity, w, appetite };
     }
 
     async function run() {
@@ -129,21 +156,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           found.push(...finder.proposeFor(ctx, me, other, mine));
         }
         found.sort((a, b) => b.score - a.score);
-        // A varied shortlist: a couple of deals per partner, no asset in more than a couple.
-        const shortlist = [];
-        const perPartner = new Map();
-        const used = new Map();
-        for (const p of found) {
-          const ids = p.give.concat(p.get);
-          if ((perPartner.get(p.partnerId) || 0) >= PER_PARTNER || ids.some((id) => (used.get(id) || 0) >= PER_ASSET)) continue;
-          perPartner.set(p.partnerId, (perPartner.get(p.partnerId) || 0) + 1);
-          for (const id of ids) used.set(id, (used.get(id) || 0) + 1);
-          shortlist.push(p);
-          if (shortlist.length === CANDIDATES) break;
-        }
+        // A varied shortlist: a couple of deals per partner, no asset in more than a couple, and
+        // deals made of players alone get half of it (picks are the easy currency; most deals are not).
+        const shortlist = varied(found, CANDIDATES, (p) => !hasPick(p));
         const items = await rankByOdds(lg, shortlist, ctx.mode, token);
         if (!items || token !== fs.token) return;
-        fs.results = { items: items.slice(0, SHOWN), windows: win, mode: ctx.mode, consensus: !!ctx.consensus, leagueId: lg.leagueId };
+        fs.results = { items: varied(items, SHOWN, (p) => !hasPick(p), false), windows: win, mode: ctx.mode, consensus: !!ctx.consensus, leagueId: lg.leagueId };
         fs.running = false;
         render();
       } catch (err) {
@@ -207,7 +225,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const them = nameOf(lg, partner);
       const out = [];
       const n = lg.weeks.length;
-      const starts = (side) => side.starts.slice(0, 2).map((s) => `${players.info(s.id).name} at ${slotText(s.slot)} (${s.weeks} of ${n} weeks)`).join(', ');
+      const starts = (side) => side.starts.slice(0, 2).map((s) => `${players.info(s.id).name} at ${slotText(s.slot)} (${s.weeks} of ${n} weeks${s.weeks <= 0.3 * n ? ', bye and injury cover' : ''})`).join(', ');
       if (item.me.starts.length) out.push(`<b>You:</b> ${esc(starts(item.me))} (${signed(item.me.dPts)} pts rest of season).`);
       else if (item.me.dPts > 0.5) out.push(`<b>You:</b> ${signed(item.me.dPts)} pts of depth and injury cover.`);
       else if (dyn) out.push(`<b>You:</b> little change this season (${signed(item.me.dPts)} pts), more long-term value.`);
@@ -238,8 +256,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         // Where the market and the projections disagree: what to buy low and sell high.
         const K = V.pointValue(lg);
         // Only players the market actually prices, and who matter: a throw-in's "edge" is noise.
-        const priced = (id) => state.ktcRedraft.players[id] && V.redraftValue(lg, id) >= 1500 && V.rosPoints(lg, id) >= 30;
-        const edge = (id) => (priced(id) ? (V.rosPoints(lg, id) * K) / V.redraftValue(lg, id) - 1 : 0);
+        const priced = (id) => state.ktcRedraft.players[id] && V.redraftValue(lg, id) >= 1500 && V.overReplacement(lg, id) >= 12;
+        const edge = (id) => (priced(id) ? (V.overReplacement(lg, id) * K) / V.redraftValue(lg, id) - 1 : 0);
         // A buy only counts as an edge if he is in your lineup most weeks.
         const regular = new Set(item.me.starts.filter((st) => st.weeks >= 0.4 * lg.weeks.length).map((st) => st.id));
         const buy = item.get.filter((id) => regular.has(id)).map((id) => [id, edge(id)]).sort((a, b) => b[1] - a[1])[0];

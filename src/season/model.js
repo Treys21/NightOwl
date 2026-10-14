@@ -118,21 +118,64 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return (ro.players || []).filter((pid) => !away.has(pid));
   };
 
+  // The NFL schedule as { week: [teams playing] }, which is how a bye is told
+  // from an absence: a healthy player whose team plays that week has a game.
+  // Cached for a day; the schedule is fixed once published.
+  async function nflSchedule(seasonYear) {
+    const key = `season.nflschedule.${seasonYear}`;
+    const cached = await storage.get(key, null);
+    if (cached && Date.now() - cached.at < 24 * 3600000) return cached.weeks;
+    try {
+      const weeks = NightOwl.replacement.playing(await api.schedule(seasonYear, 'regular'));
+      if (Object.keys(weeks).length) await storage.set({ [key]: { at: Date.now(), weeks } });
+      return Object.keys(weeks).length ? weeks : (cached && cached.weeks) || null;
+    } catch {
+      return (cached && cached.weeks) || null; // without it, byes show up as missing projections: still zero, just less exact
+    }
+  }
+
   /**
    * One entry per remaining week for the value engine (season/value.js): the
    * regular season still to play, then the playoff weeks (weighted extra):
    * projected points under the league's scoring, and who is out. Index 0 is the
    * next week to play (the one in progress counts as played: it has real lineups).
+   *
+   * A bye is a week with no game, from the NFL schedule: the player is out for
+   * it. A healthy player with a game and no projection row (the rows below a
+   * point are dropped) is projected at his average for the other weeks rather
+   * than at nothing. A week whose projections are not published (or failed to
+   * load) is left out; calling it a week of zeros would price every lineup at 0.
    */
-  function valueWeeks(lg, stats) {
+  function valueWeeks(lg, stats, schedule = null) {
     const r = lg.raw;
+    const { onBye } = NightOwl.replacement;
     const outIn = projection.availability((pid) => players.info(pid).injury);
     const first = r.inProgress ? r.next + 1 : r.next;
     const out = [];
-    const add = (w, weight) => out.push({ week: w, weight, projOf: (pid) => fantasyPoints(stats[w] && stats[w][pid], r.scoring), isOut: outIn(out.length) });
+    const published = Object.keys(stats).filter((w) => stats[w] && Object.keys(stats[w]).length);
+    const average = new Map();
+    const averageOf = (pid) => {
+      if (!average.has(pid)) {
+        const rows = published.map((w) => fantasyPoints(stats[w][pid], r.scoring)).filter((p) => p > 0);
+        average.set(pid, rows.length >= published.length / 2 ? rows.reduce((a, b) => a + b, 0) / rows.length : 0);
+      }
+      return average.get(pid);
+    };
+    const add = (w, weight) => {
+      if (!stats[w] || !Object.keys(stats[w]).length) return;
+      const injured = outIn(out.length);
+      const bye = (pid) => onBye(schedule, players.info(pid).team, w);
+      out.push({
+        week: w,
+        weight,
+        projOf: (pid) => (stats[w][pid] ? fantasyPoints(stats[w][pid], r.scoring) : bye(pid) ? 0 : averageOf(pid)),
+        isOut: (pid) => injured(pid) || bye(pid),
+        bye
+      });
+    };
     for (let w = first; w < r.playoffStart; w++) add(w, 1);
     const format = projection.bracketFormat(lg.playoffTeams, r.playoffStart, r.roundType);
-    for (const w of projection.playoffWeeks(format)) if (w <= LAST_WEEK && stats[w]) add(w, PLAYOFF_WEIGHT);
+    for (const w of projection.playoffWeeks(format)) if (w <= LAST_WEEK) add(w, PLAYOFF_WEIGHT);
     return out;
   }
 
@@ -209,5 +252,5 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
-  NightOwl.model = { SIMS, timeline, schedule, projections, positionsFor, weeksNeeded, remainingByTeam, activePool, valueWeeks, forecastWeeks, projectLeague };
+  NightOwl.model = { SIMS, timeline, schedule, projections, positionsFor, weeksNeeded, remainingByTeam, activePool, nflSchedule, valueWeeks, forecastWeeks, projectLeague };
 })(globalThis.NightOwl);

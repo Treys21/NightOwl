@@ -268,3 +268,20 @@ test('parameters can be overridden, which is how the backtest tries other ones',
   assert.equal(finder.judge(strict, a, b, ['m_rb3'], ['t_wr2']).ok, false);
   assert.equal(finder.paramsOf(ctx).fairTolerance, finder.DEFAULTS.fairTolerance);
 });
+
+test('picks never crowd players out of the shortlist: players alone still get proposed', () => {
+  const ctx = Object.assign(base('dynasty'), { pointValue: 50, valueOf: (t, id) => (id.startsWith('pick:') ? 1500 : (PTS[id] || 0) * 100), rawOf: (id) => (id.startsWith('pick:') ? 1500 : (PTS[id] || 0) * 100) });
+  const picks = ['pick:2027:1:1', 'pick:2028:1:1', 'pick:2029:1:1', 'pick:2027:2:1', 'pick:2028:2:1'];
+  const a = Object.assign(team(1, me, 0.8, picks), { count: me.length });
+  const b = team(2, them, 0.3);
+  const found = finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx));
+  assert.ok(found.some((p) => !p.give.concat(p.get).some(ctx.isPick)), 'a players-only deal is among them');
+});
+
+test('a throw-in who starts for nobody and is worth little is not padded into a deal', () => {
+  const ctx = base('redraft');
+  add('m_scrub', 'RB', 1);
+  const a = team(1, me.concat('m_scrub'), 0.8);
+  const b = team(2, them, 0.8);
+  for (const p of finder.proposeFor(ctx, a, b, finder.dropLosses(a, ctx))) assert.ok(!p.give.includes('m_scrub'));
+});

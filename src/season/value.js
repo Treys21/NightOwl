@@ -36,13 +36,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
    *   droppable   players you could cut (not IR or taxi)
    *   openSpots   empty roster spots: when there is one, nobody has to go
    *   candidates  free-agent pids
+   *   minGain     starter points a free agent must add (rest of season; half of it counts for next week alone)
    * -> [{ pid, gain, nowGain, drop, ros, next }]
    *    gain     starter points added over the rest of the season
    *    nowGain  the same for next week alone
    *    drop     the player to cut for him (null with an open spot)
    *    ros      his projected points rest of season; next: next week
    */
-  function waiverTargets({ slots, pool, droppable, openSpots = 0, candidates, weeks, positionsOf }) {
+  function waiverTargets({ slots, pool, droppable, openSpots = 0, candidates, weeks, positionsOf, minGain = MIN_GAIN }) {
     if (!weeks.length) return [];
     const base = lineupPoints(slots, pool, weeks, positionsOf);
 
@@ -76,7 +77,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const gain = next.total - base.total;
         if (!best || gain > best.gain) best = { gain, nowGain: next.perWeek[0] - base.perWeek[0], drop };
       }
-      if (best.gain >= MIN_GAIN || best.nowGain >= MIN_GAIN) {
+      if (best.gain >= minGain || best.nowGain >= minGain * 0.5) {
         out.push({ pid, gain: round1(best.gain), nowGain: round1(best.nowGain), drop: best.drop, ros: round1(ros), next: round1(weeks[0].isOut(pid) ? 0 : weeks[0].projOf(pid)) });
       }
     }

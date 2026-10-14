@@ -11,6 +11,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const PICK_ROUNDS = 4; // rounds KeepTradeCut prices
   const PICK_YEARS = 3; // drafts ahead that can be traded
+  // KeepTradeCut prices picks a little under what managers pay for them, the first round most: a pick is
+  // liquid, takes no roster spot and is the currency every contender and rebuilder in a league accepts.
+  const PICK_PREMIUM = { 1: 1.1, 2: 1.05 };
   const REDRAFT_UNLISTED_CAP = 1200; // consensus value given to a player the redraft rankings don't list
 
   // A pick is traded like a player: its id carries the draft year, the round
@@ -56,6 +59,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const ordinalRound = (n) => `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n] || 'th'}`;
 
     const rosPoints = (lg, pid) => value.restOfSeason(pid, lg.weeks);
+    // Points over the free agent who would take his place: what a player really adds to a lineup.
+    const overReplacement = (lg, pid) => (lg.rep ? Math.max(0, lg.rep.over(pid)) : rosPoints(lg, pid));
 
     // Dynasty and keeper leagues price players for the long run: KeepTradeCut's
     // value in the league's format (superflex or 1QB, tight-end premium), scaled
@@ -69,7 +74,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (isPick(pid)) {
         const pick = pickOf(pid);
         const tier = pickTierOf(lg, pick);
-        const v = state.ktc ? ktc.pickValue(state.ktc.picks, { year: pick.year, round: pick.round, tier, superflex: lg.superflex }) : 0;
+        const v = state.ktc ? Math.round(ktc.pickValue(state.ktc.picks, { year: pick.year, round: pick.round, tier, superflex: lg.superflex }) * (PICK_PREMIUM[pick.round] || 1)) : 0;
         lg.dyn.set(pid, v);
         return v;
       }
@@ -89,7 +94,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const entry = state.ktcRedraft && state.ktcRedraft.players[pid];
       let out = 0;
       if (entry) out = Math.round(ktc.valueIn(entry, lg) * scoringFactor(lg, pid, state.ktcRedraft.players, 'redraft'));
-      else if (state.ktcRedraft) out = Math.min(REDRAFT_UNLISTED_CAP, Math.round(rosPoints(lg, pid) * pointValue(lg) * 0.6));
+      else if (state.ktcRedraft) out = Math.min(REDRAFT_UNLISTED_CAP, Math.round(overReplacement(lg, pid) * pointValue(lg) * 0.6));
       lg.red.set(pid, out);
       return out;
     }
@@ -132,7 +137,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     // w runs from 0 (rebuilding) to 1 (contending).
     const AGE_PRIME = 27;
     function windowFactor(lg, id, w) {
-      if (isPick(id)) return w > 0.6 ? 0.92 : w < 0.3 ? 1.12 : 1;
+      if (isPick(id)) return w > 0.6 ? 0.97 : w < 0.3 ? 1.06 : 1; // contenders and rebuilders differ by a few percent, not the 20% that made picks the cheap thing to give
       const entry = state.ktc && state.ktc.players[id];
       const age = entry && entry.a;
       if (!age) return 1;
@@ -144,7 +149,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     /** KeepTradeCut value a team sees in an asset, given its window. */
     const valueFor = (lg, id, w) => dynastyValue(lg, id) * windowFactor(lg, id, w);
 
-    /** Value units one rest-of-season lineup point is worth in this league (market value per projected point of players who matter). */
+    /** Value units one rest-of-season lineup point over replacement is worth in this league (market value per point above a free agent, for players who matter). */
     function pointValue(lg) {
       if (lg.pointPrice !== undefined) return lg.pointPrice;
       const listed = consensus(lg) ? state.ktcRedraft.players : state.ktc && state.ktc.players;
@@ -153,8 +158,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         for (const id of ro.players || []) {
           if (!listed || !listed[id]) continue;
           const v = consensus(lg) ? redraftValue(lg, id) : dynastyValue(lg, id);
-          const pts = rosPoints(lg, id);
-          if (v >= 3000 && pts >= 25) prices.push(v / pts);
+          const pts = overReplacement(lg, id);
+          if (v >= 3000 && pts >= 12) prices.push(v / pts);
         }
       }
       prices.sort((a, b) => a - b);
@@ -164,7 +169,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     return {
       isPick, pickOf, standingsRanks, ownedPicks, pickSlot, pickTierOf, ordinalRound,
-      rosPoints, usesKtc, consensus, dynastyValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
+      rosPoints, overReplacement, usesKtc, consensus, dynastyValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
     };
   }
 

@@ -27,9 +27,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const NOT_STARTING = new Set(['BN', 'IR', 'TAXI']);
 
   const SIDE_SHOWN = 7; // assets per side considered when building deals
-  const KEEP_PER_PARTNER = 3;
+  const PICKS_SHOWN = 3; // of them, at most this many picks: picks cost no lineup points, so they would otherwise crowd out every player
+  const KEEP_PER_PARTNER = 4; // two with picks, two without
   const EXACT_PER_PARTNER = 18; // deals scored exactly per partner
   const NOT_TRADE_CHIPS = new Set(['K', 'DEF']); // streamable: nobody trades for them
+  const DEAD_WEIGHT = 0.12; // a player in a deal who isn't in any lineup must be worth at least this share of the deal
 
   // The numbers that decide what counts as a deal both sides would take. They
   // were tuned against real trades (tools/backtest); ctx.params overrides them
@@ -40,7 +42,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     overpay: { balanced: 0.2, now: 0.3, future: 0.15 }, // and you this much (dynasty)
     overpayRedraft: { balanced: 0.07, now: 0.12, future: 0.07 }, // redraft prices are for fair deals: the edge is production and fit, not a premium
     minUtility: { me: 0.03, them: 0.02 }, // as a share of the deal's size
-    minPoints: { me: 3, them: 2 }, // lineup points a side must gain to call a deal an upgrade
+    minPoints: { me: 5, them: 3 }, // lineup points over replacement a side must gain to call a deal an upgrade (3 and 2 before points were counted over a free agent)
     minValue: { rebuild: 0.04, mixed: 0.05 }, // dynasty: value a side must gain, as a share of the deal's size
     mixedFloor: 0.03, // dynasty, a team between contending and rebuilding that gains points may give up this much of the deal's size in value
     outOfIt: 0.25 // redraft: below this window a team is out of the race
@@ -75,6 +77,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const base = lineupPoints(ctx.slots, team.pool, ctx.weeks, ctx.positionsOf).total;
     const out = new Map();
     for (const id of team.pool) {
+      if (ctx.isVirtual && ctx.isVirtual(id)) continue; // a free-agent stand-in: nobody trades him
       out.set(id, Math.max(0, base - lineupPoints(ctx.slots, team.pool.filter((p) => p !== id), ctx.weeks, ctx.positionsOf).total));
     }
     return { base, out };
@@ -229,8 +232,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     // What each asset is worth to the side that would receive it, less what the other side loses.
     const giveScore = (id) => val(other, wThem, id) + lamThem * (theirGain.get(id) || 0) - val(me, wMe, id) - lamMe * dropMe(id);
     const askScore = (id) => val(me, wMe, id) + lamMe * (myGain.get(id) || 0) - val(other, wThem, id) - lamThem * dropThem(id);
+    // The best few players and the best few picks, so deals made of players get a look too.
     const top = (ids, score, must) => {
-      const ranked = ids.filter((id) => id !== must).sort((a, b) => score(b) - score(a)).slice(0, SIDE_SHOWN - (must ? 1 : 0));
+      const room = SIDE_SHOWN - (must ? 1 : 0);
+      const best = (list) => list.slice().sort((a, b) => score(b) - score(a));
+      const rest = ids.filter((id) => id !== must);
+      const picks = best(rest.filter(ctx.isPick));
+      const moving = best(rest.filter((id) => !ctx.isPick(id)));
+      const takePicks = Math.min(picks.length, Math.max(PICKS_SHOWN, room - moving.length));
+      const ranked = moving.slice(0, room - takePicks).concat(picks.slice(0, takePicks));
       return must ? [must].concat(ranked) : ranked;
     };
     const focus = ctx.focus || {};
@@ -269,6 +279,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const size = Math.max(rawGive, rawGet, 1);
         const priceFail = priceGate(ctx, P, goal, rawGive, rawGet);
         if (priceFail) continue;
+        // A throw-in who starts for nobody and has no price only fills a roster spot.
+        if (get.some((id) => !ctx.isPick(id) && id !== target && !(myGain.get(id) > 0) && ctx.rawOf(id) < DEAD_WEIGHT * size)) continue;
+        if (give.some((id) => !ctx.isPick(id) && id !== shop && !(theirGain.get(id) > 0) && ctx.rawOf(id) < DEAD_WEIGHT * size)) continue;
         const dMe = sum(players(get).map((id) => myGain.get(id) || 0)) - sum(players(give).map(dropMe));
         const dThem = sum(players(give).map((id) => theirGain.get(id) || 0)) - sum(players(get).map(dropThem));
         const uMe = utility(ctx, me, wMe, give, get, dMe) - cutMe;
@@ -320,18 +333,28 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
     exact.sort((a, b) => b.score - a.score);
 
-    // Variety: one deal per distinct thing asked for, and per distinct thing given.
+    // Variety: one deal per distinct thing asked for, and per distinct thing given;
+    // and some deals that move only players, since picks are the easy currency.
     const out = [];
     const asked = new Set();
     const offered = new Set();
-    for (const p of exact) {
-      const a = p.get.slice().sort().join();
-      const g = p.give.slice().sort().join();
-      if (asked.has(a) || offered.has(g)) continue;
-      asked.add(a); offered.add(g);
-      out.push(p);
-      if (out.length === KEEP_PER_PARTNER) break;
-    }
+    const withPicks = (p) => p.give.concat(p.get).some(ctx.isPick);
+    const take = (list, limit) => {
+      let n = 0;
+      for (const p of list) {
+        if (n === limit) break;
+        const a = p.get.slice().sort().join();
+        const g = p.give.slice().sort().join();
+        if (asked.has(a) || offered.has(g)) continue;
+        asked.add(a); offered.add(g);
+        out.push(p);
+        n++;
+      }
+    };
+    take(exact.filter((p) => !withPicks(p)), KEEP_PER_PARTNER / 2);
+    take(exact.filter(withPicks), KEEP_PER_PARTNER / 2);
+    take(exact, KEEP_PER_PARTNER - out.length);
+    out.sort((a, b) => b.score - a.score);
     return out;
   }
 

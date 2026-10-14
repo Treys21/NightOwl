@@ -12,7 +12,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { api, teams, players, storage, account, dom, projection, value, model, ktc } = NightOwl;
+  const { api, teams, players, storage, account, dom, projection, value, model, ktc, replacement } = NightOwl;
   const { isPlaying, mine: rosterOf, teamNames, teamUrl } = NightOwl.leagues;
   const { escape: esc, percent } = NightOwl.format;
 
@@ -73,6 +73,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const tick = () => new Promise((resolve) => setTimeout(resolve));
   const positionsOf = (pid) => players.info(pid).positions;
+  const WAIVER_MIN_GAIN = 1.5; // rest-of-season points a free agent must add (typical league)
+  const REFERENCE_PPG = 12; // points per starter per week in a typical league
+  const REFERENCE_WEEKS = 11; // weeks left the finder's point thresholds were set for
+  const DROP_PROTECTED = 2000; // KeepTradeCut value above which a dynasty player isn't offered as the drop
   const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(1)}`;
   const oddsLabel = (p) => (p >= 0.995 ? '>99%' : p > 0 && p < 0.005 ? '<1%' : percent(p));
 
@@ -127,9 +131,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       };
     }))).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
 
-    const [stats, remainingOf] = await Promise.all([
+    const [stats, remainingOf, nflSchedule] = await Promise.all([
       leagues.length ? model.projections(nfl.season, model.weeksNeeded(leagues), model.positionsFor(leagues.map((lg) => lg.raw.slots))) : {},
-      leagues.some((lg) => lg.raw.inProgress) ? model.remainingByTeam(nfl.season, nfl.week) : Promise.resolve(() => 1)
+      leagues.some((lg) => lg.raw.inProgress) ? model.remainingByTeam(nfl.season, nfl.week) : Promise.resolve(() => 1),
+      model.nflSchedule(nfl.season)
     ]);
     state.stats = stats;
     state.remainingOf = remainingOf;
@@ -155,9 +160,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const projected = new Set();
     for (const week of Object.values(stats)) for (const pid of Object.keys(week)) projected.add(pid);
     for (const lg of leagues) {
-      lg.weeks = model.valueWeeks(lg, stats);
+      lg.weeks = model.valueWeeks(lg, stats, nflSchedule);
       const taken = new Set(lg.raw.rosters.flatMap((ro) => ro.players || []));
       lg.free = [...projected].filter((pid) => !taken.has(pid));
+      // Trades are priced over replacement: the free agent a team would start in a slot it can't fill, on a bye or in an injury.
+      lg.rep = replacement.wrap({
+        slots: lg.raw.slots, weeks: lg.weeks, positionsOf,
+        rates: replacement.levels(lg.free, lg.weeks, positionsOf, replacement.startingPositions(lg.raw.slots), [...taken])
+      });
+      lg.scale = pointScale(lg);
       lg.ranks = standingsRanks(lg.raw.rosters);
       lg.picks = lg.kind === 'redraft' ? new Map() : ownedPicks(lg);
       lg.superflex = ktc.isSuperflex(lg.raw.slots);
@@ -169,6 +180,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     state.targets.clear();
     state.base.clear();
     state.loadedAt = Date.now();
+  }
+
+  // How big a lineup upgrade has to be to matter in this league, against a typical one (1): leagues that
+  // score more per starter, or have more weeks to run, need more points before a change is worth making.
+  function pointScale(lg) {
+    if (!lg.weeks.length) return 1;
+    const starters = NightOwl.leagues.startingSlots({ roster_positions: lg.raw.slots }).length || 1;
+    const perStarter = lg.raw.rosters.map((ro) => value.lineupPoints(lg.raw.slots, model.activePool(ro), lg.weeks.slice(0, 1), positionsOf).total / starters);
+    const ppg = perStarter.reduce((a, b) => a + b, 0) / perStarter.length;
+    const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+    return clamp(ppg / REFERENCE_PPG, 0.5, 2) * clamp(lg.weeks.length / REFERENCE_WEEKS, 0.4, 1.3);
   }
 
   // Draft order for each keeper and dynasty league, from the simulated season.
@@ -200,9 +222,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       await tick();
       if (!root || generation !== state.generation) return; // closed, or a newer load took over
       const pool = model.activePool(lg.mine);
+      // Keeper and dynasty rosters hold players for years: never suggest cutting one the market values.
+      const droppable = V.usesKtc(lg) ? pool.filter((pid) => V.dynastyValue(lg, pid) < DROP_PROTECTED) : pool;
       state.targets.set(lg.leagueId, value.waiverTargets({
-        slots: lg.raw.slots, pool, droppable: pool, openSpots: lg.openSpots,
-        candidates: lg.free, weeks: lg.weeks, positionsOf
+        slots: lg.raw.slots, pool, droppable, openSpots: lg.openSpots,
+        candidates: lg.free, weeks: lg.rep.weeks, positionsOf, minGain: WAIVER_MIN_GAIN * lg.scale // projections fade with distance, byes are real weeks off
       }));
       render();
     }
@@ -435,8 +459,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const give = [...t.give].filter((pid) => !isPick(pid));
     const get = [...t.get].filter((pid) => !isPick(pid));
     const impact = value.tradeImpact({
-      slots: lg.raw.slots, weeks: lg.weeks, positionsOf,
-      a: { pool: model.activePool(lg.mine) }, b: { pool: model.activePool(partner) },
+      slots: lg.raw.slots, weeks: lg.rep.weeks, positionsOf: lg.rep.positionsOf,
+      a: { pool: lg.rep.pool(model.activePool(lg.mine)) }, b: { pool: lg.rep.pool(model.activePool(partner)) },
       aGives: give, bGives: get
     });
     t.result = { impact, base: state.base.get(lg.leagueId) || null, after: null };

@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.11.0
+**Trade finder and waiver tuning: value over replacement, real byes, league-specific thresholds.**
+- **Replacement level.** Lineups are now measured against the free agent a team
+  would actually start (the league's best available at each position, or the
+  weakest rostered starters when a position is picked clean, as quarterbacks are
+  in superflex). A hole on a bye no longer scores zero, so a backup quarterback
+  is worth the bye and injury weeks he covers, not a whole season, and bench
+  filler no longer pads deals.
+- **Byes from the NFL schedule.** A team with no game is on bye and its players
+  are out that week; a healthy player with a game but no projection row is
+  projected at his average; a week with no published projections is skipped
+  rather than counted as zeros.
+- **Far-off weeks fade** toward replacement (1.5% a week), since week 14 is less
+  certain than next week.
+- **Picks.** First- and second-round picks carry a small premium over KeepTradeCut
+  (10% and 5%), and contenders and rebuilders now differ by a few percent on a
+  pick, not 20%, which had made picks the cheap thing to give. Each side's
+  shortlist mixes players and picks, and half the finder's results are
+  player-for-player deals when they exist.
+- **Per league.** Point thresholds scale with the league's scoring per starter
+  and the weeks left; waiver recommendations use the same scale, the same
+  byes and fades, and in dynasty never suggest cutting a player the market values.
+
 ## 3.10.0
 **Trade history, season path and recap, and a backtest for the trade logic.**
 - **Moves → History.** Every trade in a league (this season and last, following
