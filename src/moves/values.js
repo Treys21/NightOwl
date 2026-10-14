@@ -99,8 +99,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return out;
     }
 
-    /** What the market says a player is worth in this league: dynasty values for keeper and dynasty leagues, fantasy (redraft) values for redraft. 0 when the market is not loaded. */
-    const marketValue = (lg, pid) => (consensus(lg) ? redraftValue(lg, pid) : usesKtc(lg) ? dynastyValue(lg, pid) : 0);
+    /** What a player is worth in this league: the blend of dynasty value and production for keeper and dynasty leagues (see blendedValue), fantasy (redraft) values for redraft. 0 when the market is not loaded. */
+    const marketValue = (lg, pid) => (consensus(lg) ? redraftValue(lg, pid) : usesKtc(lg) ? blendedValue(lg, pid) : 0);
 
     // League points over PPR points for the rest of the season, unadjusted.
     function scoringRatio(lg, pid) {
@@ -194,8 +194,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return lg.pointPrice;
     }
 
+    /** What a package of players and picks is worth in this league: the best player in full, the rest over replacement. */
+    function packageValue(lg, pids) {
+      const items = pids.map((pid) => ({ v: marketValue(lg, pid), pick: isPick(pid) }));
+      return ktc.packageValue(items, consensus(lg)
+        ? { exponent: ktc.EXPONENT_REDRAFT, replacement: ktc.REPLACEMENT_REDRAFT }
+        : { exponent: ktc.EXPONENT_PACKAGE, replacement: ktc.REPLACEMENT_DYNASTY });
+    }
+
     return {
-      isPick, pickOf, standingsRanks, ownedPicks, pickSlot, pickTierOf, ordinalRound,
+      packageValue, isPick, pickOf, standingsRanks, ownedPicks, pickSlot, pickTierOf, ordinalRound,
       rosPoints, overReplacement, usesKtc, consensus, dynastyValue, blendedValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
     };
   }

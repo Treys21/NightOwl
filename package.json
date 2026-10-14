@@ -1,6 +1,6 @@
 {
   "name": "night-owl",
-  "version": "3.12.0",
+  "version": "3.12.1",
   "private": true,
   "description": "Night Owl for Sleeper fantasy football: draft big board, live cross-league scoring feed, start/sit lineup checks, and betting lines for your starters.",
   "repository": {

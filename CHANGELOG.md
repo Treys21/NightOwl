@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.12.1
+**The trade analyzer uses the blended price.**
+- Moves → Trade now values players the way the finder does: KeepTradeCut mixed with
+  projected points over replacement, and packages count the best player in full and
+  each extra player only above replacement (redraft leagues too). Roster lists sort
+  by the blended value and the tooltip shows the plain KeepTradeCut number beside it.
+
 ## 3.12.0
 **Drafts board, picks graded as the players they became, full trade history, and a blended price.**
 - **Moves → Drafts.** Each of a league's drafts as a board (rounds down, draft slots

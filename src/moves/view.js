@@ -341,7 +341,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function pickList(lg, ro, chosen, kind) {
     const away = new Set([...(ro.reserve || []), ...(ro.taxi || [])]);
-    const rows = (ro.players || []).slice().sort((a, b) => (usesKtc(lg) ? dynastyValue(lg, b) - dynastyValue(lg, a) : 0) || rosPoints(lg, b) - rosPoints(lg, a));
+    const rows = (ro.players || []).slice().sort((a, b) => (usesKtc(lg) ? V.blendedValue(lg, b) - V.blendedValue(lg, a) : 0) || rosPoints(lg, b) - rosPoints(lg, a));
     const picks = (lg.picks.get(ro.roster_id) || []).filter((pid) => dynastyValue(lg, pid) > 0 || chosen.has(pid));
     const pickRows = usesKtc(lg) ? picks.map((pid) => `<label class="mv-pick${chosen.has(pid) ? ' on' : ''}">
         <input type="checkbox" data-${kind}="${esc(pid)}"${chosen.has(pid) ? ' checked' : ''}>
@@ -352,7 +352,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return `<label class="mv-pick${chosen.has(pid) ? ' on' : ''}">
         <input type="checkbox" data-${kind}="${esc(pid)}"${chosen.has(pid) ? ' checked' : ''}>
         ${label(pid)}${usesKtc(lg)
-          ? `<span class="mv-ros" title="Dynasty value (KeepTradeCut, for this league's format and scoring)${tag ? `; on ${esc(tag)}` : ''}">${dynastyValue(lg, pid) ? worth(dynastyValue(lg, pid)) : '–'}</span>`
+          ? `<span class="mv-ros" title="Value: KeepTradeCut (${worth(dynastyValue(lg, pid))}, for this league's format and scoring) mixed with projected points over a free agent${tag ? `; on ${esc(tag)}` : ''}">${V.blendedValue(lg, pid) ? worth(V.blendedValue(lg, pid)) : '–'}</span>`
           : `<span class="mv-ros" title="Projected points rest of season">${away.has(pid) ? esc(tag) : Math.round(rosPoints(lg, pid))}</span>`}
       </label>`;
     }).join('')}${pickRows}</div>`;
@@ -383,16 +383,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const redraft = V.consensus(lg);
     const unpriced = [...t.give, ...t.get].filter((pid) => !V.marketValue(lg, pid)).length;
     const format = `${lg.superflex ? 'Superflex' : '1QB'}${lg.tep ? ` TE${'+'.repeat(lg.tep)}` : ''}`;
-    let call = redraft ? 'Even on consensus value.' : 'Even by dynasty value.';
+    let call = redraft ? 'Even on consensus value.' : 'Even by blended value.';
     if (Math.abs(net) / big >= 0.05) call = net > 0 ? `Favors you by ${worth(net)} (${Math.round(Math.abs(net) / big * 100)}%).` : `Favors ${esc(them)} by ${worth(-net)} (${Math.round(Math.abs(net) / big * 100)}%).`;
     return { net, html: `<div class="mv-dyn">
-      <div class="mv-dyn-h">${redraft ? 'Consensus value' : 'Dynasty value'} <small class="muted">KeepTradeCut ${redraft ? 'redraft' : ''} · ${format} · this league's scoring</small></div>
+      <div class="mv-dyn-h">${redraft ? 'Consensus value' : 'Dynasty value'} <small class="muted">KeepTradeCut ${redraft ? 'redraft' : 'mixed with projected points'} · ${format} · this league's scoring · extra players count over a free agent</small></div>
       <div class="mv-dyn-n"><span>You send <b>${worth(send)}</b></span><span>You get <b>${worth(get)}</b></span>${delta2(net)}</div>
       <p class="mv-verdict">${call}</p>
       ${unpriced ? `<p class="muted small">${unpriced} player${unpriced === 1 ? ' has' : 's have'} no KeepTradeCut value (counted as zero).</p>` : ''}
     </div>` };
   }
-  const sideValueOf = (lg, pids) => ktc.sideValue(pids.map((pid) => V.marketValue(lg, pid)), V.consensus(lg) ? ktc.EXPONENT_REDRAFT : undefined);
+  const sideValueOf = (lg, pids) => V.packageValue(lg, pids);
   const delta2 = (n) => `<b class="${n > 0 ? 'up' : n < 0 ? 'down' : ''}">${n > 0 ? '+' : n < 0 ? '−' : ''}${worth(Math.abs(n))}</b>`;
 
   function verdict(me, them, names) {
