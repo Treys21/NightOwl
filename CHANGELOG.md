@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.14.0
 - **Lineups reads at a glance.** A status banner at the top says "All set", "No fixes needed"
   or "N fixes needed" with one specific line per fix; kickoff windows are compact cards with a
   status chip; each league block has a verdict, problems first, starters and bench in aligned
