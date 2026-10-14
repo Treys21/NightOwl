@@ -52,6 +52,7 @@
         "src/live/tracker.js",
         "src/lineups/core.js",
         "src/season/core.js",
+        "src/season/project.js",
         "src/bets/core.js",
         "src/draft/match-names.js",
         "src/draft/draft-order.js",

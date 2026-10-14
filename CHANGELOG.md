@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+- **Season: Now | Projected.** Projected plays out the rest of the season and
+  the playoffs 2,000 times from every team's best projected lineup (Sleeper's
+  weekly projections, scored by each league's rules, on the real schedule,
+  median games included; a week in progress counts points so far plus what's
+  left of each starter's game). It shows projected final records and finish,
+  playoff, bye and title odds, the end-of-season draft order with #1-pick
+  odds, and a projected playoff bracket in Sleeper's format.
+
 ## 3.6.0
 A design pass across the whole panel: calmer, simpler, more consistent.
 - **One control style.** Sub-tabs, filters, positions, Mine / Opponents and

@@ -74,3 +74,40 @@
 @container card (max-width: 340px) {
   .se-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
 }
+
+/* Now | Projected, in the bar. */
+.se-mode { margin-right: 6px; }
+
+/* Projected standings keep Playoffs and Title longest; Bye gives way first. */
+@container card (max-width: 360px) {
+  .se-projected th:nth-child(5), .se-projected td:nth-child(5) { display: table-cell; }
+  .se-projected th:nth-child(6), .se-projected td:nth-child(6) { display: none; }
+}
+
+/* Projected playoff bracket: one column per round, scrolling sideways when
+   the card is narrow. Byes take a slot so rounds line up. */
+.se-bracket { margin: 6px 0 2px; padding-top: 10px; border-top: 1px solid var(--line); }
+.se-rounds { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); gap: 10px; overflow-x: auto; padding: 0 14px 6px; }
+.se-round { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; }
+.se-round-h { font: 600 11px Poppins, sans-serif; text-transform: uppercase; letter-spacing: .04em; color: var(--sub); }
+.se-match { border: 1px solid var(--hair); border-radius: 8px; overflow: hidden; background: var(--raised); }
+.se-slot { display: grid; grid-template-columns: 16px 1fr auto auto; align-items: center; gap: 6px; padding: 5px 8px; font-size: 12px; }
+.se-slot + .se-slot { border-top: 1px solid var(--hair); }
+.se-slot.me { background: var(--teal-soft); }
+.se-slot.me .se-bteam { color: var(--text); font-weight: 600; }
+.se-slot.bye { opacity: .55; }
+.se-seed { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.se-bteam { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.se-bpts { color: var(--sub); font-variant-numeric: tabular-nums; }
+.se-bodds { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 30px; text-align: right; }
+.se-bracket .se-note b { color: var(--text); }
+/* Narrow cards: rounds stack top to bottom, matches two to a row. */
+@container card (max-width: 560px) {
+  .se-rounds { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: minmax(0, 1fr); overflow: visible; }
+  .se-round { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .se-round-h { grid-column: 1 / -1; margin-top: 4px; }
+  .se-round.solo .se-match { grid-column: 1 / -1; }
+}
+@container card (max-width: 340px) {
+  .se-round { grid-template-columns: minmax(0, 1fr); }
+}

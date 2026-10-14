@@ -3,18 +3,26 @@
 // a league shows its full standings with all-play records and power ratings,
 // and, in dynasty and keeper leagues, next year's draft order. While a week is
 // being played, everything counts it as if the games ended now.
+//
+// "Projected" plays out the rest of the season and the playoffs from each
+// team's projected lineups (see season/project.js): final records, playoff,
+// bye and title odds, the end-of-season draft order and a projected bracket.
 globalThis.NightOwl = globalThis.NightOwl || {};
 
 (function (NightOwl) {
   'use strict';
 
-  const { api, players, storage, season } = NightOwl;
+  const { api, players, storage, season, projection, lineups } = NightOwl;
+  const fantasyPoints = NightOwl.scoring.points;
   const { escape: esc, short: num, tenths, percent } = NightOwl.format;
   const { NOT_STARTING_SLOTS } = NightOwl.lineups;
 
   const REFRESH_MS = 10 * 60000;
   const LIVE_REFRESH_MS = 2 * 60000; // while a week is being played
   const KEEPS_PLAYERS = new Set([1, 2]); // settings.type: 1 keeper, 2 dynasty
+  const PROJECTION_TTL_MS = 6 * 3600000; // weekly projections, per week
+  const SIMS = 2000;
+  const IDP = new Set(['DL', 'LB', 'DB', 'IDP_FLEX']);
 
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
@@ -26,6 +34,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     leagues: [],
     open: new Set(), // league ids expanded
     draftMethod: 'linear', // or 'inverse'; see season.draftOrder
+    mode: 'now', // or 'projected'
+    projections: new Map(), // league id -> projectSeason result, or { error }
+    projecting: false,
     live: false, // some league counts a week still being played
     loadedAt: 0,
     timer: null,
@@ -36,7 +47,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const MARKUP = `
     <header class="bar">
       <div class="title"><strong id="se-week">Season</strong><span id="se-sub" class="muted small"></span></div>
-      <div class="actions"><button id="se-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button></div>
+      <div class="actions">
+        <div class="tabs se-mode" role="group" aria-label="Season view">
+          <button type="button" class="tab" data-mode="now" title="Standings and draft order as things stand">Now</button>
+          <button type="button" class="tab" data-mode="projected" title="Play out the rest of the season and the playoffs from projected lineups">Projected</button>
+        </div>
+        <button id="se-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button>
+      </div>
     </header>
     <div class="tool-scroll">
       <p id="se-error" class="error" hidden></p>
@@ -111,6 +128,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const own = await storage.get('live.settings', {});
     const prefs = await storage.get('season.settings', {});
     if (prefs.draftMethod) state.draftMethod = prefs.draftMethod;
+    if (prefs.mode) state.mode = prefs.mode;
     const username = (shared.username || '').trim();
     if (!username) throw new Error('Add your Sleeper username to get started.');
     if (username !== state.username) { state.username = username; state.userId = null; }
@@ -120,6 +138,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const nfl = await api.state();
     const week = nfl.display_week || nfl.week;
     state.week = week;
+    state.nfl = nfl;
     if (!state.userId) {
       const user = await api.user(username);
       if (!user || !user.user_id) throw new Error(`No Sleeper user named "${username}"`);
@@ -182,6 +201,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         name: lg.name.trim(),
         playoffTeams,
         medianGame,
+        // What the projection needs: the records as Sleeper has them (the
+        // live week is projected, not counted), and the league's rules.
+        raw: {
+          season: lg.season,
+          rosters,
+          next,
+          inProgress,
+          thisWeek: thisWeek || [],
+          playoffStart,
+          roundType: (lg.settings && lg.settings.playoff_round_type) || 0,
+          slots: lg.roster_positions || [],
+          scoring: lg.scoring_settings || {},
+          names
+        },
         live: live ? next : null,
         draft: keeps ? {
           season: Number(lg.season) + 1,
@@ -217,6 +250,134 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     };
   }
 
+  // ---- projection ---------------------------------------------------------
+
+  // Weekly projections, trimmed to rostered players and cached for a few
+  // hours: { week: { pid: stats } }. ~240 KB a week over the wire.
+  async function weekProjections(seasonYear, weeks, positions, keep) {
+    const key = `season.projections.${seasonYear}`;
+    const cached = await storage.get(key, {});
+    const fresh = (w) => cached[w] && Date.now() - cached[w].at < PROJECTION_TTL_MS && positions.every((p) => cached[w].positions.includes(p));
+    const missing = weeks.filter((w) => !fresh(w));
+    const fetched = await Promise.all(missing.map((w) => api.weekProjections(seasonYear, w, 'regular', positions).then((rows) => [w, rows])));
+    for (const [w, rows] of fetched) {
+      const stats = {};
+      for (const r of rows || []) if (keep.has(r.player_id) && r.stats) stats[r.player_id] = r.stats;
+      cached[w] = { at: Date.now(), positions, stats };
+    }
+    if (fetched.length) await storage.set({ [key]: cached });
+    return Object.fromEntries(weeks.map((w) => [w, (cached[w] && cached[w].stats) || {}]));
+  }
+
+  // Share of each team's game left this week (1 before kickoff, 0 when final).
+  async function remainingByTeam(seasonYear, week) {
+    try {
+      const games = lineups.parseGames(await api.kickoffs(seasonYear, week, 'regular'));
+      const out = new Map();
+      for (const g of games) { out.set(g.home, g.remaining); out.set(g.away, g.remaining); }
+      return (team) => (out.has(team) ? out.get(team) : 0); // no game: bye
+    } catch {
+      return () => 0.5; // ESPN unreachable: call every game half played
+    }
+  }
+
+  async function projectLeague(lg, remainingOf, stats) {
+    const r = lg.raw;
+    const format = projection.bracketFormat(lg.playoffTeams, r.playoffStart, r.roundType);
+    const future = [];
+    for (let w = r.inProgress ? r.next + 1 : r.next; w < r.playoffStart; w++) future.push(w);
+    const poWeeks = projection.playoffWeeks(format);
+    const schedule = await remainingSchedule(lg.leagueId, r.inProgress ? r.next + 1 : r.next, r.playoffStart);
+    const positionsOf = (pid) => players.info(pid).positions;
+    const outIn = projection.availability((pid) => players.info(pid).injury);
+    const projOf = (week) => (pid) => fantasyPoints(stats[week] && stats[week][pid], r.scoring);
+    const pools = new Map(r.rosters.map((ro) => {
+      const away = new Set([...(ro.reserve || []), ...(ro.taxi || [])]);
+      return [ro.roster_id, (ro.players || []).filter((pid) => !away.has(pid))];
+    }));
+    const weekTeams = (week, index) => Object.fromEntries(r.rosters.map((ro) =>
+      [ro.roster_id, projection.teamWeek(r.slots, pools.get(ro.roster_id), projOf(week), positionsOf, outIn(index))]));
+
+    const weeks = [];
+    let index = 0;
+    if (r.inProgress) {
+      // The real starters: points so far plus what's left of their games.
+      const pairs = new Map();
+      const teams = {};
+      for (const m of r.thisWeek) {
+        if (m.matchup_id != null) pairs.set(m.matchup_id, (pairs.get(m.matchup_id) || []).concat(m.roster_id));
+        const pp = m.players_points || {};
+        const o = season.outlook((m.starters || []).filter((pid) => pid && pid !== '0').map((pid) => ({
+          points: pp[pid] || 0,
+          proj: projOf(r.next)(pid),
+          remaining: remainingOf(players.info(pid).team)
+        })));
+        teams[m.roster_id] = { mean: o.mean, variance: o.variance, lineupSet: true };
+      }
+      weeks.push({ week: r.next, pairs: [...pairs.values()].filter((p) => p.length === 2), teams });
+      index++;
+    }
+    future.forEach((w, i) => weeks.push({ week: w, pairs: schedule[i] || [], teams: weekTeams(w, index + i) }));
+    const playoffTeams = {};
+    poWeeks.forEach((w, i) => { playoffTeams[w] = weekTeams(w, index + future.length + i); });
+
+    const teams = r.rosters.map((ro) => {
+      const s = ro.settings || {};
+      const pf = (s.fpts || 0) + (s.fpts_decimal || 0) / 100;
+      const max = (s.ppts || 0) + (s.ppts_decimal || 0) / 100;
+      return { rosterId: ro.roster_id, wins: s.wins || 0, losses: s.losses || 0, ties: s.ties || 0, pf, max, efficiency: max ? pf / max : null };
+    });
+    return projection.projectSeason({
+      teams,
+      weeks,
+      playoff: format ? { format, teams: playoffTeams } : null,
+      medianGame: lg.medianGame,
+      sims: SIMS,
+      seed: season.hash(`${lg.leagueId}:${r.next}:projected`),
+      draft: lg.draft ? { method: state.draftMethod } : null
+    });
+  }
+
+  async function runProjections() {
+    if (state.projecting || !state.leagues.length) return;
+    const pending = state.leagues.filter((lg) => lg.raw.next < lg.raw.playoffStart && !state.projections.has(lg.leagueId));
+    if (!pending.length) return;
+    state.projecting = true;
+    render();
+    try {
+      const nfl = state.nfl;
+      const needed = new Set();
+      const positions = new Set(api.OFFENSE);
+      const keep = new Set();
+      for (const lg of pending) {
+        const format = projection.bracketFormat(lg.playoffTeams, lg.raw.playoffStart, lg.raw.roundType);
+        for (let w = lg.raw.next; w < lg.raw.playoffStart; w++) needed.add(w);
+        for (const w of projection.playoffWeeks(format)) needed.add(w);
+        for (const slot of lg.raw.slots) if (IDP.has(slot)) ['DL', 'LB', 'DB'].forEach((p) => positions.add(p));
+        for (const ro of lg.raw.rosters) for (const pid of ro.players || []) keep.add(pid);
+      }
+      const weeks = [...needed].filter((w) => w <= 18).sort((a, b) => a - b);
+      const [stats, remainingOf] = await Promise.all([
+        weekProjections(nfl.season, weeks, [...positions].sort(), keep),
+        pending.some((lg) => lg.raw.inProgress) ? remainingByTeam(nfl.season, nfl.week) : Promise.resolve(() => 1)
+      ]);
+      for (const lg of pending) {
+        try {
+          state.projections.set(lg.leagueId, await projectLeague(lg, remainingOf, stats));
+        } catch (err) {
+          console.warn('[Night Owl season] projection failed', lg.name, err);
+          state.projections.set(lg.leagueId, { error: err.message || String(err) });
+        }
+      }
+    } catch (err) {
+      console.error('[Night Owl season] projections unavailable', err);
+      state.error = `Projections unavailable: ${err.message || err}`;
+    } finally {
+      state.projecting = false;
+      render();
+    }
+  }
+
   async function refresh() {
     if (state.busy || !root) return;
     state.busy = true;
@@ -231,7 +392,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       state.busy = false;
       if (root) {
         $('se-refresh').classList.remove('spin');
+        state.projections.clear();
         render();
+        if (state.mode === 'projected') runProjections();
       }
     }
   }
@@ -355,35 +518,145 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
+  // ---- projected ----------------------------------------------------------
+
+  const projRecord = (w, l) => `${num(Math.round(w * 10) / 10)}–${num(Math.round(l * 10) / 10)}`;
+  const nameOf = (lg, rosterId) => {
+    const row = lg.rows.find((r) => r.rosterId === rosterId);
+    return row ? row.name : `Team ${rosterId}`;
+  };
+
+  function projectedTable(lg, p) {
+    const cut = lg.playoffTeams;
+    const byes = p.bracket && p.bracket.rounds[0].matches.some((m) => !m.bottom);
+    return `<table class="se-table se-standings se-projected">
+      <thead><tr><th title="Projected finish: average place across ${SIMS.toLocaleString()} simulated seasons">#</th><th>Team</th><th title="Projected final record (average across simulations)">Record</th><th title="Projected points for at season's end">PF</th>${cut ? '<th title="Chance to make the playoffs">Playoffs</th>' : ''}${byes ? '<th title="Chance of a first-round bye">Bye</th>' : ''}${p.bracket ? '<th title="Chance to win the championship">Title</th>' : ''}</tr></thead>
+      <tbody>${p.order.map((id, i) => {
+        const t = p.teams[id];
+        return `<tr class="${id === lg.me.rosterId ? 'me' : ''}${cut && i + 1 === cut ? ' cut' : ''}">
+          <td>${i + 1}</td>
+          <td class="se-team">${esc(nameOf(lg, id))}</td>
+          <td>${projRecord(t.wins, t.losses)}</td>
+          <td>${num(Math.round(t.pf))}</td>
+          ${cut ? `<td>${oddsLabel(t.playoffOdds)}</td>` : ''}
+          ${byes ? `<td>${oddsLabel(t.byeOdds)}</td>` : ''}
+          ${p.bracket ? `<td>${oddsLabel(t.titleOdds)}</td>` : ''}
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+    <p class="muted small se-note">${lg.raw.inProgress ? `Week ${lg.raw.next} so far, then ` : ''}each team's best projected lineup every week through the playoffs, played out ${SIMS.toLocaleString()} times on the real schedule${lg.medianGame ? ', median games included' : ''}. Records are averages.</p>`;
+  }
+
+  function projectedDraftBlock(lg, p) {
+    if (!lg.draft) return '';
+    const picks = projection.projectedDraft(p, { method: state.draftMethod });
+    const weight = Math.round(season.DRAFT_WIN_WEIGHT * 100);
+    const held = [];
+    for (let round = 1; round <= lg.draft.rounds; round++) {
+      for (const pk of picks) if (lg.draft.owner(round, pk.rosterId) === lg.me.rosterId) held.push(pickLabel(round, pk.pick));
+    }
+    return `<section class="se-draft">
+      <div class="se-draft-head">
+        <div><b>${lg.draft.season} draft order</b><span class="muted small">projected, end of season</span></div>
+        <div class="tabs" role="group" aria-label="Draft order method">${Object.entries(METHODS).map(([key, m]) => `
+          <button type="button" class="tab${state.draftMethod === key ? ' on' : ''}" data-method="${key}" aria-pressed="${state.draftMethod === key}" title="${esc(m.blurb)}">${m.label}</button>`).join('')}
+        </div>
+      </div>
+      <table class="se-table se-draft-table">
+        <thead><tr><th title="Round 1 pick">Pick</th><th>Team</th><th title="Projected final wins">W</th><th title="Projected max points at season's end">Max PF</th><th title="Chance of the first overall pick">#1</th></tr></thead>
+        <tbody>${picks.map((pk) => {
+          const holder = lg.draft.owner(1, pk.rosterId);
+          const traded = holder !== pk.rosterId ? nameOf(lg, holder) : null;
+          return `<tr class="${holder === lg.me.rosterId ? 'me' : ''}">
+            <td>${pickLabel(1, pk.pick)}</td>
+            <td class="se-team">${esc(nameOf(lg, pk.rosterId))}${traded ? `<span class="se-via" title="Pick traded to ${esc(traded)}">→ ${esc(traded)}</span>` : ''}</td>
+            <td>${num(Math.round(pk.wins * 10) / 10)}</td>
+            <td>${tenths(pk.max)}</td>
+            <td>${pk.odds ? oddsLabel(pk.odds[0]) : '–'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+      <p class="muted small se-note">${weight}% wins + ${100 - weight}% max points on projected final numbers, worst first.
+        ${held.length ? `You'd hold <b>${held.join(', ')}</b>.` : `You hold no ${lg.draft.season} picks.`}</p>
+    </section>`;
+  }
+
+  function bracketBlock(lg, p) {
+    if (!p.bracket) return '';
+    const side = (s, chance) => (s
+      ? `<div class="se-slot${s.rosterId === lg.me.rosterId ? ' me' : ''}"><span class="se-seed">${s.seed}</span><span class="se-bteam">${esc(nameOf(lg, s.rosterId))}</span><span class="se-bpts">${tenths(s.points)}</span><span class="se-bodds">${chance}</span></div>`
+      : '<div class="se-slot bye"><span class="se-seed"></span><span class="se-bteam muted">Bye</span></div>');
+    const champ = p.bracket.champion;
+    return `<section class="se-bracket">
+      <div class="se-draft-head"><div><b>Projected playoffs</b><span class="muted small">favorites advance; % to win each game</span></div></div>
+      <div class="se-rounds">${p.bracket.rounds.map((round) => `
+        <div class="se-round${round.matches.length === 1 ? ' solo' : ''}">
+          <div class="se-round-h">${round.label}<span class="muted"> · Wk ${round.weeks.join('–')}</span></div>
+          ${round.matches.map((m) => `<div class="se-match">
+            ${side(m.top, m.bottom ? percent(m.pTop) : '')}
+            ${m.bottom ? side(m.bottom, percent(1 - m.pTop)) : side(null)}
+          </div>`).join('')}
+        </div>`).join('')}
+      </div>
+      ${champ ? `<p class="muted small se-note">Projected champion: <b>${esc(nameOf(lg, champ.rosterId))}</b> (${oddsLabel(p.teams[champ.rosterId].titleOdds)} to win it all).${p.teams[lg.me.rosterId] ? ` You: ${oddsLabel(p.teams[lg.me.rosterId].titleOdds)}.` : ''}</p>` : ''}
+    </section>`;
+  }
+
+  function projectedKpis(lg, p) {
+    const t = p.teams[lg.me.rosterId];
+    const place = p.order.indexOf(lg.me.rosterId) + 1;
+    const picks = lg.draft ? projection.projectedDraft(p, { method: state.draftMethod }) : null;
+    const firsts = picks ? picks.filter((pk) => lg.draft.owner(1, pk.rosterId) === lg.me.rosterId).map((pk) => pickLabel(1, pk.pick)) : null;
+    return `<div class="se-kpis">
+      ${kpi(projRecord(t.wins, t.losses), `proj. · ${ordinal(place)}`, { title: 'Projected final record and finish' })}
+      ${lg.playoffTeams ? kpi(oddsLabel(t.playoffOdds), 'playoffs', { tone: t.playoffOdds >= 0.5 ? 'up' : 'down', title: `Chance to make the playoffs, from ${SIMS.toLocaleString()} projected seasons` }) : kpi(num(Math.round(t.pf)), 'proj. PF')}
+      ${p.bracket ? kpi(oddsLabel(t.titleOdds), 'title', { tone: t.titleOdds >= 1 / lg.rows.length ? 'up' : '', title: 'Chance to win the championship' }) : kpi(num(Math.round(t.max)), 'proj. max')}
+      ${firsts ? kpi(firsts.length ? firsts.join(', ') : 'Traded', `${lg.draft.season} 1st`, { title: 'Round 1 picks you hold, by the projected end-of-season order' }) : kpi(oddsLabel(t.byeOdds), 'bye', { title: 'Chance of a first-round bye' })}
+    </div>`;
+  }
+
   function leagueBlock(lg) {
     const m = lg.me;
-    const inPlayoffs = lg.playoffTeams && m.rank <= lg.playoffTeams;
+    const p = state.mode === 'projected' ? state.projections.get(lg.leagueId) : null;
+    const projected = p && !p.error;
+    const place = projected ? p.order.indexOf(m.rosterId) + 1 : m.rank;
+    const inPlayoffs = lg.playoffTeams && place <= lg.playoffTeams;
     const luck = m.luck == null ? '–' : signedTenth(m.luck);
+    let body;
+    if (state.mode !== 'projected') body = `${table(lg)}${draftBlock(lg)}`;
+    else if (lg.raw.next >= lg.raw.playoffStart) body = `<p class="muted small se-note">The regular season is over; nothing left to project.</p>${table(lg)}${draftBlock(lg)}`;
+    else if (!p) body = '<div class="skel" role="status" aria-label="Projecting the rest of the season"><i></i><i></i><i></i></div>';
+    else if (p.error) body = `<p class="error">Couldn't project this league: ${esc(p.error)}</p>`;
+    else body = `${projectedTable(lg, p)}${bracketBlock(lg, p)}${projectedDraftBlock(lg, p)}`;
     return `<details class="se-league" data-id="${esc(lg.leagueId)}"${state.open.has(lg.leagueId) ? ' open' : ''}>
       <summary>
         <div class="se-head">
           <span class="se-name">${esc(lg.name)}</span>
-          <span class="se-rank${inPlayoffs ? ' in' : ''}" title="${inPlayoffs ? 'In a playoff spot' : 'Outside the playoff spots'}">${ordinal(m.rank)} of ${lg.rows.length}</span>
+          <span class="se-rank${inPlayoffs ? ' in' : ''}" title="${projected ? 'Projected finish' : inPlayoffs ? 'In a playoff spot' : 'Outside the playoff spots'}">${projected ? 'proj. ' : ''}${ordinal(place)} of ${lg.rows.length}</span>
         </div>
-        <div class="se-kpis">
+        ${projected ? projectedKpis(lg, p) : `<div class="se-kpis">
           ${kpi(record(m.wins, m.losses, m.ties), lg.medianGame ? 'incl. median' : 'record', { title: lg.medianGame ? 'This league also plays the league median every week' : '' })}
           ${m.playoffOdds == null
             ? kpi(record(m.allPlay.w, m.allPlay.l, m.allPlay.t), 'all-play', { title: 'Your record if you played every team every week' })
             : kpi(oddsLabel(m.playoffOdds), 'playoffs', { tone: m.playoffOdds >= 0.5 ? 'up' : 'down', title: 'Chance to make the playoffs, from 2,000 simulations' })}
           ${kpi(luck, Math.abs(m.luck) === 1 ? 'win of luck' : 'wins of luck', { tone: m.luck > 0 ? 'up' : m.luck < 0 ? 'down' : '', title: 'Wins above what your weekly scores earned' })}
           ${lg.draft ? firstsKpi(lg) : kpi(m.efficiency == null ? '–' : percent(m.efficiency), 'of max points', { title: 'Points scored out of the best lineup you could have set' })}
-        </div>
+        </div>`}
         ${reviewLine(lg.review)}
       </summary>
-      ${table(lg)}
-      ${draftBlock(lg)}
+      ${body}
     </details>`;
   }
 
   function render() {
     if (!root) return;
     if (state.week) $('se-week').textContent = `Week ${state.week}`;
-    $('se-sub').textContent = state.live ? 'live' : '';
+    $('se-sub').textContent = state.projecting ? 'projecting…' : state.live ? 'live' : '';
+    for (const btn of root.querySelectorAll('[data-mode]')) {
+      const on = btn.dataset.mode === state.mode;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-pressed', String(on));
+    }
     $('se-error').hidden = !state.error;
     $('se-error').textContent = state.error || '';
     if (!state.leagues.length) {
@@ -422,11 +695,21 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     setTimeout(() => el.classList.remove('intro'), 1600);
     root.innerHTML = MARKUP;
     $('se-refresh').addEventListener('click', refresh);
+    root.querySelector('.se-mode').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-mode]');
+      if (!btn || btn.dataset.mode === state.mode) return;
+      state.mode = btn.dataset.mode;
+      storage.set({ 'season.settings': { draftMethod: state.draftMethod, mode: state.mode } });
+      render();
+      if (state.mode === 'projected') runProjections();
+    });
     $('se-body').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-method]');
       if (!btn || btn.dataset.method === state.draftMethod) return;
       state.draftMethod = btn.dataset.method;
-      storage.set({ 'season.settings': { draftMethod: state.draftMethod } });
+      storage.set({ 'season.settings': { draftMethod: state.draftMethod, mode: state.mode } });
+      // #1-pick odds depend on the method, so projections run again.
+      if (state.mode === 'projected') { state.projections.clear(); runProjections(); }
       render();
     });
     $('se-body').addEventListener('toggle', (e) => {
@@ -436,6 +719,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }, true);
     render();
     if (Date.now() - state.loadedAt > REFRESH_MS / 2) refresh();
+    else if (state.mode === 'projected') runProjections();
     // Every 2 minutes while a week is being played, otherwise every 10.
     state.timer = setInterval(() => {
       if (Date.now() - state.loadedAt >= (state.live ? LIVE_REFRESH_MS : REFRESH_MS) - 1000) refresh();
