@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.7.0
 - **Season: Now | Projected.** Projected plays out the rest of the season and
   the playoffs 2,000 times from every team's best projected lineup (Sleeper's
   weekly projections, scored by each league's rules, on the real schedule,
