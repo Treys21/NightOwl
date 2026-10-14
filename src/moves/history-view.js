@@ -25,8 +25,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!V.usesKtc(lg)) return { sideValue: sum, assetValue: () => 0 };
       return {
         sideValue: (vs) => ktc.sideValue(vs),
-        // A pick already spent is worth the player it became.
-        assetValue: (a) => (a.pick ? (a.pick.player ? V.dynastyValue(lg, a.pick.player) : V.dynastyValue(lg, `pick:${a.pick.season}:${a.pick.round}:${a.pick.from}`)) : V.dynastyValue(lg, a.pid))
+        // A pick is worth the player to whoever used it, and its slot to whoever passed it on.
+        assetValue: (a) => (a.pick ? V.pickAsset(lg, a.pick) : V.dynastyValue(lg, a.pid))
       };
     }
 
@@ -62,7 +62,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const nameOfOwner = (lg, userId) => (userId && lg.names.get(userId)) || 'Former manager';
     const assetText = (lg, a) => {
-      if (a.pick) return `${a.pick.season} round ${a.pick.round} pick${a.pick.player ? ` → ${players.info(a.pick.player).name}` : ''}`;
+      if (a.pick) return `${a.pick.season} round ${a.pick.round} pick${a.pick.player ? ` → ${players.info(a.pick.player).name}` : a.pick.passed ? ' (passed on)' : ''}`;
       const p = players.info(a.pid);
       return `${p.name}${p.pos ? ` (${p.pos})` : ''}`;
     };

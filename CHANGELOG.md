@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.12.2
+**Draft grades on total value, and picks followed through every trade.**
+- **Pick ownership.** A pick that changes hands before its draft is now followed through
+  each trade. The manager who held it at the draft is credited with the player taken; anyone
+  who passed it on is credited with its slot value on the pick chart (so a team that flipped
+  a pick is no longer shown as having drafted the player).
+- **Drafts are graded against the pick chart** (KeepTradeCut's early, mid and late values for
+  each round), and teams on the total value they gained over it, trades included: a team that
+  bought a pick is graded on the player against what it paid, one that sold on what it fetched.
+  The table splits Picks, Trades and Gain.
+- **Outliers stand out.** Picks near their slot fade back; steals and busts (50%+ off) get a
+  ring, a bold name and a ▲ or ▼ badge with the percentage.
+- **Trade analyzer** prices with the blended value (3.12.1) and the same package rule.
+
 ## 3.12.1
 **The trade analyzer uses the blended price.**
 - Moves → Trade now values players the way the finder does: KeepTradeCut mixed with

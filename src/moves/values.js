@@ -194,6 +194,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return lg.pointPrice;
     }
 
+    /**
+     * What a traded pick is worth now. Spent by the manager who held it: the player he took. Passed on before its draft:
+     * its slot on the pick chart. Not drafted yet: the chart for its year and round.
+     */
+    function pickAsset(lg, pick) {
+      if (pick.player) return dynastyValue(lg, pick.player);
+      if (pick.passed && state.ktc) {
+        const chart = ktc.pickBaseline(state.ktc.picks, { round: pick.round, slot: pick.pos, teams: pick.teams, superflex: lg.superflex });
+        if (chart) return Math.round(chart * (PICK_PREMIUM[pick.round] || 1));
+      }
+      return dynastyValue(lg, `pick:${pick.season}:${pick.round}:${pick.from}`);
+    }
+
     /** What a package of players and picks is worth in this league: the best player in full, the rest over replacement. */
     function packageValue(lg, pids) {
       const items = pids.map((pid) => ({ v: marketValue(lg, pid), pick: isPick(pid) }));
@@ -203,7 +216,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
 
     return {
-      packageValue, isPick, pickOf, standingsRanks, ownedPicks, pickSlot, pickTierOf, ordinalRound,
+      pickAsset, packageValue, isPick, pickOf, standingsRanks, ownedPicks, pickSlot, pickTierOf, ordinalRound,
       rosPoints, overReplacement, usesKtc, consensus, dynastyValue, blendedValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
     };
   }

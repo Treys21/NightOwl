@@ -77,6 +77,24 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return hit ? (superflex ? hit.s : hit.v) : 0;
   }
 
+  /**
+   * What the pick chart says a draft slot is worth: the early, mid and late values of the round (from the
+   * nearest draft year KeepTradeCut prices), blended along the round so slot 1 reads near "early" and the
+   * last slot near "late". 0 when the chart has no such round (rounds past 4).
+   */
+  function pickBaseline(picks, { round, slot, teams, superflex }) {
+    const year = Object.keys(picks).filter((k) => k.split(':')[1] === String(round)).map((k) => k.split(':')[0]).sort()[0];
+    if (!year) return 0;
+    const at = (tier) => pickValue(picks, { year, round, tier, superflex });
+    const [early, mid, late] = [at('early'), at('mid'), at('late')];
+    if (!early || !mid || !late) return 0;
+    const t = (slot - 0.5) / Math.max(1, teams); // 0 = first slot, 1 = last
+    const lerp = (a, b, x) => a + (b - a) * x;
+    if (t <= 1 / 6) return early;
+    if (t >= 5 / 6) return late;
+    return t <= 0.5 ? lerp(early, mid, (t - 1 / 6) / (1 / 3)) : lerp(mid, late, (t - 0.5) / (1 / 3));
+  }
+
   /** Tight-end premium tier (0-3) a league's scoring pays: +0.5 per TE reception is 1. */
   const tepTier = (scoring) => Math.max(0, Math.min(3, Math.round(((scoring && scoring.bonus_rec_te) || 0) / 0.5)));
 
@@ -145,7 +163,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
   }
 
-  NightOwl.ktc = { URLS, EXPONENT_REDRAFT, EXPONENT_PACKAGE, REPLACEMENT_DYNASTY, REPLACEMENT_REDRAFT, packageValue, parse, isSuperflex, pickValues, pickTier, pickValue, tepTier, valueIn, scoringFactor, matchAll, sideValue, load };
+  NightOwl.ktc = { URLS, EXPONENT_REDRAFT, EXPONENT_PACKAGE, REPLACEMENT_DYNASTY, REPLACEMENT_REDRAFT, packageValue, parse, isSuperflex, pickValues, pickTier, pickValue, pickBaseline, tepTier, valueIn, scoringFactor, matchAll, sideValue, load };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.ktc;

@@ -6,7 +6,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { players, tradeDrafts, tradeHistory } = NightOwl;
+  const { players, tradeDrafts, tradeHistory, ktc } = NightOwl;
   const { escape: esc } = NightOwl.format;
 
   // A draft's team score runs about half as wide as a trade's, so it is scaled before it becomes a letter.
@@ -25,9 +25,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return null;
     }
 
+    // Picks near what was expected fade back; the colour comes in past ±15% and is full by ±100%, so the steals and busts are what the eye finds.
+    const NEAR = 0.15;
+    const OUTLIER = 0.5; // a pick this far from expected gets a ring and a badge
     const colour = (score) => {
-      const s = Math.max(-1, Math.min(1, score));
-      return s >= 0 ? `rgba(0, 206, 184, ${(0.08 + 0.5 * s).toFixed(2)})` : `rgba(247, 92, 141, ${(0.08 - 0.5 * s).toFixed(2)})`;
+      const m = Math.max(0, Math.min(1, (Math.abs(score) - NEAR) / (1 - NEAR)));
+      const alpha = (0.04 + 0.7 * Math.pow(m, 0.8)).toFixed(2);
+      return score >= 0 ? `rgba(0, 206, 184, ${alpha})` : `rgba(247, 92, 141, ${alpha})`;
     };
     const pctText = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.round(Math.abs(n) * 100)}%`;
 
@@ -43,29 +47,38 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const p = players.info(c.pid);
       const last = (p.name || c.pid).split(' ').slice(-1)[0];
       const tip = `${p.name} (${p.pos || '?'}${p.team ? `, ${p.team}` : ''}) · pick ${c.no} (${c.label}), made by ${teamName(lg, c.by)}${c.traded ? `, traded from ${teamName(lg, c.from)}` : ''}\nWorth ${V.worth(c.value)} now; the picks around it returned ${V.worth(c.expected)} (${pctText(c.score)})`;
-      return `<div class="dv-cell" style="background:${colour(c.score)}" title="${esc(tip)}">
+      const outlier = Math.abs(c.score) >= OUTLIER;
+      const kind = outlier ? (c.score > 0 ? ' steal' : ' bust') : Math.abs(c.score) < NEAR ? ' near' : '';
+      const badge = outlier ? `<span class="dv-badge">${c.score > 0 ? '▲' : '▼'} ${Math.round(Math.abs(c.score) * 100)}%</span>` : '';
+      return `<div class="dv-cell${kind}" style="background:${colour(c.score)}" title="${esc(tip)}">
         <span class="dv-no">${c.label}${c.traded ? ' <b title="Traded pick">↔</b>' : ''}</span>
         <span class="dv-name">${esc(last)}</span>
         <span class="dv-pos">${esc(p.pos || '')}</span>
-        <span class="dv-val">${c.value ? V.worth(c.value) : '–'}</span>
+        <span class="dv-val">${c.value ? V.worth(c.value) : '–'}</span>${badge}
       </div>`;
     }
 
     function board(lg, draft) {
       const value = valueFn(lg);
       if (!value) return '<p class="empty muted">Draft grades need KeepTradeCut values, which are not loaded.</p>';
-      const b = tradeDrafts.board(draft, value);
+      // The pick chart sets what each slot was worth (dynasty); without it the picks around each one do.
+      const chart = V.usesKtc(lg) && state.ktc && state.ktc.picks;
+      const b = tradeDrafts.board(draft, value, chart ? ({ round, slot, teams }) => ktc.pickBaseline(chart, { round, slot, teams, superflex: lg.superflex }) : null);
       const slots = Array.from({ length: b.teams }, (_, i) => i + 1);
       const head = slots.map((s) => `<div class="dv-head" title="${esc(teamName(lg, draft.slotToRoster ? draft.slotToRoster[s] : s))}">${esc(short(teamName(lg, draft.slotToRoster ? draft.slotToRoster[s] : s)))}</div>`).join('');
       const rows = b.rows.map((row, r) => `<div class="dv-round">${r + 1}</div>${slots.map((s) => cell(lg, draft, row[s - 1])).join('')}`).join('');
-      const grades = Object.entries(b.byRoster)
+      // Graded after trades: a team that bought a pick paid for it, one that sold a pick was paid.
+      const worthOf = (a) => (a.pick ? V.pickAsset(lg, a.pick) : value(a.pid));
+      const net = tradeDrafts.afterTrades(b, draft, (lg.history.graded || []).map((g) => g.trade), worthOf);
+      const grades = Object.entries(net)
         .map(([rid, t]) => ({ rid: Number(rid), t, letter: tradeHistory.letterFor(t.score * GRADE_SCALE) }))
         .sort((x, y) => y.t.score - x.t.score);
-      const table = `<table class="mv-table mv-managers"><thead><tr><th>Team</th><th>Grade</th><th title="Value of the players taken, now">Value</th><th title="Against the picks around each of theirs">vs expected</th></tr></thead><tbody>
-        ${grades.map((g) => `<tr class="${g.rid === lg.mine.roster_id ? 'me' : ''}"><td>${esc(teamName(lg, g.rid))}</td><td class="num"><span class="mv-grade g-${tradeHistory.toneOf(g.letter)}">${g.letter}</span></td><td class="num">${V.worth(g.t.value)}</td><td class="num ${g.t.score > 0.03 ? 'up' : g.t.score < -0.03 ? 'down' : ''}">${pctText(g.t.score)}</td></tr>`).join('')}
+      const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${V.worth(Math.abs(n))}`;
+      const table = `<table class="mv-table mv-managers"><thead><tr><th>Team</th><th>Grade</th><th title="Value now of the players taken with the picks the team used">Picks</th><th title="Value now of what the team got in trades that moved this draft's picks, less what it gave">Trades</th><th title="Total value gained over what the pick chart said the team's own slots were worth, picks and trades together">Gain</th></tr></thead><tbody>
+        ${grades.map((g) => `<tr class="${g.rid === lg.mine.roster_id ? 'me' : ''}"><td>${esc(teamName(lg, g.rid))}</td><td class="num"><span class="mv-grade g-${tradeHistory.toneOf(g.letter)}">${g.letter}</span></td><td class="num">${V.worth(g.t.value)}</td><td class="num ${g.t.trades > 0 ? 'up' : g.t.trades < 0 ? 'down' : ''}">${g.t.trades ? signed(g.t.trades) : '–'}</td><td class="num ${g.t.gain > 0 ? 'up' : g.t.gain < 0 ? 'down' : ''}">${g.t.gain ? signed(g.t.gain) : '–'}</td></tr>`).join('')}
       </tbody></table>`;
       return `<div class="dv-wrap"><div class="dv-grid" style="--teams:${b.teams}"><div class="dv-corner"></div>${head}${rows}</div></div>
-        <p class="muted small mv-note dv-legend"><i class="dv-key up"></i> beat the picks around it <i class="dv-key down"></i> fell short · values are today's, so older drafts carry hindsight · ↔ traded pick</p>
+        <p class="muted small mv-note dv-legend"><i class="dv-key up"></i> beat the pick chart <i class="dv-key down"></i> fell short · ringed ▲▼ picks are 50%+ off · values are today's, so older drafts carry hindsight · ↔ traded pick · team grades include what was paid or received in pick trades</p>
         ${table}`;
     }
 

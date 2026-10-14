@@ -48,3 +48,54 @@ test('board: rounds down, slots across; a pick that beats its neighbours scores 
   // Teams are graded on the picks they made, whoever they belonged to.
   assert.ok(b.byRoster[10].value === 5000 + 9000 + 2500 && b.byRoster[10].picks === 3);
 });
+
+test('after trades: a pick bought is graded against its price, a pick sold against what it fetched', () => {
+  const values = { A: 5000, B: 4800, C: 9000, D: 4500, E: 3000, F: 0, G: 2800, H: 2500 };
+  const b = d.board(rookie, (pid) => values[pid]);
+  const trade = (got, gave, gotPicks, gavePicks) => ({ got, gave, gotPicks, gavePicks });
+  // Roster 10 paid player P (worth 8,000) for roster 30's round-1 pick, which became C (9,000).
+  const trades = [{ sides: { 10: trade([], ['P'], [{ season: '2025', round: 1, from: 30 }], []), 30: trade(['P'], [], [], [{ season: '2025', round: 1, from: 30 }]) } }];
+  const net = d.afterTrades(b, rookie, trades, (a) => (a.pid === 'P' ? 8000 : 0));
+  assert.strictEqual(net[10].trades, -8000);
+  assert.strictEqual(net[30].trades, 8000);
+  assert.ok(net[10].score < b.byRoster[10].score, 'paying 8,000 for the pick takes most of the shine off the 9,000 player');
+  assert.ok(net[30].score > 0, 'the seller was paid more than the slot was expected to return');
+  // No trades: the gain is just the picks over their slots.
+  const plain = d.afterTrades(b, rookie, [], () => 0);
+  assert.strictEqual(plain[20].gain, Math.round(b.byRoster[20].value - b.byRoster[20].expected));
+});
+
+test('the pick chart sets each slot\'s baseline, and a late-round hit is graded on total growth', () => {
+  const chart = ({ round }) => ({ 1: 6000, 2: 4000 }[round]);
+  const values = { A: 6000, B: 6000, C: 6000, D: 6000, E: 4000, F: 4000, G: 4000, H: 9000 }; // roster 10's round-2 pick grew past a first
+  const b = d.board(rookie, (pid) => values[pid], chart);
+  assert.strictEqual(b.picks[0].expected, 6000);
+  assert.strictEqual(b.picks[7].expected, 4000);
+  const net = d.afterTrades(b, rookie, [], () => 0);
+  const best = Object.entries(net).sort((x, y) => y[1].gain - x[1].gain)[0];
+  assert.strictEqual(best[0], '10', 'the team with the 9,000 second-rounder gained the most');
+  // 6,000 + 6,000 (the pick it holds from roster 30, no trade recorded) + 9,000, over the 10,000 its own two slots were worth.
+  assert.strictEqual(best[1].gain, 11000);
+});
+
+test('settle: a pick passed on before its draft is worth its slot; the player counts for the one who used it', () => {
+  const idx = d.index([rookie]);
+  const pick = { season: '2025', round: 1, from: 30 }; // drafted by roster 10 as C
+  const sides = (got, gave, gotP, gaveP) => ({ got, gave, gotPicks: gotP, gavePicks: gaveP });
+  // 30 -> 20 (week 1), 20 -> 10 (week 2). Roster 10 drafted.
+  const t1 = { at: 1, sides: { 20: sides([], [], [{ ...pick }], []), 30: sides([], [], [], [{ ...pick }]) } };
+  const t2 = { at: 2, sides: { 10: sides([], [], [{ ...pick }], []), 20: sides([], [], [], [{ ...pick }]) } };
+  d.settle([t2, t1], idx);
+  const first = t1.sides[20].gotPicks[0];
+  assert.ok(first.passed && first.pos === 3 && first.teams === 4 && !first.player, 'the middle holder only passed it on');
+  assert.deepStrictEqual(t1.sides[30].gavePicks[0].passed, true, 'both sides of a trade see the same value');
+  assert.strictEqual(t2.sides[10].gotPicks[0].player, 'C', 'the manager who held it at the draft used it');
+  assert.strictEqual(t2.sides[20].gavePicks[0].player, 'C');
+});
+
+test('settle: a pick whose holder did not draft with it (it moved some way not recorded) is priced at its slot', () => {
+  const idx = d.index([rookie]);
+  const t = { at: 1, sides: { 20: { got: [], gave: [], gotPicks: [{ season: '2025', round: 1, from: 30 }], gavePicks: [] }, 30: { got: [], gave: [], gotPicks: [], gavePicks: [{ season: '2025', round: 1, from: 30 }] } } };
+  d.settle([t], idx);
+  assert.ok(t.sides[20].gotPicks[0].passed);
+});

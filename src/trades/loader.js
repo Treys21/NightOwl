@@ -130,16 +130,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         all.push({ trade, grades: null, real, owners });
       }
     }
-    // A pick traded away and since spent is worth the player it became, not nothing: name him on the pick.
-    const spent = tradeDrafts.index(drafts);
-    for (const { trade } of all) {
-      for (const side of Object.values(trade.sides)) {
-        for (const pick of side.gotPicks.concat(side.gavePicks)) {
-          const hit = tradeDrafts.resolve(spent, pick);
-          if (hit) pick.player = hit.pid;
-        }
-      }
-    }
+    // A traded pick is worth the player taken with it to whoever used it, and its slot to anyone who passed it on.
+    tradeDrafts.settle(all.map((g) => g.trade), tradeDrafts.index(drafts));
     for (const g of all) g.grades = tradeHistory.grade(g.trade, ctx, g.real);
     all.sort((a, b) => b.trade.at - a.trade.at);
     // How far off an even price this league's deals sit is read from recent seasons: older trades are graded on today's

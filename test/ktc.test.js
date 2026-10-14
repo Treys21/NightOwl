@@ -107,3 +107,13 @@ test('redraft rankings list defenses and kickers as DST and PK: they match Sleep
 test('redraft packages are priced harder than dynasty ones: depth is replaceable on the wire', () => {
   assert.ok(ktc.sideValue([4000, 4000], ktc.EXPONENT_REDRAFT) < ktc.sideValue([4000, 4000]));
 });
+
+test('pick baseline: early, mid and late values blended along the round; none past the chart', () => {
+  const ktc = require('../src/shared/ktc.js');
+  const picks = { '2027:1:early': { v: 7000, s: 7000 }, '2027:1:mid': { v: 6000, s: 6000 }, '2027:1:late': { v: 5000, s: 5000 } };
+  const at = (slot) => ktc.pickBaseline(picks, { round: 1, slot, teams: 12, superflex: false });
+  assert.strictEqual(at(1), 7000);
+  assert.strictEqual(at(12), 5000);
+  assert.ok(at(6) < 7000 && at(6) > 5000 && at(5) >= at(8));
+  assert.strictEqual(ktc.pickBaseline(picks, { round: 6, slot: 1, teams: 12, superflex: false }), 0);
+});

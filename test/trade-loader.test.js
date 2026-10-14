@@ -71,6 +71,6 @@ test('load: a traded pick that has been spent is the player taken with it', asyn
   const h = await globalThis.NightOwl.tradeLoader.load(lg, nfl, ctx);
   const old = h.graded.find((g) => g.trade.id === 'old');
   const pick = old.trade.sides[1].gotPicks[0];
-  assert.equal(pick.player, 'X'); // roster 2's round-1 pick, spent from slot 2 by roster 1
+  assert.equal(pick.player, 'X'); // roster 2's round-1 pick, spent from slot 2 by roster 1, who held it at the draft
   assert.equal(h.drafts.length, 1);
 });
