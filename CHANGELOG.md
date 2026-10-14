@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.10.0
 **Trade history, season path and recap, and a backtest for the trade logic.**
 - **Moves → History.** Every trade in a league (this season and last, following
   the league's history) with an A–F grade for each side: today's KeepTradeCut

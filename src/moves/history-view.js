@@ -73,14 +73,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     function tradeCard(lg, item) {
       const { trade, grades, real, owners } = item;
-      const mineId = String(lg.mine.roster_id);
       const dyn = V.usesKtc(lg);
       const when = new Date(trade.at).toLocaleDateString([], { month: 'short', day: 'numeric' });
       const sides = Object.keys(trade.sides).map((rid) => {
         const g = grades[rid];
         const side = trade.sides[rid];
-        const mine = trade.season === String(lg.raw.season) && rid === mineId;
         const owner = owners[rid];
+        const mine = !!owner && owner === lg.mine.owner_id;
         const stat = [];
         if (dyn && g.valueNet) stat.push(`${g.valueNet > 0 ? '+' : '−'}${V.worth(Math.abs(g.valueNet))} value now`);
         if (real && real[rid]) stat.push(`${Math.round(real[rid].started)} pts started`);

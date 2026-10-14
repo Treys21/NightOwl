@@ -240,3 +240,31 @@ test('playoff weeks count extra when a lineup is priced', () => {
   assert.deepEqual(lineupPoints(['QB'], ['solo'], w, () => ['QB']).perWeek, [10, 15]);
   assert.equal(restOfSeason('solo', w), 25);
 });
+
+test('judge: a deal someone made goes through the same gates the search applies', () => {
+  const ctx = base('redraft');
+  const a = team(1, me, 0.8);
+  const b = team(2, them, 0.8);
+  const good = finder.judge(ctx, a, b, ['m_rb3'], ['t_wr2']);
+  assert.equal(good.ok, true);
+  assert.ok(good.impact.a.delta >= 3 && good.impact.b.delta >= 2);
+  // Handing over your best player for nothing fails for you, with the reason.
+  const bad = finder.judge(ctx, a, b, ['m_qb'], ['t_rb2']);
+  assert.equal(bad.ok, false);
+  assert.ok(['noUpgrade', 'youOverpay'].includes(bad.reason), bad.reason);
+  // Dynasty: a deal the other side would see as a rip-off is rejected on price before lineups.
+  const { ctx: dctx } = dyn();
+  const rip = finder.judge(dctx, team(1, me, 0.9), team(2, them, 0.1), ['m_rb4'], ['t_wr1']);
+  assert.equal(rip.ok, false);
+  assert.ok(rip.rawNetThem < 0);
+});
+
+test('parameters can be overridden, which is how the backtest tries other ones', () => {
+  const ctx = base('redraft');
+  const a = team(1, me, 0.8);
+  const b = team(2, them, 0.8);
+  assert.equal(finder.judge(ctx, a, b, ['m_rb3'], ['t_wr2']).ok, true);
+  const strict = Object.assign({}, ctx, { params: { minPoints: { me: 500, them: 500 } } });
+  assert.equal(finder.judge(strict, a, b, ['m_rb3'], ['t_wr2']).ok, false);
+  assert.equal(finder.paramsOf(ctx).fairTolerance, finder.DEFAULTS.fairTolerance);
+});

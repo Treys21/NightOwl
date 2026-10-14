@@ -78,7 +78,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         pointValue: dyn || cons ? V.pointValue(lg) : 1,
         // What this league's own trades say other managers will accept (dynasty prices only).
         fairTolerance: dyn && lg.trade ? lg.trade.band.tolerance : null,
-        stats: (fs.stats = {}),
         goal: fs.goal,
         focus: { shop: fs.shop, target: fs.target }
       };

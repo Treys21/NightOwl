@@ -53,7 +53,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         await tick();
         if (!active() || generation !== state.loadedAt) { paths.delete(lg.leagueId); return; }
         try {
-          paths.set(lg.leagueId, { status: 'ready', ...(await computePath(lg)) });
+          const found = await computePath(lg);
+          paths.set(lg.leagueId, found ? { status: 'ready', ...found } : { status: 'error', error: 'the projection for this league is unavailable' });
         } catch (err) {
           console.warn('[Night Owl season] path unavailable', lg.name, err);
           paths.set(lg.leagueId, { status: 'error', error: err.message || String(err) });

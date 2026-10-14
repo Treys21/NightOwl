@@ -610,5 +610,5 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   NightOwl.views = NightOwl.views || {};
-  NightOwl.views.moves = { mount, unmount, state }; // state is exposed for the preview tools
+  NightOwl.views.moves = { mount, unmount };
 })(globalThis.NightOwl);

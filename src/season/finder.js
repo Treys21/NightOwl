@@ -249,8 +249,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const dustThem = spare(other, dropThem);
     const cutCost = (team, w, ids) => (ctx.mode === 'dynasty' ? ids.reduce((acc, id) => acc + ctx.valueOf(team, id, w), 0) : 0);
     const raw = (ids) => ctx.sideValue(ids.map((id) => ctx.rawOf(id)));
-    const st = ctx.stats || {};
-    const bump = (k) => { st[k] = (st[k] || 0) + 1; };
     const approx = [];
     for (const give of subsets(gives, 2)) {
       if (shop && !give.includes(shop)) continue;
@@ -258,26 +256,24 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (target && !get.includes(target)) continue;
         const gp = players(give).length;
         const ap = players(get).length;
-        bump('combos');
         // A full roster can still take more players than it sends if it has spare parts to cut.
         const overMe = me.count - gp + ap - me.capacity;
         const overThem = other.count - ap + gp - other.capacity;
         const dropsMe = overMe > 0 ? dustMe.filter((id) => !give.includes(id)).slice(0, overMe) : [];
         const dropsThem = overThem > 0 ? dustThem.filter((id) => !get.includes(id)).slice(0, overThem) : [];
-        if (dropsMe.length < overMe || dropsThem.length < overThem) { bump('roster'); continue; }
+        if (dropsMe.length < overMe || dropsThem.length < overThem) continue;
         const cutMe = cutCost(me, wMe, dropsMe);
         const cutThem = cutCost(other, wThem, dropsThem);
         const rawGive = raw(give);
         const rawGet = raw(get);
         const size = Math.max(rawGive, rawGet, 1);
         const priceFail = priceGate(ctx, P, goal, rawGive, rawGet);
-        if (priceFail) { bump(priceFail); continue; }
+        if (priceFail) continue;
         const dMe = sum(players(get).map((id) => myGain.get(id) || 0)) - sum(players(give).map(dropMe));
         const dThem = sum(players(give).map((id) => theirGain.get(id) || 0)) - sum(players(get).map(dropThem));
         const uMe = utility(ctx, me, wMe, give, get, dMe) - cutMe;
         const uThem = utility(ctx, other, wThem, get, give, dThem) - cutThem;
-        if (uMe <= 0 || uThem <= 0) { bump(uMe <= 0 ? 'noGainMe' : 'noGainThem'); continue; }
-        bump('approx');
+        if (uMe <= 0 || uThem <= 0) continue;
         approx.push({ give, get, size, drops: { me: dropsMe, them: dropsThem }, score: Math.sqrt(uMe * uThem) / (ctx.mode === 'redraft' ? 1 : size) });
       }
     }
@@ -297,7 +293,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         wMe, wThem, size: c.size, uMe, uThem, dMe: impact.a.delta, dThem: impact.b.delta,
         vMe: valueGain(ctx, me, wMe, c.give, c.get), vThem: valueGain(ctx, other, wThem, c.get, c.give)
       });
-      if (unfit) { bump(unfit); continue; }
+      if (unfit) continue;
       const rawNetThem = (raw(c.give) - raw(c.get)) / c.size;
       // How likely a yes is: how much they gain, how they see the price, how much they care.
       const share = ctx.mode === 'redraft' ? Math.min(Math.max(uThem, 0) / 10, 1) : Math.min(uThem / c.size / 0.12, 1);
@@ -323,7 +319,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       lastItem.score *= 0.7 + 0.3 * Math.min(1, regular / 0.6);
     }
     exact.sort((a, b) => b.score - a.score);
-    if (ctx.trace) ctx.trace.push(...exact);
 
     // Variety: one deal per distinct thing asked for, and per distinct thing given.
     const out = [];
