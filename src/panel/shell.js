@@ -1,5 +1,5 @@
 // The floating panel: one draggable, resizable shell with a switch for each
-// tool (Draft, Live, Lineups, Bets, Season). It lives in a shadow root so
+// tool (Draft, Live, Lineups, Bets, Season, Moves). It lives in a shadow root so
 // Sleeper's CSS can't bleed in and ours can't leak out.
 //
 // Each tool is a view — { mount(el), unmount(), navigated?() } registered on
@@ -20,14 +20,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     'src/styles/live.css',
     'src/styles/bets.css',
     'src/styles/lineups.css',
-    'src/styles/season.css'
+    'src/styles/season.css',
+    'src/styles/moves.css'
   ];
   const TOOLS = [
     { id: 'draft', label: 'Draft' },
     { id: 'live', label: 'Live' },
     { id: 'lineups', label: 'Lineups' },
     { id: 'bets', label: 'Bets' },
-    { id: 'season', label: 'Season' }
+    { id: 'season', label: 'Season' },
+    { id: 'moves', label: 'Moves' }
   ];
   // One size for every tool. Drag any edge or corner to change it; it's
   // remembered. Double-click the header to go back to the default.
@@ -89,7 +91,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         ${BRAND}
         <div class="switch" role="tablist">
           <span class="ind"></span>
-          ${TOOLS.map((t) => `<button role="tab" data-tool="${t.id}">${t.label}</button>`).join('')}
+          ${TOOLS.map((t, i) => `<button role="tab" data-tool="${t.id}" title="${t.label} (Alt+Shift+${i + 1})">${t.label}</button>`).join('')}
         </div>
         <button class="iconbtn" data-act="collapse"></button>
       </header>
@@ -127,13 +129,54 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     slideIndicator();
   });
 
+  // Where each tool was scrolled to, so switching away and back (or a
+  // collapse and expand) puts you where you were. Per page load.
+  const scrolled = new Map();
+  const scroller = (id) => panel && panel.querySelector(`.view-${id} .tool-scroll`);
+
+  // Read before the view is hidden: a hidden box reports no scroll.
+  function saveScroll() {
+    const box = active && scroller(active);
+    if (box) scrolled.set(active, box.scrollTop);
+  }
+
   function unmountActive() {
     if (active) viewOf(active)?.unmount();
     active = null;
   }
 
+  // Views draw from cached state at once and fill in as requests land, so the
+  // saved position is tried again once content has had time to arrive.
+  function restoreScroll(id) {
+    const top = scrolled.get(id);
+    if (!top) return;
+    for (const delay of [0, 300, 1200]) {
+      setTimeout(() => {
+        const box = active === id && scroller(id);
+        if (box && box.scrollTop < top && box.scrollHeight - box.clientHeight >= top) box.scrollTop = top;
+      }, delay);
+    }
+  }
+
+  // Alt+Shift+1..N opens a tool, Alt+Shift+M minimizes or restores the panel.
+  function onShortcut(e) {
+    if (!panel || !e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return;
+    const n = /^Digit([1-9])$/.exec(e.code);
+    if (n && TOOLS[Number(n[1]) - 1]) {
+      e.preventDefault();
+      if (ui.collapsed) { ui.collapsed = false; storage.saveUi({ collapsed: false }); }
+      setTool(TOOLS[Number(n[1]) - 1].id).then(apply);
+    } else if (e.code === 'KeyM') {
+      e.preventDefault();
+      ui.collapsed = !ui.collapsed;
+      storage.saveUi({ collapsed: ui.collapsed });
+      apply();
+    }
+  }
+
   // Show the current tool and mount its view; everything else is unmounted.
   function apply() {
+    saveScroll();
     const tool = toolOf(ui.tool);
     panel.classList.toggle('collapsed', ui.collapsed);
     place();
@@ -159,6 +202,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (next && viewOf(next)) {
       active = next;
       viewOf(next).mount(panel.querySelector(`.view-${next}`));
+      restoreScroll(next);
     }
   }
 
@@ -256,6 +300,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   function wire() {
+    document.removeEventListener('keydown', onShortcut, true); // once, however often the panel is rebuilt
+    document.addEventListener('keydown', onShortcut, true);
     panel.querySelector('[data-act="collapse"]').addEventListener('click', () => {
       ui.collapsed = !ui.collapsed;
       storage.saveUi({ collapsed: ui.collapsed });
@@ -352,6 +398,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
    */
   function destroy() {
     unmountActive();
+    document.removeEventListener('keydown', onShortcut, true);
     document.getElementById(HOST_ID)?.remove();
     panel = null;
   }

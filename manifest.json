@@ -22,7 +22,8 @@
     "https://site.api.espn.com/*",
     "https://sports.core.api.espn.com/*",
     "https://sleeper.com/*",
-    "https://theringer.com/*"
+    "https://theringer.com/*",
+    "https://keeptradecut.com/*"
   ],
   "background": {
     "service_worker": "src/background.js"
@@ -55,9 +56,13 @@
         "src/lineups/core.js",
         "src/season/core.js",
         "src/season/project.js",
+        "src/season/value.js",
+        "src/season/model.js",
         "src/bets/core.js",
         "src/draft/match-names.js",
         "src/draft/draft-order.js",
+        "src/shared/ktc.js",
+        "src/moves/view.js",
         "src/live/view.js",
         "src/lineups/view.js",
         "src/bets/view.js",

@@ -10,6 +10,7 @@
 importScripts(
   'shared/storage.js',
   'shared/leagues.js',
+  'shared/ktc.js',
   'shared/api.js',
   'shared/account.js',
   'shared/teams.js',
@@ -20,6 +21,19 @@ importScripts(
 );
 
 const ALLOWED = ['https://site.api.espn.com/', 'https://sports.core.api.espn.com/'];
+
+// KeepTradeCut's dynasty values: fetched here (the page is 2.7 MB; only the
+// trimmed table goes back to the tab).
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id || !msg || msg.type !== 'nightowl-ktc') return false;
+  fetch(globalThis.NightOwl.ktc.URL, { credentials: 'omit', signal: AbortSignal.timeout(30000) })
+    .then((res) => (res.ok ? res.text() : Promise.reject(new Error(`KeepTradeCut ${res.status}`))))
+    .then(
+      (html) => sendResponse({ ok: true, data: globalThis.NightOwl.ktc.parse(html) }),
+      (err) => sendResponse({ ok: false, error: String(err.message || err) })
+    );
+  return true;
+});
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return false;

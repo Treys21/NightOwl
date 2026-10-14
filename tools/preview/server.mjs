@@ -7,6 +7,9 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const ktc = createRequire(import.meta.url)('../../src/shared/ktc.js');
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const TYPES = { '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.html': 'text/html' };
@@ -30,6 +33,13 @@ export function startServer(port = 8765) {
       if (url.pathname === '/' || url.pathname === '/preview') {
         res.writeHead(200, { 'content-type': 'text/html', 'cache-control': 'no-store' });
         return res.end(await page());
+      }
+      if (url.pathname === '/ktc') {
+        // What the background worker does: fetch the page, send the trimmed table.
+        const html = await (await fetch('https://keeptradecut.com/dynasty-rankings')).text();
+        const rows = ktc.parse(html);
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify(rows));
       }
       if (url.pathname === '/relay') {
         const target = url.searchParams.get('url') || '';

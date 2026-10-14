@@ -38,6 +38,7 @@ test('only the hosts the extension actually calls', () => {
   assert.deepEqual(manifest.host_permissions.slice().sort(), [
     'https://api.sleeper.app/*',
     'https://api.sleeper.com/*',
+    'https://keeptradecut.com/*',
     'https://site.api.espn.com/*',
     'https://sleeper.com/*',
     'https://sports.core.api.espn.com/*',

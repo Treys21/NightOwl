@@ -1,0 +1,498 @@
+// Moves tool for the floating panel: roster moves priced in lineup points.
+//
+//   Waivers  the free agents who would raise each of your lineups for the rest
+//            of the season, with the player to cut, and who helps most next week.
+//   Trade    pick what you give and get with any team in a league: what each
+//            lineup gains or loses, and how both teams' playoff and title odds
+//            move when the season is played out again with the trade done.
+//
+// Information only: Sleeper has no API to make a claim or offer a trade.
+globalThis.NightOwl = globalThis.NightOwl || {};
+
+(function (NightOwl) {
+  'use strict';
+
+  const { api, teams, players, storage, account, dom, value, model, ktc } = NightOwl;
+  const { isPlaying, mine: rosterOf, teamNames, teamUrl } = NightOwl.leagues;
+  const { escape: esc, percent } = NightOwl.format;
+
+  const REFRESH_MS = 15 * 60000;
+  const SHOWN = 6; // adds listed per league
+  const STREAMERS = 3; // next-week adds listed per league
+  const KIND = { 0: 'redraft', 1: 'keeper', 2: 'dynasty' }; // settings.type
+
+  let root = null;
+  const $ = (id) => root.querySelector(`#${id}`);
+
+  const state = {
+    mode: 'waivers', // or 'trade'
+    nfl: null,
+    stats: {},
+    remainingOf: null,
+    ktc: null, // pid -> KeepTradeCut entry, once loaded (dynasty and keeper leagues)
+    ktcError: null,
+    leagues: [], // see load()
+    targets: new Map(), // league id -> waiver targets
+    open: new Set(), // league ids expanded
+    trade: { leagueId: null, partner: null, give: new Set(), get: new Set(), result: null, token: 0 },
+    base: new Map(), // league id -> projection with today's rosters
+    loadedAt: 0,
+    timer: null,
+    busy: false,
+    thinking: false,
+    error: null
+  };
+
+  const MARKUP = `
+    <header class="bar">
+      <div class="title"><strong id="mv-week">Moves</strong><span id="mv-sub" class="muted small"></span></div>
+      <div class="actions">
+        <div class="tabs mv-mode" role="group" aria-label="Moves">
+          <button type="button" class="tab" data-mode="waivers" title="Free agents who would improve your lineups">Waivers</button>
+          <button type="button" class="tab" data-mode="trade" title="What a trade does to both teams">Trade</button>
+        </div>
+        <button id="mv-refresh" class="icon" title="Refresh now" aria-label="Refresh now">↻</button>
+      </div>
+    </header>
+    <div class="tool-scroll">
+      <p id="mv-error" class="error" hidden></p>
+      <div id="mv-body"><div class="skel" role="status" aria-label="Loading your leagues"><i></i><i></i><i></i></div></div>
+    </div>
+  `;
+
+  const tick = () => new Promise((resolve) => setTimeout(resolve));
+  const positionsOf = (pid) => players.info(pid).positions;
+  const signed = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(1)}`;
+  const oddsLabel = (p) => (p >= 0.995 ? '>99%' : p > 0 && p < 0.005 ? '<1%' : percent(p));
+
+  // ---- data -------------------------------------------------------------
+
+  async function load() {
+    const { userId } = await account.resolve();
+    const excluded = await account.excluded();
+    await players.load();
+    const nfl = await api.state();
+    state.nfl = nfl;
+
+    const playing = (await api.leagues(userId, nfl.season)).filter((lg) => isPlaying(lg) && !excluded.has(lg.league_id));
+    const leagues = (await Promise.all(playing.map(async (lg) => {
+      const [rosters, users] = await Promise.all([api.rosters(lg.league_id), api.users(lg.league_id)]);
+      const mine = rosterOf(rosters, userId);
+      if (!mine) return null;
+      const t = model.timeline(lg, rosters, nfl);
+      if (t.next >= t.playoffStart) return null; // regular season over: nothing to add for
+      const thisWeek = t.inProgress ? await api.matchups(lg.league_id, t.next) : [];
+      return {
+        leagueId: lg.league_id,
+        name: lg.name.trim(),
+        playoffTeams: t.playoffTeams,
+        medianGame: t.medianGame,
+        draft: null,
+        // Roster spots: the lineup and bench, plus the separate IR and taxi slots.
+        capacity: (lg.roster_positions || []).length + ((lg.settings && lg.settings.reserve_slots) || 0) + ((lg.settings && lg.settings.taxi_slots) || 0),
+        kind: KIND[(lg.settings && lg.settings.type) || 0] || 'redraft',
+        mine,
+        names: teamNames(users),
+        raw: {
+          season: lg.season,
+          rosters,
+          next: t.next,
+          inProgress: t.inProgress,
+          thisWeek: thisWeek || [],
+          playoffStart: t.playoffStart,
+          roundType: (lg.settings && lg.settings.playoff_round_type) || 0,
+          slots: lg.roster_positions || [],
+          scoring: lg.scoring_settings || {}
+        }
+      };
+    }))).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+
+    const [stats, remainingOf] = await Promise.all([
+      leagues.length ? model.projections(nfl.season, model.weeksNeeded(leagues), model.positionsFor(leagues.map((lg) => lg.raw.slots))) : {},
+      leagues.some((lg) => lg.raw.inProgress) ? model.remainingByTeam(nfl.season, nfl.week) : Promise.resolve(() => 1)
+    ]);
+    state.stats = stats;
+    state.remainingOf = remainingOf;
+    state.ktcError = null;
+    if (leagues.some((lg) => lg.kind !== 'redraft')) {
+      // Dynasty values update daily; a failure only costs the dynasty view.
+      try { state.ktc = await ktc.load(players.list(), api.ktcRows); } catch (err) {
+        console.warn('[Night Owl moves] KeepTradeCut unavailable', err);
+        state.ktc = null;
+        state.ktcError = err.message || String(err);
+      }
+    }
+
+    // Everyone with a real projection is a candidate; the ones on a roster here are not free.
+    const projected = new Set();
+    for (const week of Object.values(stats)) for (const pid of Object.keys(week)) projected.add(pid);
+    for (const lg of leagues) {
+      lg.weeks = model.valueWeeks(lg, stats);
+      const taken = new Set(lg.raw.rosters.flatMap((ro) => ro.players || []));
+      lg.free = [...projected].filter((pid) => !taken.has(pid));
+      lg.superflex = ktc.isSuperflex(lg.raw.slots);
+      lg.tep = ktc.tepTier(lg.raw.scoring);
+      lg.openSpots = Math.max(0, lg.capacity - (lg.mine.players || []).length);
+    }
+    state.leagues = leagues;
+    state.targets.clear();
+    state.base.clear();
+    state.loadedAt = Date.now();
+  }
+
+  // Waiver math for every league, one at a time so Sleeper's page never stalls.
+  async function analyze() {
+    for (const lg of state.leagues) {
+      if (state.targets.has(lg.leagueId)) continue;
+      await tick();
+      if (!root) return;
+      const pool = model.activePool(lg.mine);
+      state.targets.set(lg.leagueId, value.waiverTargets({
+        slots: lg.raw.slots, pool, droppable: pool, openSpots: lg.openSpots,
+        candidates: lg.free, weeks: lg.weeks, positionsOf
+      }));
+      render();
+    }
+  }
+
+  async function refresh() {
+    if (state.busy || !root) return;
+    state.busy = true;
+    $('mv-refresh').classList.add('spin');
+    try {
+      await load();
+      state.error = null;
+    } catch (err) {
+      console.error('[Night Owl moves]', err);
+      state.error = err.message || String(err);
+    } finally {
+      state.busy = false;
+      if (root) {
+        $('mv-refresh').classList.remove('spin');
+        keepTradeValid();
+        render();
+        analyze();
+        if (state.mode === 'trade') analyzeTrade();
+      }
+    }
+  }
+
+  // ---- waivers ------------------------------------------------------------
+
+  const label = (pid) => {
+    const p = players.info(pid);
+    const injury = p.injury ? `<i class="mv-inj" title="${esc(p.injury)}">${esc(p.injury)}</i>` : '';
+    return `<span class="mv-who"><img src="${teams.photo(pid, p.team)}" alt="" loading="lazy"><span class="mv-nm"><b>${esc(p.name)}</b><small>${esc(p.pos)}${p.team ? ` · ${esc(p.team)}` : ''}${injury}</small></span></span>`;
+  };
+
+  function addRow(lg, t, { by }) {
+    const drop = t.drop ? `<span class="mv-cut" title="The player your lineup misses least">cut ${esc(players.info(t.drop).name)}</span>` : '<span class="mv-cut">open spot</span>';
+    return `<tr>
+      <td>${label(t.pid)}</td>
+      <td class="num" title="Projected next week">${t.next.toFixed(1)}</td>
+      <td class="num up" title="Starter points he'd add ${by === 'gain' ? 'over the rest of the season' : 'next week'}">${signed(by === 'gain' ? t.gain : t.nowGain)}</td>
+      <td class="mv-drop">${drop}</td>
+    </tr>`;
+  }
+
+  function waiverBlock(lg) {
+    const targets = state.targets.get(lg.leagueId);
+    const week = lg.weeks[0] && lg.weeks[0].week;
+    let head;
+    let body = '';
+    if (!targets) {
+      head = '<span class="mv-best muted">Checking…</span>';
+    } else if (!targets.length) {
+      head = '<span class="mv-best muted">Nothing beats your lineup</span>';
+      body = '<p class="muted small mv-note">No free agent would start for you, even after cutting your least useful player.</p>';
+    } else {
+      const best = targets[0];
+      head = `<span class="mv-best up">${signed(best.gain)} pts · ${esc(players.info(best.pid).name)}</span>`;
+      const long = targets.filter((t) => t.gain >= 0.05).slice(0, SHOWN);
+      const quick = targets.filter((t) => t.nowGain >= 0.05).sort((a, b) => b.nowGain - a.nowGain).slice(0, STREAMERS);
+      const th = (by) => `<thead><tr><th></th><th title="Projected points next week">Wk ${week}</th><th title="${by === 'gain' ? 'Starter points added for the rest of the season' : 'Starter points added next week'}">${by === 'gain' ? 'ROS' : 'Gain'}</th><th></th></tr></thead>`;
+      body = `<h4 class="mv-h">Best for the rest of the season</h4>
+        <table class="mv-table">${th('gain')}<tbody>${long.map((t) => addRow(lg, t, { by: 'gain' })).join('') || '<tr><td colspan="4" class="muted">No long-term upgrades</td></tr>'}</tbody></table>
+        ${quick.length ? `<h4 class="mv-h">Best for week ${week}</h4>
+        <table class="mv-table">${th('now')}<tbody>${quick.map((t) => addRow(lg, t, { by: 'now' })).join('')}</tbody></table>` : ''}
+        <p class="muted small mv-note">Starter points your best lineup gains with him${lg.kind !== 'redraft' ? ' this season (age and picks are not counted)' : ''}, after cutting the player your lineup misses least. Projections are Sleeper's.
+        <a href="${teamUrl(lg.leagueId)}" target="_blank" rel="noopener">Open in Sleeper</a></p>`;
+    }
+    return `<details class="mv-league" data-id="${esc(lg.leagueId)}"${state.open.has(lg.leagueId) ? ' open' : ''}>
+      <summary><div class="mv-head"><span class="mv-name">${esc(lg.name)}</span>${head}</div></summary>
+      ${body}
+    </details>`;
+  }
+
+  // ---- trade ------------------------------------------------------------
+
+  const tradeLeague = () => state.leagues.find((lg) => lg.leagueId === state.trade.leagueId) || null;
+  const rosterById = (lg, id) => lg.raw.rosters.find((ro) => ro.roster_id === id) || null;
+  const nameOf = (lg, ro) => (ro ? lg.names.get(ro.owner_id) || `Team ${ro.roster_id}` : '');
+
+  // Selections survive a refresh only while they still make sense.
+  function keepTradeValid() {
+    const t = state.trade;
+    let lg = tradeLeague();
+    if (!lg) { lg = state.leagues[0] || null; t.leagueId = lg && lg.leagueId; t.partner = null; t.give.clear(); t.get.clear(); }
+    if (!lg) return;
+    const partner = t.partner && rosterById(lg, t.partner);
+    if (!partner || partner.roster_id === lg.mine.roster_id) { t.partner = null; t.get.clear(); }
+    for (const pid of [...t.give]) if (!(lg.mine.players || []).includes(pid)) t.give.delete(pid);
+    for (const pid of [...t.get]) if (!partner || !(partner.players || []).includes(pid)) t.get.delete(pid);
+  }
+
+  const rosPoints = (lg, pid) => value.restOfSeason(pid, lg.weeks);
+
+  // Dynasty and keeper leagues price players for the long run: KeepTradeCut's
+  // value in the league's format (superflex or 1QB, tight-end premium), scaled
+  // by how this league's scoring treats the player against KTC's PPR baseline
+  // (projected points in the league over projected PPR points). Redraft has no
+  // long run: a player is worth the points he scores here.
+  const usesKtc = (lg) => lg.kind !== 'redraft' && !!state.ktc;
+  function dynastyValue(lg, pid) {
+    lg.dyn = lg.dyn || new Map();
+    if (lg.dyn.has(pid)) return lg.dyn.get(pid);
+    const entry = state.ktc && state.ktc[pid];
+    let out = 0;
+    if (entry) {
+      // Tight-end premium is already in KTC's TE+ columns: score without it.
+      const plain = Object.assign({}, lg.raw.scoring, { bonus_rec_te: 0 });
+      let mine = 0;
+      let ppr = 0;
+      for (const w of lg.weeks) {
+        const row = state.stats[w.week] && state.stats[w.week][pid];
+        mine += NightOwl.scoring.points(row, plain);
+        ppr += (row && row.pts_ppr) || 0;
+      }
+      out = Math.round(ktc.valueIn(entry, lg) * ktc.scoringFactor(mine, ppr));
+    }
+    lg.dyn.set(pid, out);
+    return out;
+  }
+  const worth = (n) => Math.round(n).toLocaleString();
+
+  function pickList(lg, ro, chosen, kind) {
+    const away = new Set([...(ro.reserve || []), ...(ro.taxi || [])]);
+    const rows = (ro.players || []).slice().sort((a, b) => (usesKtc(lg) ? dynastyValue(lg, b) - dynastyValue(lg, a) : 0) || rosPoints(lg, b) - rosPoints(lg, a));
+    return `<div class="mv-picks">${rows.map((pid) => {
+      const tag = (ro.reserve || []).includes(pid) ? 'IR' : (ro.taxi || []).includes(pid) ? 'taxi' : '';
+      return `<label class="mv-pick${chosen.has(pid) ? ' on' : ''}">
+        <input type="checkbox" data-${kind}="${esc(pid)}"${chosen.has(pid) ? ' checked' : ''}>
+        ${label(pid)}${usesKtc(lg)
+          ? `<span class="mv-ros" title="Dynasty value (KeepTradeCut, for this league's format and scoring)${tag ? `; on ${esc(tag)}` : ''}">${dynastyValue(lg, pid) ? worth(dynastyValue(lg, pid)) : '–'}</span>`
+          : `<span class="mv-ros" title="Projected points rest of season">${away.has(pid) ? esc(tag) : Math.round(rosPoints(lg, pid))}</span>`}
+      </label>`;
+    }).join('')}</div>`;
+  }
+
+  const delta = (n) => `<b class="${n > 0 ? 'up' : n < 0 ? 'down' : ''}">${signed(n)}</b>`;
+
+  function sideCard(lg, who, ro, impact, base, after) {
+    const odds = (key, text) => (base && after
+      ? `<span title="${text}">${text.split(' ')[0]} ${oddsLabel(base.teams[ro.roster_id][key])} → <b>${oddsLabel(after.teams[ro.roster_id][key])}</b></span>` : '');
+    const hasPlayoffs = lg.playoffTeams > 0;
+    const full = (ro.players || []).length;
+    return `<div class="mv-side">
+      <div class="mv-side-h">${esc(who)}</div>
+      <div class="mv-side-n">${delta(impact.delta)}<span class="muted"> pts rest of season</span></div>
+      ${base && after && hasPlayoffs ? `<div class="mv-side-o">${odds('playoffOdds', 'Playoffs')}${after.bracket ? odds('titleOdds', 'Title') : ''}</div>` : (state.thinking && hasPlayoffs ? '<div class="mv-side-o muted">Updating odds…</div>' : '')}
+      <small class="muted">${full} players</small>
+    </div>`;
+  }
+
+  // Dynasty value of both sides, packages priced so depth doesn't buy a star.
+  function dynastyLine(lg, partner, them) {
+    const t = state.trade;
+    const send = sideValueOf(lg, [...t.give]);
+    const get = sideValueOf(lg, [...t.get]);
+    const net = get - send;
+    const big = Math.max(send, get, 1);
+    const unpriced = [...t.give, ...t.get].filter((pid) => !dynastyValue(lg, pid)).length;
+    const format = `${lg.superflex ? 'Superflex' : '1QB'}${lg.tep ? ` TE${'+'.repeat(lg.tep)}` : ''}`;
+    let call = 'Even by dynasty value.';
+    if (Math.abs(net) / big >= 0.05) call = net > 0 ? `Favors you by ${worth(net)} (${Math.round(Math.abs(net) / big * 100)}%).` : `Favors ${esc(them)} by ${worth(-net)} (${Math.round(Math.abs(net) / big * 100)}%).`;
+    return { net, html: `<div class="mv-dyn">
+      <div class="mv-dyn-h">Dynasty value <small class="muted">KeepTradeCut · ${format} · this league's scoring</small></div>
+      <div class="mv-dyn-n"><span>You send <b>${worth(send)}</b></span><span>You get <b>${worth(get)}</b></span>${delta2(net)}</div>
+      <p class="mv-verdict">${call}</p>
+      ${unpriced ? `<p class="muted small">${unpriced} player${unpriced === 1 ? ' has' : 's have'} no KeepTradeCut value (counted as zero).</p>` : ''}
+    </div>` };
+  }
+  const sideValueOf = (lg, pids) => ktc.sideValue(pids.map((pid) => dynastyValue(lg, pid)));
+  const delta2 = (n) => `<b class="${n > 0 ? 'up' : n < 0 ? 'down' : ''}">${n > 0 ? '+' : n < 0 ? '−' : ''}${worth(Math.abs(n))}</b>`;
+
+  function verdict(me, them, names) {
+    const a = me.delta;
+    const b = them.delta;
+    if (Math.abs(a) < 0.5 && Math.abs(b) < 0.5) return 'basically even this season.';
+    if (a >= 0 && b >= 0) return 'both lineups improve.';
+    if (a <= 0 && b <= 0) return 'both lineups get worse, so this is about depth or the future.';
+    return a > b ? `favors you by ${Math.abs(a - b).toFixed(1)} pts.` : `favors ${esc(names)} by ${Math.abs(a - b).toFixed(1)} pts.`;
+  }
+
+  function tradeResult(lg, partner) {
+    const t = state.trade;
+    const r = t.result;
+    if (!r) return '<p class="muted small mv-note">Pick what you would give and what you would get.</p>';
+    const them = nameOf(lg, partner);
+    const slots = lg.capacity;
+    const myCount = (lg.mine.players || []).length - t.give.size + t.get.size;
+    const theirCount = (partner.players || []).length - t.get.size + t.give.size;
+    const warn = [];
+    if (myCount > slots) warn.push(`You would need to drop ${myCount - slots}.`);
+    if (theirCount > slots) warn.push(`${esc(them)} would need to drop ${theirCount - slots}.`);
+    return `<div class="mv-result">
+      <div class="mv-sides">${sideCard(lg, 'You', lg.mine, r.impact.a, r.base, r.after)}${sideCard(lg, them, partner, r.impact.b, r.base, r.after)}</div>
+      ${usesKtc(lg) ? dynastyLine(lg, partner, them).html : ''}
+      <p class="mv-verdict">${usesKtc(lg) ? 'This season: ' : 'For this season: '}${verdict(r.impact.a, r.impact.b, them)}</p>
+      ${lg.kind !== 'redraft' && state.ktcError ? '<p class="muted small">Dynasty values unavailable right now (KeepTradeCut could not be reached).</p>' : ''}
+      ${warn.length ? `<p class="mv-warn small">${warn.join(' ')}</p>` : ''}
+      <p class="muted small mv-note">Each lineup is re-set every remaining week on Sleeper's projections${lg.kind !== 'redraft' ? '; age and picks are not counted here' : ''}. Odds replay the season ${model.SIMS.toLocaleString()} times with the trade done.</p>
+    </div>`;
+  }
+
+  function tradePane() {
+    if (!state.leagues.length) return '<p class="empty muted">No league with a regular season left to play.</p>';
+    const t = state.trade;
+    const lg = tradeLeague() || state.leagues[0];
+    const partner = t.partner && rosterById(lg, t.partner);
+    const others = lg.raw.rosters.filter((ro) => ro.roster_id !== lg.mine.roster_id).sort((a, b) => nameOf(lg, a).localeCompare(nameOf(lg, b)));
+    return `<div class="mv-trade">
+      <div class="mv-selects">
+        <select id="mv-league" aria-label="League">${state.leagues.map((l) => `<option value="${esc(l.leagueId)}"${l.leagueId === lg.leagueId ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select>
+        <select id="mv-partner" aria-label="Trade with">
+          <option value="">Trade with…</option>
+          ${others.map((ro) => `<option value="${ro.roster_id}"${partner && partner.roster_id === ro.roster_id ? ' selected' : ''}>${esc(nameOf(lg, ro))}</option>`).join('')}
+        </select>
+      </div>
+      ${partner ? `
+        <h4 class="mv-h">You give</h4>${pickList(lg, lg.mine, t.give, 'give')}
+        <h4 class="mv-h">You get</h4>${pickList(lg, partner, t.get, 'get')}
+        ${tradeResult(lg, partner)}` : '<p class="muted small mv-note">Choose a team to trade with.</p>'}
+    </div>`;
+  }
+
+  // Lineup points are instant; the odds replay the season (a few hundred ms
+  // for the pair of runs), so they fill in when ready and a newer pick wins.
+  async function analyzeTrade() {
+    const t = state.trade;
+    const lg = tradeLeague();
+    const partner = lg && t.partner && rosterById(lg, t.partner);
+    const token = ++t.token;
+    state.thinking = false;
+    if (!lg || !partner || (!t.give.size && !t.get.size)) { t.result = null; render(); return; }
+
+    const give = [...t.give];
+    const get = [...t.get];
+    const impact = value.tradeImpact({
+      slots: lg.raw.slots, weeks: lg.weeks, positionsOf,
+      a: { pool: model.activePool(lg.mine) }, b: { pool: model.activePool(partner) },
+      aGives: give, bGives: get
+    });
+    t.result = { impact, base: state.base.get(lg.leagueId) || null, after: null };
+    state.thinking = lg.playoffTeams > 0;
+    render();
+    if (!lg.playoffTeams) return;
+
+    try {
+      await tick();
+      const opts = { remainingOf: state.remainingOf, stats: state.stats };
+      let base = state.base.get(lg.leagueId);
+      if (!base) { base = await model.projectLeague(lg, opts); state.base.set(lg.leagueId, base); }
+      if (token !== t.token) return;
+      await tick();
+      const after = await model.projectLeague(lg, Object.assign({ rosters: value.applyTrade(lg.raw.rosters, lg.mine.roster_id, partner.roster_id, give, get) }, opts));
+      if (token !== t.token) return;
+      t.result = { impact, base, after };
+    } catch (err) {
+      console.warn('[Night Owl moves] odds unavailable', err);
+    } finally {
+      if (token === t.token) { state.thinking = false; if (root) render(); }
+    }
+  }
+
+  // ---- view -------------------------------------------------------------
+
+  function render() {
+    if (!root) return;
+    const sub = state.mode === 'waivers' ? 'Free agents' : 'Trade analyzer';
+    $('mv-week').textContent = 'Moves';
+    $('mv-sub').textContent = state.leagues.length ? sub : '';
+    root.querySelectorAll('.mv-mode .tab').forEach((b) => b.classList.toggle('on', b.dataset.mode === state.mode));
+    const err = $('mv-error');
+    err.hidden = !state.error;
+    err.textContent = state.error || '';
+    if (!state.loadedAt) return;
+
+    if (!state.leagues.length) {
+      dom.setHtml($('mv-body'), '<p class="empty muted">No league with a regular season left to play.</p>');
+    } else if (state.mode === 'waivers') {
+      dom.setHtml($('mv-body'), state.leagues.map(waiverBlock).join(''));
+    } else {
+      dom.setHtml($('mv-body'), tradePane());
+    }
+  }
+
+  function bind() {
+    const body = $('mv-body');
+    $('mv-refresh').addEventListener('click', refresh);
+    root.querySelector('.mv-mode').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-mode]');
+      if (!btn || btn.dataset.mode === state.mode) return;
+      state.mode = btn.dataset.mode;
+      storage.set({ 'moves.settings': { mode: state.mode } });
+      keepTradeValid();
+      render();
+      if (state.mode === 'trade') analyzeTrade();
+    });
+    body.addEventListener('toggle', (e) => {
+      const id = e.target.dataset && e.target.dataset.id;
+      if (!id) return;
+      if (e.target.open) state.open.add(id); else state.open.delete(id);
+    }, true);
+    body.addEventListener('change', (e) => {
+      const t = state.trade;
+      const el = e.target;
+      if (el.id === 'mv-league') {
+        t.leagueId = el.value; t.partner = null; t.give.clear(); t.get.clear(); t.result = null;
+      } else if (el.id === 'mv-partner') {
+        t.partner = el.value ? Number(el.value) : null; t.get.clear();
+      } else if (el.dataset && (el.dataset.give || el.dataset.get)) {
+        const set = el.dataset.give ? t.give : t.get;
+        const pid = el.dataset.give || el.dataset.get;
+        if (el.checked) set.add(pid); else set.delete(pid);
+      } else {
+        return;
+      }
+      analyzeTrade();
+    });
+  }
+
+  function mount(el) {
+    if (root === el) return;
+    root = el;
+    root.classList.add('tool', 'intro');
+    setTimeout(() => el.classList.remove('intro'), 1600);
+    root.innerHTML = MARKUP;
+    bind();
+    storage.get('moves.settings', {}).then((prefs) => {
+      if (prefs.mode && root === el) { state.mode = prefs.mode; render(); }
+    });
+    render();
+    if (Date.now() - state.loadedAt > REFRESH_MS / 2) refresh();
+    else { render(); analyze(); }
+    state.timer = setInterval(() => {
+      if (Date.now() - state.loadedAt >= REFRESH_MS - 1000) refresh();
+    }, 60000);
+  }
+
+  function unmount() {
+    clearInterval(state.timer);
+    state.timer = null;
+    root = null;
+  }
+
+  NightOwl.views = NightOwl.views || {};
+  NightOwl.views.moves = { mount, unmount };
+})(globalThis.NightOwl);

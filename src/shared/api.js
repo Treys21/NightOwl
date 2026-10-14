@@ -85,6 +85,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }));
   }
 
+  // KeepTradeCut's dynasty values, parsed by the background worker.
+  function ktcRows() {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out: KeepTradeCut')), 40000);
+      chrome.runtime.sendMessage({ type: 'nightowl-ktc' }, (res) => {
+        clearTimeout(timer);
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else if (!res || !res.ok) reject(new Error((res && res.error) || 'KeepTradeCut unavailable'));
+        else resolve(res.data);
+      });
+    });
+  }
+
   const positionsQuery = (positions) => (positions && positions.length ? positions : OFFENSE)
     .map((p) => `position[]=${encodeURIComponent(p)}`).join('&');
 
@@ -127,6 +140,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       getJson(`${SLEEPER_WEB}/stats/nfl/${season}?season_type=${seasonType}&position[]=DEF`),
     // Sleeper Picks player over/unders (every sport; NightOwl.bets keeps the NFL).
     lines: () => getJson(`${SLEEPER_APP}/lines/available?sport=nfl`),
+
+    // KeepTradeCut dynasty values: [{ n, p, t, a, v, s }] (see shared/ktc.js)
+    ktcRows,
 
     // ESPN (via the background worker)
     async kickoffs(season, week, seasonType) {

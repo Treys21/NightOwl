@@ -9,7 +9,7 @@ contributions right now. Use the [issue forms](https://github.com/Treys21/NightO
 git clone https://github.com/Treys21/NightOwl.git
 cd NightOwl
 npm ci
-npm run verify
+npm run verify          # lint, type check (tsc --checkJs), manifest check, tests
 ```
 
 Then go to `chrome://extensions`, choose **Load unpacked**, and pick the repo
@@ -61,8 +61,13 @@ src/
   lineups/             view.js, core.js (windows, optimal lineup)
   bets/                view.js, core.js (lines, odds, hit rates)
   season/              view.js, core.js (all-play, luck, max points, win odds,
-                       live week, draft order, power rating)
-  styles/              panel, draft, common, live, bets, lineups, season (.css)
+                       live week, draft order, power rating), project.js
+                       (rest-of-season simulation), value.js (what a roster
+                       move is worth in lineup points), model.js (calendar,
+                       schedule, projections, shared by Season and Moves)
+  moves/               view.js (waiver wire and trade analyzer)
+  styles/              panel, draft, common, live, bets, lineups, season, moves (.css)
+  shared/ktc.js        KeepTradeCut dynasty values (page parsed in the background worker)
   popup/               username, rankings editor, Ringer sync
 test/                  node --test, with real captured fixtures
 ```

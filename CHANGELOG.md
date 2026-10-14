@@ -1,6 +1,29 @@
 # Changelog
 
 ## Unreleased
+**New: Moves tab** (Alt+Shift+6). Waivers and a trade analyzer, priced in what
+each league actually scores.
+- **Waivers.** Per league: the free agents who would raise your lineup over
+  the rest of the season, with the player to cut (or "open spot"), plus the best
+  adds for next week. Starter points gained, on Sleeper's projections in that
+  league's own scoring, with your lineup re-set every remaining week.
+- **Trade analyzer.** Pick a league and a team, tick what you give and get.
+  You see each side's lineup points gained or lost, and both teams' playoff
+  and title odds with the season replayed 2,000 times with the trade done.
+- **Dynasty and keeper leagues use KeepTradeCut values** (refreshed daily, new
+  host permission `keeptradecut.com`). The value is KTC's for the league's
+  format (superflex or 1QB, and the tight-end premium column when the league
+  pays one), scaled by how the league's scoring treats the player compared with
+  KTC's PPR baseline, and packages are priced so depth doesn't buy a star.
+  Redraft leagues use projected points only.
+- **Type checking.** `npm run typecheck` (`tsc --checkJs`) is part of `verify`
+  and CI; it caught a malformed doc comment and a handful of typed-wrong spots.
+- **Quality of life.** Alt+Shift+1…6 switches tool and Alt+Shift+M minimizes or
+  restores the panel; each tool remembers its scroll position when you switch
+  away and back.
+- Season now shares its calendar, schedule, projection and simulation code
+  with Moves (`season/model.js`).
+
 Fixes and a cleanup pass from a full code review.
 - **Draft board no longer jumps to the top.** It was redrawn from scratch on
   every 3-second poll, which reset the scroll position; now an unchanged board

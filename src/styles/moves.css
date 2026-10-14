@@ -1,0 +1,61 @@
+/* Moves view: waivers and the trade analyzer. */
+
+.mv-mode { margin-right: 6px; }
+#mv-body { padding-top: 8px; }
+.mv-league {
+  margin-bottom: 8px; border-radius: 12px;
+  background: rgba(163, 187, 211, .045); border: 1px solid rgba(163, 187, 211, .1);
+}
+.mv-league > summary { list-style: none; cursor: pointer; padding: 10px 12px; }
+.mv-league > summary::-webkit-details-marker { display: none; }
+.mv-head { display: flex; align-items: baseline; gap: 8px; }
+.mv-name { font: 700 13.5px Poppins, sans-serif; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.mv-best { flex: none; margin-left: auto; font: 600 12px Poppins, sans-serif; max-width: 55%; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.up { color: var(--teal); }
+.down { color: var(--pink); }
+.mv-h { margin: 6px 12px 2px; font: 600 11px Inter, sans-serif; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.mv-note { margin: 4px 12px 10px; line-height: 1.45; }
+
+.mv-table { width: calc(100% - 16px); margin: 0 8px 4px; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.mv-table th { text-align: right; font: 600 11px Poppins, sans-serif; color: var(--muted); padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.mv-table td { padding: 6px; border-bottom: 1px solid rgba(58, 70, 91, .45); vertical-align: middle; }
+.mv-table .num { text-align: right; white-space: nowrap; }
+.mv-table .mv-drop { text-align: right; max-width: 110px; }
+.mv-cut { display: block; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mv-who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mv-who img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: var(--raised); flex: none; }
+.mv-nm { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.mv-nm b { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-nm small { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.mv-inj { font-style: normal; margin-left: 6px; color: var(--pink); }
+
+.mv-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 6px; }
+.mv-selects select {
+  min-width: 0; padding: 7px 8px; border-radius: 8px; color: var(--text);
+  background: var(--raised); border: 1px solid var(--line); font: 500 12px Inter, sans-serif;
+}
+.mv-picks { max-height: 210px; overflow: auto; margin: 2px 0 6px; border-radius: 10px; background: rgba(163, 187, 211, .045); }
+.mv-pick { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; border-bottom: 1px solid rgba(58, 70, 91, .35); }
+.mv-pick:last-child { border-bottom: 0; }
+.mv-pick .mv-who { flex: 1; }
+.mv-pick.on { background: var(--teal-soft); }
+.mv-pick input { accent-color: var(--teal); flex: none; }
+.mv-ros { flex: none; font: 600 12px Poppins, sans-serif; font-variant-numeric: tabular-nums; color: var(--sub); }
+
+.mv-result { margin-top: 10px; }
+.mv-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mv-side { padding: 10px 12px; border-radius: 12px; background: rgba(163, 187, 211, .06); min-width: 0; }
+.mv-side-h { font: 600 12px Poppins, sans-serif; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-side-n { margin: 4px 0; font-size: 12px; }
+.mv-side-n b { font: 700 18px Poppins, sans-serif; margin-right: 4px; }
+.mv-side-o { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--sub); }
+.mv-side-o b { color: var(--text); }
+.mv-dyn { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(163, 187, 211, .06); }
+.mv-dyn-h { font: 600 12px Poppins, sans-serif; color: var(--text); }
+.mv-dyn-n { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; font-size: 12px; color: var(--sub); align-items: baseline; }
+.mv-dyn-n b { font: 700 14px Poppins, sans-serif; color: var(--text); }
+.mv-dyn-n b.up { color: var(--teal); }
+.mv-dyn-n b.down { color: var(--pink); }
+.mv-verdict { margin: 8px 2px 0; font-size: 12.5px; color: var(--text); }
+.mv-warn { margin: 6px 2px 0; color: #feae58; }

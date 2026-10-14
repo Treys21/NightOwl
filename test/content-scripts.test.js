@@ -29,12 +29,12 @@ test('content scripts load in order and register every tool', () => {
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
   }
   const { NightOwl } = context;
-  assert.deepEqual(Object.keys(NightOwl.views).sort(), ['bets', 'draft', 'lineups', 'live', 'season']);
+  assert.deepEqual(Object.keys(NightOwl.views).sort(), ['bets', 'draft', 'lineups', 'live', 'moves', 'season']);
   for (const view of Object.values(NightOwl.views)) {
     assert.equal(typeof view.mount, 'function');
     assert.equal(typeof view.unmount, 'function');
   }
-  for (const mod of ['storage', 'dom', 'format', 'leagues', 'api', 'account', 'teams', 'players', 'scoring', 'tracker', 'lineups', 'bets', 'season', 'match', 'draftOrder', 'panel', 'draftBoard', 'badges']) {
+  for (const mod of ['storage', 'dom', 'format', 'leagues', 'api', 'account', 'teams', 'players', 'scoring', 'tracker', 'lineups', 'bets', 'season', 'value', 'model', 'ktc', 'match', 'draftOrder', 'panel', 'draftBoard', 'badges']) {
     assert.ok(NightOwl[mod], `NightOwl.${mod} missing`);
   }
 });
@@ -82,5 +82,5 @@ test('the background worker starts, with every script it imports', () => {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(root, manifest.background.service_worker), 'utf8'), context);
   assert.ok(context.NightOwl.alerts && context.NightOwl.api.injuries);
-  assert.equal(listeners.length, 5); // message, installed, startup, alarm, notification click
+  assert.equal(listeners.length, 6); // fetch relay, KTC relay, installed, startup, alarm, notification click
 });

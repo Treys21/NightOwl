@@ -1,0 +1,58 @@
+// KeepTradeCut values: parsing the page, format and scoring adjustments.
+const test = require('node:test');
+const assert = require('node:assert');
+
+require('../src/draft/match-names.js');
+const ktc = require('../src/shared/ktc.js');
+
+const val = (v, tep, tepp, teppp) => ({ value: v, tep: { value: tep }, tepp: { value: tepp }, teppp: { value: teppp } });
+const row = (playerName, position, team, one, sf, age = 25) => ({ playerName, position, team, age, oneQBValues: one, superflexValues: sf });
+const page = (rows) => `<html><script id="ktc-players" type="application/json">${JSON.stringify(rows)}</script></html>`;
+
+test('parsing keeps players, drops draft picks, and reads every tight-end tier', () => {
+  const rows = ktc.parse(page([
+    row('Josh Allen', 'QB', 'BUF', val(7000, 7000, 7000, 7000), val(9999, 9999, 9999, 9999)),
+    row('Trey McBride', 'TE', 'ARI', val(6000, 6500, 7000, 7500), val(6100, 6600, 7100, 7600)),
+    row('2027 Early 1st', 'RDP', null, val(1, 1, 1, 1), val(1, 1, 1, 1))
+  ]));
+  assert.deepEqual(rows.map((r) => r.n), ['Josh Allen', 'Trey McBride']);
+  assert.deepEqual(rows[1].v, [6000, 6500, 7000, 7500]);
+  assert.deepEqual(rows[1].s, [6100, 6600, 7100, 7600]);
+  assert.throws(() => ktc.parse('<html></html>'), /changed its page/);
+});
+
+test('league format picks the value: superflex vs 1QB, and tight-end premium only for TEs', () => {
+  const te = { p: 'TE', v: [6000, 6500, 7000, 7500], s: [6100, 6600, 7100, 7600] };
+  const wr = { p: 'WR', v: [5000, 5000, 5000, 5000], s: [5100, 5100, 5100, 5100] };
+  assert.equal(ktc.valueIn(te, { superflex: false, tep: 0 }), 6000);
+  assert.equal(ktc.valueIn(te, { superflex: true, tep: 2 }), 7100);
+  assert.equal(ktc.valueIn(wr, { superflex: false, tep: 3 }), 5000);
+  assert.equal(ktc.isSuperflex(['QB', 'RB', 'SUPER_FLEX', 'BN']), true);
+  assert.equal(ktc.isSuperflex(['QB', 'QB', 'RB']), true);
+  assert.equal(ktc.isSuperflex(['QB', 'RB', 'FLEX']), false);
+  assert.equal(ktc.tepTier({ bonus_rec_te: 0.5 }), 1);
+  assert.equal(ktc.tepTier({ bonus_rec_te: 1.5 }), 3);
+  assert.equal(ktc.tepTier({}), 0);
+});
+
+test('scoring shifts value by how the league treats the player compared with PPR', () => {
+  assert.equal(ktc.scoringFactor(120, 160), 0.75); // a receiver in standard scoring
+  assert.equal(ktc.scoringFactor(200, 200), 1);
+  assert.equal(ktc.scoringFactor(500, 200), 1.4); // capped
+  assert.equal(ktc.scoringFactor(10, 200), 0.6);
+  assert.equal(ktc.scoringFactor(0, 200), 1); // no projection: leave the value alone
+});
+
+test('a trade side is worth less than its pieces added up, so depth does not buy a star', () => {
+  assert.equal(ktc.sideValue([4000, 4000]) < 8000, true);
+  assert.equal(ktc.sideValue([4000, 4000]) < ktc.sideValue([6500]), true);
+  assert.equal(ktc.sideValue([5000]), 5000);
+  assert.equal(ktc.sideValue([]), 0);
+});
+
+test('KTC names are matched to Sleeper players', () => {
+  const rows = [{ n: 'Marvin Harrison Jr.', p: 'WR', t: 'ARI', a: 24, v: [8000, 8000, 8000, 8000], s: [8100, 8100, 8100, 8100] }];
+  const found = ktc.matchAll(rows, [{ id: '99', name: 'Marvin Harrison', position: 'WR', team: 'ARI' }]);
+  assert.equal(found['99'].p, 'WR');
+  assert.deepEqual(found['99'].v, rows[0].v);
+});

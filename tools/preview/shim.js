@@ -3,7 +3,7 @@
 // league names, owner names and avatars are replaced before the views see them.
 //
 // Query parameters:
-//   user=<sleeper username>  tool=draft|live|lineups|bets|season  w= h= (panel size)
+//   user=<sleeper username>  tool=draft|live|lineups|bets|season|moves  w= h= (panel size)
 //   route=<path>             pretend to be on this sleeper.com path (draft rooms)
 //   picks=<n>                show a draft as in progress after n picks
 //   stage=1                  leave one starter slot empty (shows the lineup fixer)
@@ -90,7 +90,7 @@
       id: 'preview',
       lastError: null,
       getURL: (path) => `/${path}`,
-      sendMessage: (msg, cb) => realFetch(`/relay?url=${encodeURIComponent(msg.url)}`)
+      sendMessage: (msg, cb) => realFetch(msg.type === 'nightowl-ktc' ? '/ktc' : `/relay?url=${encodeURIComponent(msg.url)}`)
         .then((r) => r.json())
         .then((data) => cb({ ok: true, data }), (err) => cb({ ok: false, error: String(err) }))
     },

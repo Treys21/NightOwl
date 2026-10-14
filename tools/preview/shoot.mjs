@@ -14,7 +14,7 @@ import { startServer } from './server.mjs';
 const { values: args } = parseArgs({
   options: {
     user: { type: 'string', default: process.env.SLEEPER_USER || '' },
-    tools: { type: 'string', default: 'live,lineups,bets,season,draft' },
+    tools: { type: 'string', default: 'live,lineups,bets,season,moves,draft' },
     sizes: { type: 'string', default: '440x800,320x480,900x640' },
     out: { type: 'string', default: '.preview' },
     port: { type: 'string', default: '8766' }
@@ -29,7 +29,7 @@ const CHROME = process.env.CHROME || {
   darwin: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   win32: 'C:/Program Files/Google/Chrome/Application/chrome.exe'
 }[process.platform] || '/usr/bin/google-chrome';
-const WAIT = { live: 14000, bets: 16000, lineups: 10000, season: 12000, draft: 10000 };
+const WAIT = { live: 14000, bets: 16000, lineups: 10000, season: 12000, moves: 14000, draft: 10000 };
 const RANKINGS = ['Bijan Robinson|RB', "Ja'Marr Chase|WR", 'Jahmyr Gibbs|RB', 'CeeDee Lamb|WR', 'Justin Jefferson|WR',
   'Saquon Barkley|RB', 'Puka Nacua|WR', 'Malik Nabers|WR', 'Amon-Ra St. Brown|WR', 'Ashton Jeanty|RB', 'Brock Bowers|TE',
   'Nico Collins|WR', 'Lamar Jackson|QB', 'Josh Allen|QB', 'Derrick Henry|RB', 'Trey McBride|TE']

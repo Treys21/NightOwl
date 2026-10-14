@@ -12,18 +12,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { api, players, storage, account, dom, season, projection, lineups } = NightOwl;
+  const { api, players, storage, account, dom, season, projection, model } = NightOwl;
   const { isPlaying, mine: rosterOf, teamNames, displayWeek } = NightOwl.leagues;
-  const fantasyPoints = NightOwl.scoring.points;
   const { escape: esc, short: num, tenths, percent } = NightOwl.format;
   const { NOT_STARTING_SLOTS } = NightOwl.lineups;
 
   const REFRESH_MS = 10 * 60000;
   const LIVE_REFRESH_MS = 2 * 60000; // while a week is being played
   const KEEPS_PLAYERS = new Set([1, 2]); // settings.type: 1 keeper, 2 dynasty
-  const PROJECTION_TTL_MS = 6 * 3600000; // weekly projections, per week
-  const SIMS = 2000;
-  const IDP = new Set(['DL', 'LB', 'DB', 'IDP_FLEX']);
+  const SIMS = model.SIMS;
 
   let root = null;
   const $ = (id) => root.querySelector(`#${id}`);
@@ -76,28 +73,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return weeks.map((w) => cached[w]).filter(Boolean);
   }
 
-  // The rest of the regular season's pairings ([[rosterA, rosterB], ...] per
-  // week). Sleeper publishes the whole schedule up front, so it's cached.
-  async function remainingSchedule(leagueId, fromWeek, untilWeek) {
-    const key = `season.schedule.${leagueId}`;
-    const cached = await storage.get(key, {});
-    const weeks = [];
-    for (let w = fromWeek; w < untilWeek; w++) weeks.push(w);
-    const missing = weeks.filter((w) => !cached[w]);
-    const fetched = await Promise.all(missing.map((w) => api.matchups(leagueId, w).then((m) => [w, m])));
-    for (const [w, matchups] of fetched) {
-      const byMatch = new Map();
-      for (const m of matchups || []) {
-        if (m.matchup_id == null) continue;
-        if (!byMatch.has(m.matchup_id)) byMatch.set(m.matchup_id, []);
-        byMatch.get(m.matchup_id).push(m.roster_id);
-      }
-      cached[w] = [...byMatch.values()].filter((pair) => pair.length === 2);
-    }
-    if (fetched.length) await storage.set({ [key]: cached });
-    return weeks.map((w) => cached[w] || []);
-  }
-
   // Last finished week for your team: actual vs best possible, and the
   // single bench decision that cost the most.
   function weekReview(lg, matchups, mine, week) {
@@ -136,11 +111,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const playing = (await api.leagues(userId, nfl.season)).filter((lg) => isPlaying(lg) && !excluded.has(lg.league_id));
     state.leagues = (await Promise.all(playing.map(async (lg) => {
-      const start = (lg.settings && lg.settings.start_week) || 1;
-      const playoffTeams = (lg.settings && lg.settings.playoff_teams) || 0;
-      const playoffStart = (lg.settings && lg.settings.playoff_week_start) || 15;
       const keeps = KEEPS_PLAYERS.has(lg.settings && lg.settings.type);
-      const medianGame = !!(lg.settings && lg.settings.league_average_match);
       const [rosters, users, traded] = await Promise.all([
         api.rosters(lg.league_id),
         api.users(lg.league_id),
@@ -148,14 +119,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       ]);
       const mine = rosterOf(rosters, userId);
       if (!mine) return null;
-      // Finished weeks are the ones in Sleeper's records (wins, points, max
-      // points), which can lag the NFL calendar by a day or so. The next week
-      // is live once it has points.
-      const finished = [];
-      const recorded = season.weeksRecorded(rosters, { medianGame });
-      for (let w = start; w < start + recorded && w < playoffStart; w++) finished.push(w);
-      const next = start + recorded;
-      const inProgress = next <= nfl.week && next < playoffStart;
+      const { playoffTeams, playoffStart, medianGame, finished, next, inProgress } = model.timeline(lg, rosters, nfl);
       const [lastWeek, thisWeek] = await Promise.all([
         finished.length ? api.matchups(lg.league_id, finished[finished.length - 1]) : Promise.resolve([]),
         inProgress ? api.matchups(lg.league_id, next) : Promise.resolve([])
@@ -170,13 +134,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       for (const r of rows) r.power = power[r.rosterId];
       if (playoffTeams && next < playoffStart) {
         try {
-          const schedule = await remainingSchedule(lg.league_id, live ? next + 1 : next, playoffStart);
+          const schedule = await model.schedule(lg.league_id, live ? next + 1 : next, playoffStart);
           const odds = season.playoffOdds({
             teams: rows.map((r) => Object.assign({ rosterId: r.rosterId, wins: r.wins, ties: r.ties, pf: r.pf }, season.teamStrength(weeks, r.rosterId))),
             schedule,
             playoffTeams,
             medianGame,
-            sims: 2000,
+            sims: model.SIMS,
             seed: season.hash(`${lg.league_id}:${next}`)
           });
           for (const r of rows) r.playoffOdds = odds[r.rosterId];
@@ -240,92 +204,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   // ---- projection ---------------------------------------------------------
 
-  // Weekly projections, trimmed to rostered players and cached for a few
-  // hours: { week: { pid: stats } }. ~240 KB a week over the wire.
-  async function weekProjections(seasonYear, weeks, positions, keep) {
-    const key = `season.projections.${seasonYear}`;
-    const cached = await storage.get(key, {});
-    const fresh = (w) => cached[w] && Date.now() - cached[w].at < PROJECTION_TTL_MS && positions.every((p) => cached[w].positions.includes(p));
-    const missing = weeks.filter((w) => !fresh(w));
-    const fetched = await Promise.all(missing.map((w) => api.weekProjections(seasonYear, w, 'regular', positions).then((rows) => [w, rows])));
-    for (const [w, rows] of fetched) {
-      const stats = {};
-      for (const r of rows || []) if (keep.has(r.player_id) && r.stats) stats[r.player_id] = r.stats;
-      cached[w] = { at: Date.now(), positions, stats };
-    }
-    if (fetched.length) await storage.set({ [key]: cached });
-    return Object.fromEntries(weeks.map((w) => [w, (cached[w] && cached[w].stats) || {}]));
-  }
-
-  // Share of each team's game left this week (1 before kickoff, 0 when final).
-  async function remainingByTeam(seasonYear, week) {
-    try {
-      const games = lineups.parseGames(await api.kickoffs(seasonYear, week, 'regular'));
-      const out = new Map();
-      for (const g of games) { out.set(g.home, g.remaining); out.set(g.away, g.remaining); }
-      return (team) => (out.has(team) ? out.get(team) : 0); // no game: bye
-    } catch {
-      return () => 0.5; // ESPN unreachable: call every game half played
-    }
-  }
-
-  async function projectLeague(lg, remainingOf, stats) {
-    const r = lg.raw;
-    const format = projection.bracketFormat(lg.playoffTeams, r.playoffStart, r.roundType);
-    const future = [];
-    for (let w = r.inProgress ? r.next + 1 : r.next; w < r.playoffStart; w++) future.push(w);
-    const poWeeks = projection.playoffWeeks(format);
-    const schedule = await remainingSchedule(lg.leagueId, r.inProgress ? r.next + 1 : r.next, r.playoffStart);
-    const positionsOf = (pid) => players.info(pid).positions;
-    const outIn = projection.availability((pid) => players.info(pid).injury);
-    const projOf = (week) => (pid) => fantasyPoints(stats[week] && stats[week][pid], r.scoring);
-    const pools = new Map(r.rosters.map((ro) => {
-      const away = new Set([...(ro.reserve || []), ...(ro.taxi || [])]);
-      return [ro.roster_id, (ro.players || []).filter((pid) => !away.has(pid))];
-    }));
-    const weekTeams = (week, index) => Object.fromEntries(r.rosters.map((ro) =>
-      [ro.roster_id, projection.teamWeek(r.slots, pools.get(ro.roster_id), projOf(week), positionsOf, outIn(index))]));
-
-    const weeks = [];
-    let index = 0;
-    if (r.inProgress) {
-      // The real starters: points so far plus what's left of their games.
-      const pairs = new Map();
-      const teams = {};
-      for (const m of r.thisWeek) {
-        if (m.matchup_id != null) pairs.set(m.matchup_id, (pairs.get(m.matchup_id) || []).concat(m.roster_id));
-        const pp = m.players_points || {};
-        const o = season.outlook((m.starters || []).filter((pid) => pid && pid !== '0').map((pid) => ({
-          points: pp[pid] || 0,
-          proj: projOf(r.next)(pid),
-          remaining: remainingOf(players.info(pid).team)
-        })));
-        teams[m.roster_id] = { mean: o.mean, variance: o.variance, lineupSet: true };
-      }
-      weeks.push({ week: r.next, pairs: [...pairs.values()].filter((p) => p.length === 2), teams });
-      index++;
-    }
-    future.forEach((w, i) => weeks.push({ week: w, pairs: schedule[i] || [], teams: weekTeams(w, index + i) }));
-    const playoffTeams = {};
-    poWeeks.forEach((w, i) => { playoffTeams[w] = weekTeams(w, index + future.length + i); });
-
-    const teams = r.rosters.map((ro) => {
-      const s = ro.settings || {};
-      const pf = (s.fpts || 0) + (s.fpts_decimal || 0) / 100;
-      const max = (s.ppts || 0) + (s.ppts_decimal || 0) / 100;
-      return { rosterId: ro.roster_id, wins: s.wins || 0, losses: s.losses || 0, ties: s.ties || 0, pf, max, efficiency: max ? pf / max : null };
-    });
-    return projection.projectSeason({
-      teams,
-      weeks,
-      playoff: format ? { format, teams: playoffTeams } : null,
-      medianGame: lg.medianGame,
-      sims: SIMS,
-      seed: season.hash(`${lg.leagueId}:${r.next}:projected`),
-      draft: lg.draft ? { method: state.draftMethod } : null
-    });
-  }
-
   async function runProjections() {
     if (state.projecting || !state.leagues.length) return;
     const pending = state.leagues.filter((lg) => lg.raw.next < lg.raw.playoffStart && !state.projections.has(lg.leagueId));
@@ -334,27 +212,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     render();
     try {
       const nfl = state.nfl;
-      const needed = new Set();
-      const positions = new Set(api.OFFENSE);
-      const keep = new Set();
-      for (const lg of pending) {
-        const format = projection.bracketFormat(lg.playoffTeams, lg.raw.playoffStart, lg.raw.roundType);
-        for (let w = lg.raw.next; w < lg.raw.playoffStart; w++) needed.add(w);
-        for (const w of projection.playoffWeeks(format)) needed.add(w);
-        for (const slot of lg.raw.slots) if (IDP.has(slot)) ['DL', 'LB', 'DB'].forEach((p) => positions.add(p));
-        for (const ro of lg.raw.rosters) for (const pid of ro.players || []) keep.add(pid);
-      }
-      const weeks = [...needed].filter((w) => w <= 18).sort((a, b) => a - b);
       const [stats, remainingOf] = await Promise.all([
-        weekProjections(nfl.season, weeks, [...positions].sort(), keep),
-        pending.some((lg) => lg.raw.inProgress) ? remainingByTeam(nfl.season, nfl.week) : Promise.resolve(() => 1)
+        model.projections(nfl.season, model.weeksNeeded(pending), model.positionsFor(pending.map((lg) => lg.raw.slots))),
+        pending.some((lg) => lg.raw.inProgress) ? model.remainingByTeam(nfl.season, nfl.week) : Promise.resolve(() => 1)
       ]);
       for (const lg of pending) {
         try {
           // 2,000 simulated seasons take ~60 ms a league: give the page a
           // breath between leagues so Sleeper's own UI never stalls.
           await new Promise((resolve) => setTimeout(resolve));
-          state.projections.set(lg.leagueId, await projectLeague(lg, remainingOf, stats));
+          state.projections.set(lg.leagueId, await model.projectLeague(lg, { remainingOf, stats, draftMethod: state.draftMethod }));
         } catch (err) {
           console.warn('[Night Owl season] projection failed', lg.name, err);
           state.projections.set(lg.leagueId, { error: err.message || String(err) });
