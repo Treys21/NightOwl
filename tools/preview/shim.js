@@ -79,8 +79,16 @@
     return data == null ? response : json(scrub(url, data), response.status);
   };
 
+  const agentReply = (message) => {
+    if (message.path === '/health') return { ok: true, data: { ok: true, model: 'preview' } };
+    const view = message.body.view;
+    if (message.path === '/chat') return { ok: true, data: { ok: true, reply: 'The first deal helps your lineup most and is easy for them to accept, so I would send it first.' } };
+    const picks = view.candidates.slice(0, 2).map((candidate, index) => ({ source: 'candidate', key: candidate.key, partnerId: candidate.partnerId, give: candidate.give, get: candidate.get, pitch: index ? 'A smaller upgrade that costs you little and fits their depth.' : 'Lifts your lineup the most and the other side picks up real starters in return.' }));
+    return { ok: true, data: { ok: true, suggestions: picks, errors: [], mode: message.body.mode } };
+  };
+
   const mem = {
-    settings: { username: params.get('user') || '' },
+    settings: Object.assign({ username: params.get('user') || '' }, params.get('agent') ? { agent: { url: 'http://127.0.0.1:8787', token: 'preview' } } : {}),
     ui: { tool: params.get('tool') || 'live', x: 20, y: 20, w: Number(params.get('w')) || 440, h: Number(params.get('h')) || 800 },
     rankings: JSON.parse(params.get('rankings') || '[]')
   };
@@ -90,7 +98,9 @@
       id: 'preview',
       lastError: null,
       getURL: (path) => `/${path}`,
-      sendMessage: (message, callback) => (fault === 'espn' && message.type !== 'nightowl-ktc') || (fault === 'ktc' && message.type === 'nightowl-ktc')
+      sendMessage: (message, callback) => message.type === 'nightowl-agent'
+        ? setTimeout(() => callback(agentReply(message)), 600)
+        : (fault === 'espn' && message.type !== 'nightowl-ktc') || (fault === 'ktc' && message.type === 'nightowl-ktc')
         ? callback({ ok: false, error: 'Failed to fetch' })
         : realFetch(message.type === 'nightowl-ktc' ? `/ktc?kind=${message.kind || 'dynasty'}` : message.type === 'nightowl-scoring-plays' ? `/plays?event=${message.eventId}` : `/relay?url=${encodeURIComponent(message.url)}`)
         .then((response) => response.json())
