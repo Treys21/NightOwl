@@ -59,6 +59,7 @@
         "src/season/project.js",
         "src/season/value.js",
         "src/season/replacement.js",
+        "src/season/horizon.js",
         "src/season/model.js",
         "src/season/path.js",
         "src/season/recap.js",

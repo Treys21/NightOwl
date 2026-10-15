@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- **Dynasty trade analyzer** no longer judges a trade on this season's projected points alone: each side shows the lineup change for the next two seasons (position and age curves), a "within noise" tag when this season's change is too small to matter, and up to three plain cautions (helps now but costs later, years older or younger).
+
 ## 3.15.0
 - **Drafts.** Kicker picks in a startup draft are recognised as placeholders for the rookie
   picks sold during it and replaced by the rookie pick they stand for (owned by whoever used

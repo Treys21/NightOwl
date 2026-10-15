@@ -173,3 +173,12 @@
 .mv-verdict { margin: 6px 0 0; font: 600 13px Poppins, sans-serif; }
 .mv-verdict.mv-sub { margin: 8px 4px 0; font: 400 12px Inter, sans-serif; color: var(--muted); }
 .mv-side-o { display: block; line-height: 1.55; }
+
+.mv-size { margin-left: 6px; padding: 1px 6px; border-radius: 999px; font: 600 10px Poppins, sans-serif; text-transform: uppercase; letter-spacing: .04em; vertical-align: 2px; }
+.mv-size.negligible { color: var(--muted); background: rgba(163, 187, 211, .1); }
+.mv-size.modest { color: #feae58; background: rgba(254, 174, 88, .12); }
+.mv-size.significant { color: var(--teal); background: var(--teal-soft); }
+.mv-side-f { margin: 2px 0 4px; font-size: 11.5px; color: var(--sub); }
+.mv-side-f b { font-weight: 700; }
+.mv-notes { list-style: none; margin: 8px 4px 0; padding: 0; display: grid; gap: 4px; font-size: 12px; line-height: 1.45; color: var(--sub); }
+.mv-notes li::before { content: "•"; color: var(--muted); margin-right: 6px; }

@@ -332,15 +332,20 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const pointsDeltaHtml = (amount) => `<b class="${amount > 0 ? 'up' : amount < 0 ? 'down' : ''}">${signed(amount)}</b>`;
 
-  function sideCard(league, who, roster, impact, base, after) {
+  function sideCard(league, who, roster, impact, base, after, futureChange) {
     const odds = (key, text) => `${text} ${oddsLabel(base.teams[roster.roster_id][key])} → <b>${oddsLabel(after.teams[roster.roster_id][key])}</b>`;
     const hasPlayoffs = league.playoffTeams > 0;
     const line = base && after && hasPlayoffs
       ? `<div class="mv-side-o">${odds('playoffOdds', 'Playoffs')}${after.bracket ? ` · ${odds('titleOdds', 'Title')}` : ''}</div>`
       : (state.thinking && hasPlayoffs ? '<div class="mv-side-o muted">Updating odds…</div>' : '');
+    const season = Number(league.raw.season);
+    const size = futureChange ? NightOwl.horizon.meaningfulness(impact.delta, league.weeks.length) : null;
+    const sizeTag = size ? `<span class="mv-size ${size}">${size === 'negligible' ? 'within noise' : size}</span>` : '';
+    const later = futureChange ? `<div class="mv-side-f"><span class="muted">Next seasons</span> ${futureChange.map((change, index) => `${season + index + 1} ${pointsDeltaHtml(change)}`).join(' · ')}</div>` : '';
     return `<div class="mv-side">
       <div class="mv-side-h">${escapeHtml(who)}</div>
-      <div class="mv-side-n">${pointsDeltaHtml(impact.delta)}<span class="muted"> pts</span></div>
+      <div class="mv-side-n">${pointsDeltaHtml(impact.delta)}<span class="muted"> pts this season</span>${sizeTag}</div>
+      ${later}
       ${line}
     </div>`;
   }
@@ -373,6 +378,33 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return a > b ? `favors you by ${Math.abs(a - b).toFixed(1)} pts.` : `favors ${escapeHtml(names)} by ${Math.abs(a - b).toFixed(1)} pts.`;
   }
 
+  function dynastyVerdict(nowChange, futureChange, weeksLeft) {
+    const horizon = NightOwl.horizon;
+    const nowSize = horizon.meaningfulness(nowChange, weeksLeft);
+    const nowText = nowSize === 'negligible' ? 'no real change for you this season' : `${nowChange > 0 ? 'helps' : 'costs'} you ${Math.abs(nowChange).toFixed(1)} pts this season (${nowSize})`;
+    const lastYear = futureChange[futureChange.length - 1];
+    const laterSize = horizon.meaningfulness(lastYear, horizon.SEASON_GAMES);
+    const laterText = laterSize === 'negligible' ? 'and about even after that' : `and ${lastYear > 0 ? 'helps' : 'costs'} you ${Math.abs(lastYear).toFixed(0)} pts by ${futureChange.length} seasons out`;
+    return `${nowText}, ${laterText}.`;
+  }
+
+  function tradeNotesHtml(league, result) {
+    const tradeState = state.trade;
+    const describe = (playerId) => {
+      const entry = state.ktc && state.ktc.players[playerId];
+      return { name: players.info(playerId).name, age: entry ? entry.a : null, position: (league.rep.positionsOf(playerId) || [])[0] };
+    };
+    const notes = NightOwl.horizon.tradeNotes({
+      now: result.impact.a.delta,
+      future: result.horizon.a,
+      weeksLeft: league.weeks.length,
+      season: Number(league.raw.season),
+      gives: [...tradeState.give].filter((playerId) => !isPick(playerId)).map(describe),
+      gets: [...tradeState.get].filter((playerId) => !isPick(playerId)).map(describe)
+    });
+    return notes.length ? `<ul class="mv-notes">${notes.slice(0, 3).map((note) => `<li>${escapeHtml(note)}</li>`).join('')}</ul>` : '';
+  }
+
   function tradeResult(league, partner) {
     const tradeState = state.trade;
     const result = tradeState.result;
@@ -386,10 +418,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const warn = [];
     if (myCount > slots) warn.push(`You would need to drop ${myCount - slots}.`);
     if (theirCount > slots) warn.push(`${escapeHtml(them)} would need to drop ${theirCount - slots}.`);
-    return `<div class="mv-result" title="Each lineup is re-set every remaining week on Sleeper's projections${league.kind !== 'redraft' ? ' (age is not counted in the lineup points)' : ''}. Odds replay the season ${model.SIMS.toLocaleString()} times with the trade done.">
-      <div class="mv-sides">${sideCard(league, 'You', league.mine, result.impact.a, result.base, result.after)}${sideCard(league, them, partner, result.impact.b, result.base, result.after)}</div>
+    return `<div class="mv-result" title="Each lineup is re-set every remaining week on Sleeper's projections${league.kind !== 'redraft' ? '; later seasons use each player\'s per-game rate with an age curve for his position' : ''}. Odds replay the season ${model.SIMS.toLocaleString()} times with the trade done.">
+      <div class="mv-sides">${sideCard(league, 'You', league.mine, result.impact.a, result.base, result.after, result.horizon && result.horizon.a)}${sideCard(league, them, partner, result.impact.b, result.base, result.after, result.horizon && result.horizon.b)}</div>
       ${usesKtc(league) || leagueValues.consensus(league) ? marketLine(league, partner, them).html : ''}
-      <p class="mv-verdict mv-sub">${usesKtc(league) || leagueValues.consensus(league) ? 'Lineups: ' : 'For this season: '}${verdict(result.impact.a, result.impact.b, them)}</p>
+      <p class="mv-verdict mv-sub">${result.horizon ? `Lineups: ${dynastyVerdict(result.impact.a.delta, result.horizon.a, league.weeks.length)}` : `${usesKtc(league) || leagueValues.consensus(league) ? 'Lineups: ' : 'For this season: '}${verdict(result.impact.a, result.impact.b, them)}`}</p>
+      ${result.horizon ? tradeNotesHtml(league, result) : ''}
       ${league.kind !== 'redraft' && state.ktcError ? '<p class="muted small">Dynasty values unavailable right now (KeepTradeCut could not be reached).</p>' : ''}
       ${warn.length ? `<p class="mv-warn small">${warn.join(' ')}</p>` : ''}
     </div>`;
@@ -431,7 +464,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       a: { pool: league.rep.pool(model.activePool(league.mine)) }, b: { pool: league.rep.pool(model.activePool(partner)) },
       aGives: give, bGives: get
     });
-    tradeState.result = { impact, base: state.base.get(league.leagueId) || null, after: null };
+    const ktcAge = (playerId) => { const entry = state.ktc && state.ktc.players[playerId]; return entry ? entry.a : null; };
+    const horizonImpact = usesKtc(league)
+      ? NightOwl.horizon.horizonImpact({
+        slots: league.raw.slots, positionsOf: league.rep.positionsOf, ageOf: ktcAge, weeks: league.weeks, isVirtual: league.rep.isVirtual, replacementRate: league.rep.rate,
+        a: { pool: league.rep.pool(model.activePool(league.mine)) }, b: { pool: league.rep.pool(model.activePool(partner)) }, aGives: give, bGives: get
+      })
+      : null;
+    tradeState.result = { impact, horizon: horizonImpact, base: state.base.get(league.leagueId) || null, after: null };
     state.thinking = league.playoffTeams > 0 && (give.length > 0 || get.length > 0);
     render();
     if (!state.thinking) return;
@@ -445,7 +485,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       await tick();
       const after = await model.projectLeague(league, Object.assign({ rosters: value.applyTrade(league.raw.rosters, league.mine.roster_id, partner.roster_id, give, get) }, projectionOptions));
       if (token !== tradeState.token) return;
-      tradeState.result = { impact, base, after };
+      tradeState.result = { impact, horizon: horizonImpact, base, after };
     } catch (error) {
       console.warn('[Night Owl moves] odds unavailable', error);
     } finally {
