@@ -328,17 +328,29 @@ details.game[open] > summary.game-h::after { transform: rotate(180deg); }
   #lv-league { position: sticky; right: 0; max-width: 112px; background: #131722; box-shadow: inset 0 0 0 1px var(--hair), -14px 0 10px -2px #131722; }
 }
 
-.lw-results, .lw-insights, .lw-plays { list-style: none; margin: 0 0 12px; padding: 0; }
-.lw-result { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line, rgba(128,128,128,.2)); }
-.lw-wl { font-weight: 700; width: 1.2em; }
-.lw-result.up .lw-wl { color: var(--good, #00ceb8); }
-.lw-result.down .lw-wl { color: var(--bad, #f75c8d); }
-.lw-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lw-score { font-variant-numeric: tabular-nums; }
-.lw-insight, .lw-play { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--line, rgba(128,128,128,.2)); }
-.lw-text { font-size: 13px; }
+.lw-tiles, .lw-cards, .lw-plays { list-style: none; margin: 0 0 14px; padding: 0; }
+.lw-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.lw-tile { display: flex; flex-direction: column; padding: 8px 10px; border-radius: 10px; background: rgba(128,128,128,.12); border-left: 3px solid rgba(128,128,128,.4); min-width: 0; }
+.lw-tile.up { border-left-color: var(--good, #00ceb8); }
+.lw-tile.down { border-left-color: var(--bad, #f75c8d); }
+.lw-tile b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.lw-tile.up b { color: var(--good, #00ceb8); }
+.lw-tile.down b { color: var(--bad, #f75c8d); }
+.lw-tile-name { font-size: 11px; opacity: .7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lw-card, .lw-play { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; }
+.lw-faces { display: flex; flex: none; }
+.lw-face { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: rgba(128,128,128,.2); }
+.lw-face + .lw-face { margin-left: -12px; box-shadow: -2px 0 0 var(--bg, #1a1a28); }
+.lw-body { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.lw-mark { font-size: 16px; opacity: .8; }
+.lw-card.rescue .lw-mark { color: var(--good, #00ceb8); }
+.lw-card.cost .lw-mark { color: var(--bad, #f75c8d); }
+.lw-text { font-size: 12px; opacity: .7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lw-bar { height: 4px; border-radius: 2px; background: rgba(128,128,128,.15); }
+.lw-bar i { display: block; height: 100%; border-radius: 2px; background: var(--accent, #00ceb8); }
 .lw-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-.lw-chip { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: rgba(128,128,128,.15); }
+.lw-chip { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: rgba(128,128,128,.15); white-space: nowrap; }
+.lw-chip i { font-style: normal; display: inline-block; max-width: 9em; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; opacity: .85; }
 .lw-chip.up { color: var(--good, #00ceb8); }
 .lw-chip.down { color: var(--bad, #f75c8d); }
 .lw-chip.decided { font-weight: 700; outline: 1px solid currentColor; }

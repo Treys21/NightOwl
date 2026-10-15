@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.17.1
+- **Last week, visual.** Result tiles with the margin, player headshots, a ★ on the deciding plays, short points pills per league and a bar for how big each play was, instead of sentences.
+
 ## 3.17.0
 - **Live: Last week.** A fourth Live tab for the previous finished week: your result in every league, the plays that decided them (a touchdown that cost you leagues, a passer-and-receiver pair that won one and helped another), priced in each league's own scoring, and the biggest scoring plays that touched you.
 
