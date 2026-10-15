@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.17.3
+- **Last week** now leads with the plays themselves (twelve biggest, each with its headshot, size bar and per-league points); the insight cards are gone.
+
 ## 3.17.2
 - **Season recap, visual.** Each league's recap is now a big rank and record, a luck pill, and cards with headshots for your MVP, best add, the one that got away, trades and wire activity, instead of a list of sentences. Lineup what-ifs are gone from it.
 

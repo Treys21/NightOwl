@@ -727,18 +727,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const tiles = review.results.map((result) => `<li class="lw-tile ${result.won ? 'up' : result.lost ? 'down' : ''}" title="${escapeHtml(result.leagueName)}: ${result.myPoints.toFixed(1)} to ${result.theirPoints.toFixed(1)}"><span class="lw-tile-name">${escapeHtml(result.leagueName)}</span><b>${signed(result.margin)}</b></li>`).join('');
     const leagueName = new Map(review.results.map((result) => [result.leagueId, result.leagueName]));
     const pill = (name, points, decided, title) => `<span class="lw-chip ${points > 0 ? 'up' : 'down'}${decided ? ' decided' : ''}" title="${escapeHtml(title)}">${decided ? '★ ' : ''}<i>${escapeHtml(name)}</i> ${signed(points)}</span>`;
-    const marks = { rescue: '▲', cost: '▼', mixed: '◆', connection: '→' };
-    const insights = review.insights.map((insight) => {
-      const faces = insight.kind === 'connection' ? headshot(insight.partnerId) + headshot(insight.playerId) : headshot(insight.playerId);
-      const name = insight.kind === 'connection' ? `${info(insight.partnerId).name.split(' ').pop()} → ${info(insight.playerId).name.split(' ').pop()}` : info(insight.playerId).name;
-      const pills = insight.leagues.map((league) => pill(league.leagueName, league.points, league.decided, NightOwl.weekReview.leagueLine(league).outcome)).join('');
-      return `<li class="lw-card ${insight.kind}"><span class="lw-faces">${faces}</span><span class="lw-body"><b>${escapeHtml(name)}</b><span class="lw-chips">${pills}</span></span><span class="lw-mark">${marks[insight.kind] || ''}</span></li>`;
-    }).join('');
     const swingOf = (priced) => Math.max(...priced.entries.map((entry) => Math.abs(entry.net)));
-    const ranked = review.plays.slice().sort((first, second) => swingOf(second) - swingOf(first)).slice(0, 6);
+    const ranked = review.plays.slice().sort((first, second) => swingOf(second) - swingOf(first)).slice(0, 12);
     const biggest = ranked.length ? swingOf(ranked[0]) : 1;
     const plays = ranked.map((priced) => `<li class="lw-play"><span class="lw-faces">${headshot(priced.participants[0].playerId)}</span><span class="lw-body"><span class="lw-text">${escapeHtml(priced.play.text.split(' (')[0])}</span><span class="lw-bar"><i style="width:${Math.round(100 * swingOf(priced) / biggest)}%"></i></span><span class="lw-chips">${priced.entries.map((entry) => pill(leagueName.get(entry.leagueId), entry.net, entry.flipped, '')).join('')}</span></span></li>`).join('');
-    return `<ul class="lw-tiles">${tiles}</ul>${lastWeek.playsMissing ? lastWeekMessage('Plays unavailable right now.') : `${insights ? `<ul class="lw-cards">${insights}</ul>` : ''}${plays ? `<ul class="lw-plays">${plays}</ul>` : ''}`}`;
+    return `<ul class="lw-tiles">${tiles}</ul>${lastWeek.playsMissing ? lastWeekMessage('Plays unavailable right now.') : `${plays ? `<ul class="lw-plays">${plays}</ul>` : ''}`}`;
   }
 
   function renderLastWeek() {
