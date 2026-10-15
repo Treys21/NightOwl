@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { season, value, ktc, dynastyValues } = NightOwl;
+  const { season, value, ktc, dynastyValues, redraftValues } = NightOwl;
 
   const PICK_ROUNDS = 4;
   const PICK_YEARS = 3;
@@ -154,6 +154,23 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const valueFor = (league, assetId, contentionLevel) => (isPick(assetId) ? dynastyValue(league, assetId) * windowFactor(league, assetId, contentionLevel) : blendedValue(league, assetId, contentionLevel));
 
+    const FORM_WEEKS = 3;
+    const playedWeeks = (league) => Object.keys(league.weeklyPoints || {}).map(Number).sort((a, b) => a - b);
+    const pointsInWeek = (league, week, playerId) => (league.weeklyPoints[week] || {})[playerId];
+
+    function formOf(league, playerId) {
+      const recent = playedWeeks(league).slice(-FORM_WEEKS).map((week) => { const scored = pointsInWeek(league, week, playerId); return scored === undefined ? null : scored; });
+      return redraftValues.formSignal({ recentPoints: recent, projectedPerGame: NightOwl.horizon.perGameRate(playerId, league.weeks) });
+    }
+
+    function seasonOverReplacement(league, playerId) {
+      const weeks = playedWeeks(league);
+      const scoredSoFar = weeks.reduce((total, week) => total + (pointsInWeek(league, week, playerId) || 0), 0);
+      const gamesInSeason = weeks.length + league.weeks.length;
+      const replacementPoints = league.rep ? league.rep.rate(playerId) * gamesInSeason : 0;
+      return Math.max(0, scoredSoFar + restOfSeasonPoints(league, playerId) - replacementPoints);
+    }
+
     function pointValue(league) {
       if (league.pointPrice !== undefined) return league.pointPrice;
       const listed = consensus(league) ? state.ktcRedraft.players : state.ktc && state.ktc.players;
@@ -189,7 +206,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     return {
       pickAsset, packageValue, isPick, pickOf, standingsRanks, ownedPicks, pickSlot, pickTierOf, ordinalRound,
-      restOfSeasonPoints, overReplacement, usesKtc, consensus, dynastyValue, blendedValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
+      formOf, seasonOverReplacement, restOfSeasonPoints, overReplacement, usesKtc, consensus, dynastyValue, blendedValue, redraftValue, marketValue, valueFor, windowFactor, pointValue, worth
     };
   }
 

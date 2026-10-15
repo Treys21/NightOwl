@@ -15,6 +15,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     function valueFn(league) {
       if (leagueValues.usesKtc(league)) return (playerId) => leagueValues.dynastyValue(league, playerId);
+      if (league.kind === 'redraft' && league.rep) return (playerId) => Math.round(leagueValues.seasonOverReplacement(league, playerId) * leagueValues.pointValue(league));
       if (leagueValues.consensus(league)) return (playerId) => leagueValues.redraftValue(league, playerId);
       return null;
     }

@@ -94,7 +94,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const timeline = model.timeline(league, rosters, nflState);
       if (timeline.next >= timeline.playoffStart) return null;
       const thisWeek = timeline.inProgress ? await api.matchups(league.league_id, timeline.next) : [];
+      const weeklyPoints = await model.playerPointsByWeek(league.league_id, timeline.finished).catch(() => ({}));
       return {
+        weeklyPoints,
         leagueId: league.league_id,
         name: league.name.trim(),
         playoffTeams: timeline.playoffTeams,
@@ -405,6 +407,21 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return notes.length ? `<ul class="mv-notes">${notes.slice(0, 3).map((note) => `<li>${escapeHtml(note)}</li>`).join('')}</ul>` : '';
   }
 
+  function redraftNotesHtml(league) {
+    const tradeState = state.trade;
+    const named = (assetIds) => [...assetIds].filter((assetId) => !isPick(assetId));
+    const notes = [];
+    const hot = named(tradeState.give).find((playerId) => (leagueValues.formOf(league, playerId) || {}).signal === 'hot');
+    const cold = named(tradeState.get).find((playerId) => (leagueValues.formOf(league, playerId) || {}).signal === 'cold');
+    if (hot) notes.push(`${players.info(hot).name} is running hotter than his projection, which is a good time to sell.`);
+    if (cold) notes.push(`${players.info(cold).name} is scoring under his projection with no change in role, which is a good time to buy.`);
+    const given = named(tradeState.give).length;
+    const received = named(tradeState.get).length;
+    if (received - given >= 1) notes.push(`You take on ${received - given} extra roster ${received - given === 1 ? 'spot' : 'spots'}; the other side gets the star, so expect a higher price.`);
+    if (given - received >= 1) notes.push('You consolidate into fewer, better players, which suits a team already in position to make the playoffs.');
+    return notes.length ? `<ul class="mv-notes">${notes.slice(0, 3).map((note) => `<li>${escapeHtml(note)}</li>`).join('')}</ul>` : '';
+  }
+
   function tradeResult(league, partner) {
     const tradeState = state.trade;
     const result = tradeState.result;
@@ -422,7 +439,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       <div class="mv-sides">${sideCard(league, 'You', league.mine, result.impact.a, result.base, result.after, result.horizon && result.horizon.a)}${sideCard(league, them, partner, result.impact.b, result.base, result.after, result.horizon && result.horizon.b)}</div>
       ${usesKtc(league) || leagueValues.consensus(league) ? marketLine(league, partner, them).html : ''}
       <p class="mv-verdict mv-sub">${result.horizon ? `Lineups: ${dynastyVerdict(result.impact.a.delta, result.horizon.a, league.weeks.length)}` : `${usesKtc(league) || leagueValues.consensus(league) ? 'Lineups: ' : 'For this season: '}${verdict(result.impact.a, result.impact.b, them)}`}</p>
-      ${result.horizon ? tradeNotesHtml(league, result) : ''}
+      ${result.horizon ? tradeNotesHtml(league, result) : league.kind === 'redraft' ? redraftNotesHtml(league) : ''}
       ${league.kind !== 'redraft' && state.ktcError ? '<p class="muted small">Dynasty values unavailable right now (KeepTradeCut could not be reached).</p>' : ''}
       ${warn.length ? `<p class="mv-warn small">${warn.join(' ')}</p>` : ''}
     </div>`;

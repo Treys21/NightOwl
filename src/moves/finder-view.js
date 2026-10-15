@@ -35,9 +35,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
       return out;
     }
-    const outlook = (contentionLevel, isDynasty) => {
-      if (isDynasty) return contentionLevel >= 0.7 ? 'Contending' : contentionLevel < 0.3 ? 'Rebuilding' : 'In the hunt';
-      return contentionLevel >= 0.7 ? 'Playoff team' : contentionLevel < 0.3 ? 'Long shot' : 'In the hunt';
+    const outlook = (teamWindow, isDynasty) => {
+      if (isDynasty) return teamWindow.contention >= 0.7 ? 'Contending' : teamWindow.contention < 0.3 ? 'Rebuilding' : 'In the hunt';
+      return NightOwl.redraftValues.stanceLabel(NightOwl.redraftValues.stanceOf(teamWindow.odds));
     };
 
     async function ensureBase(league) {
@@ -101,12 +101,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       };
     }
 
-    function teamOf(league, roster, contentionLevel, isDynasty) {
+    function teamOf(league, roster, teamWindow, isDynasty) {
+      const contentionLevel = teamWindow.contention;
       const pool = model.activePool(roster);
       const priced = (assetId) => (isDynasty ? leagueValues.blendedValue(league, assetId) > 0 : leagueValues.restOfSeasonPoints(league, assetId) > 0);
       const assets = (isDynasty ? (roster.players || []) : pool).filter(priced).concat(isDynasty ? nearestPickPerRound((league.picks.get(roster.roster_id) || []).filter(priced)) : []);
       const appetite = league.trade ? league.trade.appetite.get(roster.roster_id) : null;
-      return { id: roster.roster_id, pool: league.rep.pool(pool), assets, players: roster.players || [], count: (roster.players || []).length, capacity: league.capacity, w: contentionLevel, appetite };
+      return { id: roster.roster_id, pool: league.rep.pool(pool), assets, players: roster.players || [], count: (roster.players || []).length, capacity: league.capacity, w: contentionLevel, stance: NightOwl.redraftValues.stanceOf(teamWindow.odds), appetite };
     }
 
     async function run() {
@@ -132,7 +133,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const isDynasty = dynasty(league);
         const context = buildContext(league);
         const myRoster = league.mine;
-        const myTeam = teamOf(league, myRoster, teamWindows.get(myRoster.roster_id).contention, isDynasty);
+        const myTeam = teamOf(league, myRoster, teamWindows.get(myRoster.roster_id), isDynasty);
         const mine = finder.dropLosses(myTeam, context);
         const found = [];
         const others = league.raw.rosters.filter((roster) => roster.roster_id !== myRoster.roster_id);
@@ -141,7 +142,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           render();
           await tick();
           if (token !== finderState.token || !active()) return;
-          const other = teamOf(league, others[i], teamWindows.get(others[i].roster_id).contention, isDynasty);
+          const other = teamOf(league, others[i], teamWindows.get(others[i].roster_id), isDynasty);
           found.push(...finder.proposeFor(context, myTeam, other, mine));
         }
         found.sort((a, b) => b.score - a.score);
@@ -242,6 +243,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (buy && buy[1] >= 0.15) out.push(`<b>Edge:</b> ${escapeHtml(players.info(buy[0]).name)} projects ${Math.round(Math.min(buy[1], 0.6) * 100)}%${buy[1] > 0.6 ? '+' : ''} more points than his price suggests.`);
         else if (sell && sell[1] <= -0.15) out.push(`<b>Edge:</b> you are selling ${escapeHtml(players.info(sell[0]).name)} above what he projects (${Math.round(Math.min(-sell[1], 0.6) * 100)}% less production than his price).`);
       }
+      if (!isDynasty) {
+        const formOfEach = (assetIds) => assetIds.filter((assetId) => !isPick(assetId)).map((assetId) => [assetId, leagueValues.formOf(league, assetId)]).filter(([, form]) => form);
+        const hot = formOfEach(item.give).find(([, form]) => form.signal === 'hot');
+        const cold = formOfEach(item.get).find(([, form]) => form.signal === 'cold');
+        const rate = (form) => `${form.recentPerGame.toFixed(1)} a game against ${form.projectedPerGame.toFixed(1)} projected`;
+        if (hot) out.push(`<b>Sell high:</b> ${escapeHtml(players.info(hot[0]).name)} is scoring ${rate(hot[1])}, and that tends to come back down.`);
+        if (cold) out.push(`<b>Buy low:</b> ${escapeHtml(players.info(cold[0]).name)} has scored ${rate(cold[1])}, and his role has not changed.`);
+      }
       const tradeRecord = league.trade && league.trade.record.get(partner.roster_id);
       if (tradeRecord && tradeRecord.trades >= 2) {
         const seasons = league.trade.seasons;
@@ -304,7 +313,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const rawGet = price(item.get.map((assetId) => marketOf(league, assetId)), item.get.map(isPick));
       return `<article class="mv-card ${tone}">
         <div class="mv-card-h">
-          <div><b>${escapeHtml(them)}</b> <span class="mv-win ${partnerWindow.contention >= 0.7 ? 'hot' : partnerWindow.contention < 0.3 ? 'cold' : ''}">${outlook(partnerWindow.contention, isDynasty)}${partnerWindow.odds != null ? ` · ${oddsLabel(partnerWindow.odds)}` : ''}</span></div>
+          <div><b>${escapeHtml(them)}</b> <span class="mv-win ${partnerWindow.contention >= 0.7 ? 'hot' : partnerWindow.contention < 0.3 ? 'cold' : ''}">${outlook(partnerWindow, isDynasty)}${partnerWindow.odds != null ? ` · ${oddsLabel(partnerWindow.odds)}` : ''}</span></div>
           <span class="mv-likely ${tone}" title="How likely they are to say yes: they come out ahead in their own terms and the value is not lopsided against them">${label}</span>
         </div>
         <div class="mv-swap">

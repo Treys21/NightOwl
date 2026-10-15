@@ -75,7 +75,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function utility(context, team, contentionWindow, give, get, pointChange) {
     if (context.mode === 'redraft') {
       const gain = context.consensus ? valueGain(context, team, contentionWindow, give, get) / context.pointValue : 0;
-      return pointChange * motivationOf(contentionWindow) + valueWeight(contentionWindow) * gain;
+      const base = pointChange * motivationOf(contentionWindow) + valueWeight(contentionWindow) * gain;
+      return base > 0 ? base * NightOwl.redraftValues.shapeFit(team.stance, get.length, give.length) : base;
     }
     return valueGain(context, team, contentionWindow, give, get) + lambdaOf(contentionWindow) * context.pointValue * pointChange;
   }
@@ -167,6 +168,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
+  function bodyAdjusted(context, rawGive, rawGet, bodiesGiven, bodiesGot) {
+    if (context.mode !== 'redraft') return [rawGive, rawGet];
+    const { extraBodyPremium } = NightOwl.redraftValues;
+    return [rawGive / extraBodyPremium(bodiesGiven, bodiesGot), rawGet * extraBodyPremium(bodiesGot, bodiesGiven)];
+  }
+
   function proposeFor(context, myTeam, partner, myBaseline) {
     const limits = paramsOf(context);
     const goal = context.goal || 'balanced';
@@ -225,7 +232,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const rawGive = rawPrice(give);
         const rawGet = rawPrice(get);
         const size = Math.max(rawGive, rawGet, 1);
-        const priceFail = priceGate(context, limits, goal, rawGive, rawGet);
+        const priceFail = priceGate(context, limits, goal, ...bodyAdjusted(context, rawGive, rawGet, give.length, get.length));
         if (priceFail) continue;
         if (tooOldForRebuild(context, theirWindow, give) || tooOldForRebuild(context, myWindow, get)) continue;
         if (get.some((assetId) => !context.isPick(assetId) && assetId !== target && !(myGain.get(assetId) > 0) && context.rawOf(assetId) < DEAD_WEIGHT * size)) continue;

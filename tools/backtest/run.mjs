@@ -4,7 +4,7 @@ import { writeFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 globalThis.NightOwl = {};
-for (const modulePath of ['lineups/core', 'season/core', 'season/value', 'season/finder', 'live/scoring', 'draft/match-names', 'shared/ktc', 'trades/history', 'moves/values']) require(`../../src/${modulePath}.js`);
+for (const modulePath of ['lineups/core', 'season/core', 'season/value', 'valuation/age-curves', 'valuation/redraft-values', 'season/finder', 'live/scoring', 'draft/match-names', 'shared/ktc', 'trades/history', 'moves/values']) require(`../../src/${modulePath}.js`);
 const nightOwl = globalThis.NightOwl;
 
 const { values: options } = parseArgs({ options: { user: { type: 'string' }, seasons: { type: 'string', default: '2' }, json: { type: 'string' }, samples: { type: 'string', default: '25' } } });

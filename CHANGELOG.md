@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 3.16.0
+- **Values rebuilt, redraft and dynasty separately.** Dynasty values blend the market with a multi-year production stream (position age curves, weighted by whether the team is contending or rebuilding). Redraft values are points over the league's real replacement level, with playoff weeks weighted by the team's standing (playoff team, in the hunt, long shot).
+- **Redraft trades.** Cards flag players to sell high or buy low from recent scoring against projection, charge a premium for the side taking more bodies, and favour consolidation for leaders and weekly-starter depth for teams in the hunt. The analyzer adds the same plain notes.
+- **Drafts.** Redraft drafts are graded on season points over replacement instead of a market consensus.
 - **Dynasty trade analyzer** no longer judges a trade on this season's projected points alone: each side shows the lineup change for the next two seasons (position and age curves), a "within noise" tag when this season's change is too small to matter, and up to three plain cautions (helps now but costs later, years older or younger).
 
 ## 3.15.0

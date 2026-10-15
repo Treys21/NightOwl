@@ -5,6 +5,7 @@ require('../src/lineups/core.js');
 require('../src/season/core.js');
 require('../src/season/value.js');
 require('../src/valuation/age-curves.js');
+require('../src/valuation/redraft-values.js');
 const finder = require('../src/season/finder.js');
 
 const SLOTS = ['QB', 'RB', 'RB', 'WR', 'WR', 'FLEX', 'BN', 'BN', 'BN'];

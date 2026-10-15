@@ -188,5 +188,22 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
-  NightOwl.model = { SIMS, timeline, schedule, projections, positionsFor, weeksNeeded, remainingByTeam, activePool, nflSchedule, valueWeeks, forecastWeeks, projectLeague };
+  async function playerPointsByWeek(leagueId, weeks) {
+    const key = `moves.points.v1.${leagueId}`;
+    const cached = await storage.get(key, {});
+    const missing = weeks.filter((week) => !cached[week]);
+    const fetched = await Promise.all(missing.map((week) => api.matchups(leagueId, week).then((matchups) => [week, matchups]).catch(() => [week, null])));
+    let changed = false;
+    for (const [week, matchups] of fetched) {
+      if (!matchups) continue;
+      const points = {};
+      for (const matchup of matchups) for (const [playerId, scored] of Object.entries(matchup.players_points || {})) if (scored) points[playerId] = scored;
+      cached[week] = points;
+      changed = true;
+    }
+    if (changed) await storage.set({ [key]: cached });
+    return Object.fromEntries(weeks.filter((week) => cached[week]).map((week) => [week, cached[week]]));
+  }
+
+  NightOwl.model = { SIMS, timeline, schedule, playerPointsByWeek, projections, positionsFor, weeksNeeded, remainingByTeam, activePool, nflSchedule, valueWeeks, forecastWeeks, projectLeague };
 })(globalThis.NightOwl);
