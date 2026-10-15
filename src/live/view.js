@@ -353,7 +353,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           const points = scoring.points(state.stats[playerId], league.scoring);
           return `<span class="impact ${side === 'me' ? 'helps' : 'hurts'}">${escapeHtml(league.name)} · ${side === 'me' ? 'you' : 'opp'} ${formatPoints(points)}</span>`;
         }).join('');
-        return { forMe: netForMe, mine: spots.some((spot) => spot.side === 'me'), html: `<li class="ev" style="--tc:${teams.colors(player.team).primary}"><div class="ev-top"><span class="ev-who">${playerAvatar(playerId, player.team)}<span><span class="ev-name">${escapeHtml(player.name)}</span> <span class="muted small">${escapeHtml(player.pos)} · ${escapeHtml(player.team)}</span></span></span></div><div class="impacts">${chips}</div></li>` };
+        return { forMe: netForMe, mine: spots.some((spot) => spot.side === 'me'), html: `<li class="ev" style="--tc:${teams.colors(player.team).primary}"><div class="ev-top"><span class="ev-who">${teams.face(playerId, player.team)}<span><span class="ev-name">${escapeHtml(player.name)}</span> <span class="muted small">${escapeHtml(player.pos)} · ${escapeHtml(player.team)}</span></span></span></div><div class="impacts">${chips}</div></li>` };
       }).sort((a, b) => b.forMe - a.forMe);
       const status = game.status === 'in_game' ? '<span class="live-tag">LIVE</span>' : '<span class="muted small">later</span>';
       const mine = rows.filter((row) => row.mine).length;
@@ -366,10 +366,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }).join('') || `<p class="muted small empty">${gamesIdleText()}</p>`;
     dom.setHtml(byId('games'), html);
     byId('lv-count-games').textContent = games.filter((game) => game.status === 'in_game').length ? `${games.filter((game) => game.status === 'in_game').length} live` : '';
-  }
-
-  function playerAvatar(playerId, team) {
-    return `<img class="face" alt="" src="${teams.photo(playerId, team)}" style="border-color:${teams.colors(team).primary}">`;
   }
 
   const POP_MS = 2200;
@@ -591,7 +587,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const mood = moodOf(event);
     return `<li class="ev ${mood === 'even' ? '' : mood}${isNew ? ' new' : ''}${isBig(event) ? ' major' : ''}" style="--tc:${teams.colors(event.team).primary}">
         <div class="ev-top">
-          <span class="ev-who">${playerAvatar(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.pos)} · ${escapeHtml(event.team)}</span></span></span>
+          <span class="ev-who">${teams.face(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.pos)} · ${escapeHtml(event.team)}</span></span></span>
           <span class="ev-val">${playValue(event)}</span>
         </div>
         <div class="ev-text">${escapeHtml(event.text || 'stat correction')}</div>
@@ -604,7 +600,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const key = `${since}-${group[0].ts}`;
     const rows = group.map((event) => `
       <div class="recap-row">
-        <span class="ev-who">${playerAvatar(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.text || 'stat correction')}</span></span></span>
+        <span class="ev-who">${teams.face(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.text || 'stat correction')}</span></span></span>
         <div class="impacts">${impactChips(event)}</div>
       </div>`).join('');
     return `<li class="recap"><details data-recap="${key}"${state.openRecaps.has(key) ? ' open' : ''}>

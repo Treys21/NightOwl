@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.17.8
+
+Internal cleanup, no change to what you see.
+
+- Season: the league cards and tables moved to `league-view.js` (`season/view.js` is now 301 lines, from 542).
+- Bets: the player rows moved to `rows-view.js`.
+- The player photo with a team-coloured ring, copied in Live and Bets, is one `teams.face`.
+
 ## 3.17.7
 
 Internal cleanup, no change to what you see.

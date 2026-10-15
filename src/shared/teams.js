@@ -39,13 +39,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const isDefenseId = (playerId) => /^[A-Z]{2,3}$/.test(String(playerId));
 
+  const photo = (playerId, team) => (isDefenseId(playerId) ? logo(team) : headshot(playerId));
+  const face = (playerId, team) => `<img class="face" alt="" src="${photo(playerId, team)}" style="border-color:${colors(team).primary}">`;
+
   NightOwl.teams = {
     colors,
     inkOn,
     logo,
     headshot,
     isDefenseId,
-    photo: (playerId, team) => (isDefenseId(playerId) ? logo(team) : headshot(playerId))
+    photo,
+    face
   };
 })(globalThis.NightOwl);
 
