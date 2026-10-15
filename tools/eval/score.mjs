@@ -13,10 +13,11 @@ const { values: options } = parseArgs({ options: {
   split: { type: 'string', default: 'tuning' },
   version: { type: 'string', default: prompts.VERSION },
   baseline: { type: 'string' },
-  label: { type: 'string' }
+  label: { type: 'string' },
+  weights: { type: 'string' }
 } });
 
-const weights = readJson(join(import.meta.dirname, 'weights.json'));
+const weights = readJson(options.weights || join(import.meta.dirname, 'weights.json'));
 const world = await loadWorld();
 const runs = options.runs.split(',');
 const round = (value, places = 2) => (Number.isFinite(value) ? Math.round(value * 10 ** places) / 10 ** places : null);
@@ -40,7 +41,7 @@ function scorer(entry, truth, built) {
   const mine = teamOf(world, built.season, entry.rosterId, built.rosterPlayers, built.windows.get(entry.rosterId));
   const cache = new Map();
   return (deal) => {
-    const signature = `${deal.partnerId}|${deal.give.join()}|${deal.get.join()}`;
+    const signature = `${deal.source || 'candidate'}|${deal.partnerId}|${deal.give.join()}|${deal.get.join()}`;
     if (cache.has(signature)) return cache.get(signature);
     const partner = teamOf(world, built.season, Number(deal.partnerId), built.rosterPlayers, built.windows.get(Number(deal.partnerId)));
     const impact = nightOwl.value.tradeImpact({ slots: truth.slots, weeks: lineupWeeks, positionsOf: world.positionsOf, a: { pool: mine.pool }, b: { pool: partner.pool }, aGives: deal.give, bGives: deal.get });
@@ -49,7 +50,7 @@ function scorer(entry, truth, built) {
     impact.a.perWeek.forEach((change, index) => { if (truth.weeks[index].playoff) playoff += change; else regular += change; });
     let theirChange = 0;
     impact.b.perWeek.forEach((change, index) => { if (!truth.weeks[index].playoff) theirChange += change; });
-    const judged = nightOwl.finder.judge(built.context, mine, partner, deal.give, deal.get);
+    const judged = deal.source === 'custom' ? nightOwl.finder.judge(built.context, mine, partner, deal.give, deal.get) : { ok: true, reason: null };
     const marketPoints = nightOwl.finder.valueGain(built.context, mine, mine.w, deal.give, deal.get) / (built.context.pointValue || 1);
     const gift = Math.max(0, theirChange - regular);
     const score = weightsOf.regular * regular + weightsOf.playoff * playoff + weightsOf.market * marketPoints - weightsOf.gift * gift - (judged.ok ? 0 : weightsOf.rejected);
@@ -65,7 +66,7 @@ for (const entry of cases) {
   if (!truth) continue;
   const built = await rebuild(entry);
   const score = scorer(entry, truth, built);
-  const candidates = entry.view.candidates.map((candidate) => ({ key: candidate.key, partnerId: candidate.partnerId, give: candidate.give, get: candidate.get }));
+  const candidates = entry.view.candidates.map((candidate) => ({ source: 'candidate', key: candidate.key, partnerId: candidate.partnerId, give: candidate.give, get: candidate.get }));
   const candidateScores = candidates.map(score);
   const staticTop1 = candidateScores[0].score;
   const staticTop3 = mean(candidateScores.slice(0, 3).map((result) => result.score));
