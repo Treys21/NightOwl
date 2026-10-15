@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.17.7
+
+Internal cleanup, no change to what you see.
+
+- The Moves view is split into one file per pane: Waivers (`waivers-view.js`) and Trade (`trade-view.js`) join Finder, History and Drafts. `moves/view.js` went from 669 to 389 lines.
+
 ## 3.17.6
 
 Internal cleanup, no change to what you see.
