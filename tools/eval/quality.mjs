@@ -49,3 +49,17 @@ export function madOutliers(values, limit = 3) {
   if (!spread) return values.map(() => false);
   return values.map((value) => Math.abs(value - center) / spread > limit);
 }
+
+export function quantile(values, fraction) {
+  const sorted = values.slice().sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  return sorted[Math.min(sorted.length - 1, Math.floor(fraction * sorted.length))];
+}
+
+export function winsorize(values, limit = 3, floor = 1) {
+  const center = median(values);
+  const spread = Math.max(median(values.map((value) => Math.abs(value - center))) * 1.4826, (quantile(values, 0.75) - quantile(values, 0.25)) / 1.349, floor);
+  const low = center - limit * spread;
+  const high = center + limit * spread;
+  return { values: values.map((value) => Math.min(high, Math.max(low, value))), clipped: values.map((value) => value < low || value > high), low, high };
+}

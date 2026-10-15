@@ -3,7 +3,7 @@ import { readdirSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { nightOwl, loadWorld, EVAL_DIR, readJson, writeJson } from './lib/env.mjs';
 import { loadSeason, rostersAt, standingsBefore, windowsFromStandings, prepare, buildContext, teamOf } from './lib/league.mjs';
-import { madOutliers, median } from './quality.mjs';
+import { winsorize, median } from './quality.mjs';
 import { mean, standardDeviation, clusterBootstrap, detectableEffect, bootstrapP } from './stats.mjs';
 import prompts from '../../src/ai/prompts.js';
 import validate from '../../src/ai/validate.js';
@@ -101,29 +101,30 @@ for (const kind of ['redraft', 'dynasty']) {
   const top3 = average((run) => run.top3);
   const paired1 = group.map((row, index) => top1[index] - row.staticTop1);
   const paired3 = group.map((row, index) => top3[index] - row.staticTop3);
-  const outliers = madOutliers(paired1, weights.outlierMads);
-  const keep = (list) => list.filter((value, index) => !outliers[index]);
+  const clip1 = winsorize(paired1, weights.outlierMads);
+  const clip3 = winsorize(paired3, weights.outlierMads);
+  const outliers = clip1.clipped;
   const clusters = group.map((row) => row.leagueId);
-  const clustersKept = keep(clusters);
   const options1 = { iterations: weights.bootstrapIterations, seed: 11 };
-  const headline = clusterBootstrap(keep(paired1), clustersKept, options1);
-  const headline3 = clusterBootstrap(keep(paired3), clustersKept, options1);
-  const pValue = bootstrapP(keep(paired1), clustersKept, options1);
+  const headline = clusterBootstrap(clip1.values, clusters, options1);
+  const headline3 = clusterBootstrap(clip3.values, clusters, options1);
+  const raw = clusterBootstrap(paired1, clusters, options1);
+  const pValue = bootstrapP(clip1.values, clusters, options1);
   const noise = group.filter((row) => row.perRun.length > 1).map((row) => standardDeviation(row.perRun.map((run) => run.top1)));
   const validity = mean(group.flatMap((row) => row.perRun.map((run) => (run.valid ? 1 : 0))));
   const acceptedFirst = mean(group.flatMap((row) => row.perRun.map((run) => (run.firstAccepted ? 1 : 0))));
   const customShare = mean(group.flatMap((row) => row.perRun.map((run) => (run.suggestions ? run.custom / run.suggestions : 0))));
   const summary = {
-    cases: group.length, leagues: new Set(clusters).size, outliersExcluded: outliers.filter(Boolean).length,
+    cases: group.length, leagues: new Set(clusters).size, outliersClipped: outliers.filter(Boolean).length, rawPaired: { mean: round(raw.mean), low: round(raw.low), high: round(raw.high) },
     llmTop1: round(mean(top1)), staticTop1: round(mean(group.map((row) => row.staticTop1))), allCandidates: round(mean(group.map((row) => row.staticAll))), bestPossible: round(mean(group.map((row) => row.best))),
     pairedTop1: { mean: round(headline.mean), low: round(headline.low), high: round(headline.high), p: round(pValue, 3) },
     pairedTop3: { mean: round(headline3.mean), low: round(headline3.low), high: round(headline3.high) },
     validity: round(validity), firstSuggestionAccepted: round(acceptedFirst), customShare: round(customShare),
-    noiseFloor: noise.length ? round(median(noise)) : null, detectableEffect: round(detectableEffect(keep(paired1), clustersKept)),
+    noiseFloor: noise.length ? round(median(noise)) : null, detectableEffect: round(detectableEffect(clip1.values, clusters)),
     clearWin: headline.low > Math.max(weights.minimumEffect, noise.length ? median(noise) : 0)
   };
   report.kinds[kind] = summary;
-  lines.push(`## ${kind}`, `- cases ${summary.cases} in ${summary.leagues} leagues, ${summary.outliersExcluded} outliers excluded`, `- mean score: model first pick ${summary.llmTop1} · static finder first pick ${summary.staticTop1} · average candidate ${summary.allCandidates} · best candidate in hindsight ${summary.bestPossible}`, `- paired difference (model minus static, first pick): ${summary.pairedTop1.mean} [${summary.pairedTop1.low}, ${summary.pairedTop1.high}] p=${summary.pairedTop1.p}`, `- paired difference (top three): ${summary.pairedTop3.mean} [${summary.pairedTop3.low}, ${summary.pairedTop3.high}]`, `- valid replies ${summary.validity} · first pick passes the finder's gate ${summary.firstSuggestionAccepted} · own deals ${summary.customShare}`, `- run-to-run noise ${summary.noiseFloor} · smallest effect detectable at this size ${summary.detectableEffect} · clear win: ${summary.clearWin ? 'yes' : 'no'}`, '');
+  lines.push(`## ${kind}`, `- cases ${summary.cases} in ${summary.leagues} leagues, ${summary.outliersClipped} outlier differences clipped to ${weights.outlierMads} robust spreads`, `- mean score: model first pick ${summary.llmTop1} · static finder first pick ${summary.staticTop1} · average candidate ${summary.allCandidates} · best candidate in hindsight ${summary.bestPossible}`, `- paired difference (model minus static, first pick, clipped): ${summary.pairedTop1.mean} [${summary.pairedTop1.low}, ${summary.pairedTop1.high}] p=${summary.pairedTop1.p}`, `- same without clipping: ${summary.rawPaired.mean} [${summary.rawPaired.low}, ${summary.rawPaired.high}]`, `- paired difference (top three): ${summary.pairedTop3.mean} [${summary.pairedTop3.low}, ${summary.pairedTop3.high}]`, `- valid replies ${summary.validity} · first pick passes the finder's gate ${summary.firstSuggestionAccepted} · own deals ${summary.customShare}`, `- run-to-run noise ${summary.noiseFloor} · smallest effect detectable at this size ${summary.detectableEffect} · clear win: ${summary.clearWin ? 'yes' : 'no'}`, '');
   const worst = group.map((row, index) => ({ id: row.id, diff: paired1[index] })).sort((a, b) => a.diff - b.diff).slice(0, 5);
   lines.push('worst cases (model minus static):', ...worst.map((entry) => `- ${entry.id} ${round(entry.diff)}`), '');
 }

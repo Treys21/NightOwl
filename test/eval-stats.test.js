@@ -30,3 +30,11 @@ test('same seed gives the same bootstrap and outliers are flagged by MAD', async
   assert.strictEqual(scoreCase(Object.assign({}, good, { marketValuesFromToday: true, weeksLeft: 4 }), { acceptThreshold: 0.75 }).accepted, false);
   assert.strictEqual(scoreCase(Object.assign({}, good, { marketValuesFromToday: true }), { acceptThreshold: 0.95 }).accepted, false);
 });
+
+test('winsorizing clips a single extreme value without discarding cases', async () => {
+  const { winsorize } = await import('../tools/eval/quality.mjs');
+  const clipped = winsorize([0, 0, 0, 0, 0, 0, 1, -1, 200]);
+  assert.strictEqual(clipped.values.length, 9);
+  assert.deepStrictEqual(clipped.clipped.filter(Boolean).length, 1);
+  assert.ok(clipped.values[8] < 200 && clipped.values[8] > 0);
+});
