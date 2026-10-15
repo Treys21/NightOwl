@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased (3.15.0 in the manifest)
+- **Drafts.** Kicker picks in a startup draft are recognised as placeholders for the rookie
+  picks sold during it and replaced by the rookie pick they stand for (owned by whoever used
+  it, ↔ where a trade moved it). Startup picks are judged against the picks around them
+  rather than the rookie pick chart, and a team whose picks changed hands with no trade on
+  record is graded on the players it took, with an asterisk.
+- **Trade finder** offers only each team's soonest pick in every round and shows an incoming
+  player in only one suggested deal.
+- **Season.** An opened league card takes the full row, so the extra odds columns show.
+
 ## 3.14.0
 - **Lineups reads at a glance.** A status banner at the top says "All set", "No fixes needed"
   or "N fixes needed" with one specific line per fix; kickoff windows are compact cards with a

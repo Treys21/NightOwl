@@ -13,6 +13,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   const MIN_OWNER_MATCH = 0.7;
+  const LONGEST_ROOKIE_DRAFT_ROUNDS = 8;
 
   const originalOf = (draft, pick) => pick.originalOwner || (draft.slotToRoster && draft.slotToRoster[pick.slot]) || pick.by;
 
@@ -102,11 +103,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   function board(draft, valueOf, baselineOf = null, isPlaceholder = null) {
     const picks = draft.picks.slice().sort((a, b) => a.no - b.no);
+    const rookieSizedDraft = draft.rounds <= LONGEST_ROOKIE_DRAFT_ROUNDS;
     const placeholders = picks.map((pick) => !!isPlaceholder && isPlaceholder(pick.pid));
     const values = picks.map((pick, k) => (placeholders[k] ? null : valueOf(pick.pid)));
     const teams = draft.teams || Math.max(...picks.map((pick) => pick.slot), 1);
     const around = expected(values);
-    const exp = picks.map((pick, k) => (placeholders[k] ? 0 : (baselineOf && baselineOf({ round: pick.chartRound || pick.round, slot: pick.chartSlot || ((pick.no - 1) % teams) + 1, teams: pick.chartTeams || teams })) || around[k]));
+    const exp = picks.map((pick, k) => (placeholders[k] ? 0 : (baselineOf && (pick.chartRound || rookieSizedDraft) && baselineOf({ round: pick.chartRound || pick.round, slot: pick.chartSlot || ((pick.no - 1) % teams) + 1, teams: pick.chartTeams || teams })) || around[k]));
     const cells = picks.map((pick, k) => {
       const from = originalOf(draft, pick);
       const placeholder = placeholders[k];

@@ -177,3 +177,14 @@ test('a rookie pick traded after the kicker was taken shows as traded, with its 
   const kept = board.picks.find((pick) => pick.no === 1);
   assert.deepStrictEqual([kept.by, kept.traded], [1, false]);
 });
+
+test('the pick chart prices rookie picks, not the veterans of a long startup draft', () => {
+  const chart = () => 1000;
+  const startup = { season: '2026', rounds: 25, teams: 2, slotToRoster: { 1: 1, 2: 2 }, picks: [
+    { no: 1, round: 1, slot: 1, by: 1, pid: 'veteranA' }, { no: 2, round: 1, slot: 2, by: 2, pid: 'veteranB' }, { no: 3, round: 2, slot: 2, by: 2, pid: 'veteranC' } ] };
+  const values = { veteranA: 9000, veteranB: 8000, veteranC: 7000 };
+  const board = tradeDrafts.board(startup, (playerId) => values[playerId], chart);
+  assert.ok(board.picks[0].expected > 5000, `a startup pick is judged against the picks around it, not a 1,000 rookie chart: ${board.picks[0].expected}`);
+  const rookie = Object.assign({}, startup, { rounds: 4 });
+  assert.strictEqual(tradeDrafts.board(rookie, (playerId) => values[playerId], chart).picks[0].expected, 1000);
+});
