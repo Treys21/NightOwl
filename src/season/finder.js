@@ -13,6 +13,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const EXACT_PER_PARTNER = 18;
   const NOT_TRADE_CHIPS = new Set(['K', 'DEF']);
   const DEAD_WEIGHT = 0.12;
+  const REBUILDING_BELOW = 0.3;
+  const DEFAULT_AGE_LIMIT = 28;
+  const AGE_LIMIT_BY_POSITION = { QB: 33, RB: 26, WR: 28, TE: 29 };
 
   const DEFAULTS = {
     fairTolerance: 0.12,
@@ -156,6 +159,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return { ok: !reason, reason, impact, rawNetThem, size, uMe: myUtility, uThem: theirUtility };
   }
 
+  function tooOldForRebuild(context, contentionWindow, assetIds) {
+    if (context.mode !== 'dynasty' || !context.ageOf || contentionWindow >= REBUILDING_BELOW) return false;
+    return assetIds.some((assetId) => {
+      if (context.isPick(assetId)) return false;
+      const age = context.ageOf(assetId);
+      if (!age) return false;
+      const position = (context.positionsOf(assetId) || [])[0];
+      return age > (AGE_LIMIT_BY_POSITION[position] || DEFAULT_AGE_LIMIT);
+    });
+  }
+
   function proposeFor(context, myTeam, partner, myBaseline) {
     const limits = paramsOf(context);
     const goal = context.goal || 'balanced';
@@ -216,6 +230,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const size = Math.max(rawGive, rawGet, 1);
         const priceFail = priceGate(context, limits, goal, rawGive, rawGet);
         if (priceFail) continue;
+        if (tooOldForRebuild(context, theirWindow, give) || tooOldForRebuild(context, myWindow, get)) continue;
         if (get.some((assetId) => !context.isPick(assetId) && assetId !== target && !(myGain.get(assetId) > 0) && context.rawOf(assetId) < DEAD_WEIGHT * size)) continue;
         if (give.some((assetId) => !context.isPick(assetId) && assetId !== shop && !(theirGain.get(assetId) > 0) && context.rawOf(assetId) < DEAD_WEIGHT * size)) continue;
         const myPointChange = sum(players(get).map((assetId) => myGain.get(assetId) || 0)) - sum(players(give).map(myLoss));

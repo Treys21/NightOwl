@@ -276,3 +276,15 @@ test('a throw-in who starts for nobody and is worth little is not padded into a 
   const theirTeam = team(2, theirPlayers, 0.8);
   for (const proposal of finder.proposeFor(context, myTeam, theirTeam, finder.dropLosses(myTeam, context))) assert.ok(!proposal.give.includes('m_scrub'));
 });
+
+test('a rebuilding team is not offered an aging player, a contender is', () => {
+  const context = Object.assign(base('dynasty'), { ageOf: (assetId) => ({ m_rb1: 27, m_rb2: 27, m_rb3: 27, m_rb4: 27 }[assetId] || 24) });
+  const myTeam = team(1, myPlayers, 0.8);
+  const rebuilding = team(2, theirPlayers, 0.1);
+  const contending = team(3, theirPlayers, 0.9);
+  const aging = (proposal) => proposal.give.some((assetId) => assetId.startsWith('m_rb'));
+  const toRebuilder = finder.proposeFor(context, myTeam, rebuilding, finder.dropLosses(myTeam, context));
+  assert.ok(!toRebuilder.some(aging), 'no 27-year-old running back goes to a rebuilding team');
+  const toContender = finder.proposeFor(context, myTeam, contending, finder.dropLosses(myTeam, context));
+  assert.ok(toContender.some(aging), 'the same player is fine for a contender');
+});

@@ -84,6 +84,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         weeks: league.rep.weeks,
         positionsOf: league.rep.positionsOf,
         isVirtual: league.rep.isVirtual,
+        ageOf: (assetId) => { const entry = state.ktc && state.ktc.players[assetId]; return entry && entry.a; },
         isPick,
         canCut: isDynasty ? () => true : (assetId) => leagueValues.restOfSeasonPoints(league, assetId) <= 25,
         rawOf: isDynasty ? (assetId) => leagueValues.blendedValue(league, assetId) : hasConsensus ? (assetId) => leagueValues.redraftValue(league, assetId) : (assetId) => leagueValues.overReplacement(league, assetId),

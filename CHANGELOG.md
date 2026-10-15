@@ -8,6 +8,7 @@
   record is graded on the players it took, with an asterisk.
 - **Trade finder** offers only each team's soonest pick in every round and shows an incoming
   player in only one suggested deal.
+- **Trade finder** no longer offers a rebuilding team an aging player (older than 26 at running back, 28 at receiver, 29 at tight end, 33 at quarterback), and applies the same rule to you when you pick the Rebuild goal.
 - **Season.** An opened league card takes the full row, so the extra odds columns show.
 
 ## 3.14.0
