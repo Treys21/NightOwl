@@ -35,7 +35,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       }
       return out;
     }
-    const outlook = (contentionLevel) => (contentionLevel >= 0.7 ? 'Contending' : contentionLevel < 0.3 ? 'Rebuilding' : 'In the hunt');
+    const outlook = (contentionLevel, isDynasty) => {
+      if (isDynasty) return contentionLevel >= 0.7 ? 'Contending' : contentionLevel < 0.3 ? 'Rebuilding' : 'In the hunt';
+      return contentionLevel >= 0.7 ? 'Playoff team' : contentionLevel < 0.3 ? 'Long shot' : 'In the hunt';
+    };
 
     async function ensureBase(league) {
       let base = state.base.get(league.leagueId);
@@ -301,7 +304,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const rawGet = price(item.get.map((assetId) => marketOf(league, assetId)), item.get.map(isPick));
       return `<article class="mv-card ${tone}">
         <div class="mv-card-h">
-          <div><b>${escapeHtml(them)}</b> <span class="mv-win ${partnerWindow.contention >= 0.7 ? 'hot' : partnerWindow.contention < 0.3 ? 'cold' : ''}">${outlook(partnerWindow.contention)}${partnerWindow.odds != null ? ` · ${oddsLabel(partnerWindow.odds)}` : ''}</span></div>
+          <div><b>${escapeHtml(them)}</b> <span class="mv-win ${partnerWindow.contention >= 0.7 ? 'hot' : partnerWindow.contention < 0.3 ? 'cold' : ''}">${outlook(partnerWindow.contention, isDynasty)}${partnerWindow.odds != null ? ` · ${oddsLabel(partnerWindow.odds)}` : ''}</span></div>
           <span class="mv-likely ${tone}" title="How likely they are to say yes: they come out ahead in their own terms and the value is not lopsided against them">${label}</span>
         </div>
         <div class="mv-swap">
