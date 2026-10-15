@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.17.6
+
+Internal cleanup, no change to what you see.
+
+- The Live view is split into smaller parts: the Last week pane (`lastweek-view.js`) and the animations, jersey and count-up (`effects.js`) each have their own file. `live/view.js` is about 100 lines shorter.
+
 ## 3.17.5
 
 Internal cleanup, no change to what you see.

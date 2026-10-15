@@ -4,7 +4,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, tracker, scoring, teams, players, storage, account, dom } = NightOwl;
-  const { escape: escapeHtml, points: formatPoints, signed, delta, clock: clockOf, short: shortNumber } = NightOwl.format;
+  const { escape: escapeHtml, points: formatPoints, signed, clock: clockOf, short: shortNumber } = NightOwl.format;
+  const { figureHtml, spawnSparks, countUp, score } = NightOwl.liveEffects;
   const { isPlaying, mine, ownerNames, avatars, startingSlots, slotLabel, displayWeek, seasonType: seasonTypeOf } = NightOwl.leagues;
   let root = null;
   const byId = (elementId) => root.querySelector(`#${elementId}`);
@@ -80,7 +81,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     schedule: { games: [], loadedAt: 0 },
     filter: 'all',
     view: 'feed',
-    lastWeek: { status: 'idle', review: null, week: null, playsMissing: false },
     league: '',
     bigOnly: false,
     gameOpen: new Map(),
@@ -130,7 +130,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }))).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
 
     state.ctx = { username, userId, season, seasonType, week, leagues, loadedAt: Date.now() };
-    if (state.view === 'lastweek') ensureLastWeek();
+    if (state.view === 'lastweek') lastWeekPane.ensure();
     await storage.set({ 'live.ctx': state.ctx });
   }
 
@@ -381,11 +381,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const TREND_MAX_POINTS = 400;
   const TREND_WIDTH = 300;
   const TREND_HEIGHT = 44;
-  const SPARK_COUNT = 36;
-  const SPARK_MIN_DISTANCE = 70;
-  const SPARK_EXTRA_DISTANCE = 150;
-  const SPARK_LIFETIME_MS = 1600;
-  const COUNT_UP_MS = 900;
   const INTRO_MS = 1600;
   const MIN_POP_PTS = 1;
   const popQueue = [];
@@ -434,7 +429,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     popup.innerHTML = `
       <div class="band"></div>
       <img class="mark" alt="" src="${teams.logo(team)}">
-      <div class="fig">${renderFigure(event, player, team, colors)}</div>
+      <div class="fig">${figureHtml(event, player, team, colors)}</div>
       <div class="copy">
         ${headline ? `<div class="headline">${headline}</div>` : ''}
         <div class="pts">${playValue(event)}</div>
@@ -476,44 +471,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
          ${recap && !recap.firstLook ? `<span class="muted small">Caught up on everything since ${clockOf(recap.since || recap.ts)}</span>` : ''}`;
   }
 
-  function renderFigure(event, player, team, colors) {
-    if (event.pos === 'DEF' || teams.isDefenseId(event.pid)) {
-      return `<img class="logo" alt="" src="${teams.logo(team)}">`;
-    }
-    const jerseyLabel = escapeHtml(player.number || event.pos || '');
-    return `
-      <svg class="jersey" viewBox="0 0 120 112" aria-hidden="true">
-        <path d="M34 8 L50 2 Q60 12 70 2 L86 8 L116 30 L102 54 L90 47 L90 110 L30 110 L30 47 L18 54 L4 30 Z"
-              fill="${colors.primary}" stroke="${colors.secondary}" stroke-width="3" stroke-linejoin="round"/>
-        <path d="M12 40 L22 46 M108 40 L98 46" stroke="${colors.secondary}" stroke-width="5"/>
-        <path d="M14 35 L24 41 M106 35 L96 41" stroke="${colors.ink}" stroke-width="2" opacity=".7"/>
-        <text x="60" y="92" text-anchor="middle" font-family="Poppins, Inter, sans-serif" font-weight="800"
-              font-size="${jerseyLabel.length > 2 ? 26 : 38}" fill="${colors.ink}" stroke="${colors.secondary}" stroke-width="1.5"
-              paint-order="stroke">${jerseyLabel}</text>
-      </svg>
-      <img class="head" alt="" src="${teams.headshot(event.pid)}">`;
-  }
-
-  function spawnSparks(layer, mood, teamColors) {
-    const sparkColors = [teamColors.primary, teamColors.secondary, '#ffffff', mood === 'bad' ? '#f75c8d' : '#00ceb8', teamColors.secondary];
-    for (let i = 0; i < SPARK_COUNT; i++) {
-      const spark = document.createElement('i');
-      spark.className = 'spark';
-      const angle = (Math.PI * 2 * i) / SPARK_COUNT + Math.random() * 0.3;
-      const distance = SPARK_MIN_DISTANCE + Math.random() * SPARK_EXTRA_DISTANCE;
-      spark.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
-      spark.style.setProperty('--dy', `${Math.sin(angle) * distance * 0.6 + 30}px`);
-      spark.style.setProperty('--rot', `${Math.random() * 720 - 360}deg`);
-      spark.style.background = sparkColors[i % sparkColors.length];
-      spark.style.animationDelay = `${Math.random() * 120}ms`;
-      layer.append(spark);
-      setTimeout(() => spark.remove(), SPARK_LIFETIME_MS);
-    }
-  }
-
   const probabilityLabel = (probability) => (probability > 0.99 && probability < 1 ? '>99%' : probability < 0.01 && probability > 0 ? '<1%' : `${Math.round(probability * 100)}%`);
-
-  const score = (value) => (Math.round(value * 100) / 100).toFixed(2);
 
   const percentShare = (own, other) => (own + other > 0 ? Math.round((own / (own + other)) * 100) : 50);
 
@@ -590,20 +548,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       ? `<span class="pill-count ${favored * 2 >= withChance ? 'good' : 'bad'}" title="Favored to win ${favored} of ${withChance}">${favored}/${withChance} favored</span>`
       : withOpp ? `<span class="pill-count ${winning * 2 >= withOpp ? 'good' : 'bad'}" title="Leading in ${winning} of ${withOpp}">${winning}/${withOpp} up</span>` : '';
     if (changed) root.querySelectorAll('.match .big[data-to]').forEach(countUp);
-  }
-
-  function countUp(element) {
-    const startValue = parseFloat(element.dataset.from);
-    const target = parseFloat(element.dataset.to);
-    if (!Number.isFinite(startValue) || !Number.isFinite(target) || startValue === target) return;
-    const start = performance.now();
-    const step = (now) => {
-      const progress = Math.min(1, (now - start) / COUNT_UP_MS);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      element.textContent = score(startValue + (target - startValue) * eased);
-      if (progress < 1 && element.isConnected) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
   }
 
   const impactForMe = (impact) => (impact.side === 'me' ? impact.pts : -impact.pts);
@@ -713,48 +657,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       `<option value="${escapeHtml(league.leagueId)}"${league.leagueId === state.league ? ' selected' : ''}>${escapeHtml(league.name)}</option>`).join(''));
   }
 
-  const lastWeekMessage = (text) => `<p class="muted small empty">${escapeHtml(text)}</p>`;
-
-  function lastWeekHtml() {
-    const lastWeek = state.lastWeek;
-    if (lastWeek.status === 'loading' || lastWeek.status === 'idle') return '<div class="skel" role="status" aria-label="Loading last week"><i></i><i></i><i></i></div>';
-    if (lastWeek.status === 'failed') return lastWeekMessage('Last week could not be loaded right now.');
-    if (!lastWeek.week) return lastWeekMessage('No finished week yet.');
-    const review = lastWeek.review;
-    if (!review.results.length) return lastWeekMessage(`None of your leagues played in week ${lastWeek.week}.`);
-    const headshot = (playerId) => `<img class="lw-face" src="${NightOwl.teams.headshot(playerId)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`;
-    const tiles = review.results.map((result) => `<li class="lw-tile ${result.won ? 'up' : result.lost ? 'down' : ''}" title="${escapeHtml(result.leagueName)}: ${result.myPoints.toFixed(1)} to ${result.theirPoints.toFixed(1)}"><span class="lw-tile-name">${escapeHtml(result.leagueName)}</span><b>${delta(result.margin)}</b></li>`).join('');
-    const leagueName = new Map(review.results.map((result) => [result.leagueId, result.leagueName]));
-    const pill = (name, points, decided, title) => `<span class="lw-chip ${points > 0 ? 'up' : 'down'}${decided ? ' decided' : ''}" title="${escapeHtml(title)}">${decided ? '★ ' : ''}<i>${escapeHtml(name)}</i> ${signed(points)}</span>`;
-    const swingOf = (priced) => Math.max(...priced.entries.map((entry) => Math.abs(entry.net)));
-    const ranked = review.plays.slice().sort((first, second) => swingOf(second) - swingOf(first)).slice(0, 12);
-    const biggest = ranked.length ? swingOf(ranked[0]) : 1;
-    const plays = ranked.map((priced) => `<li class="lw-play"><span class="lw-faces">${headshot(priced.participants[0].playerId)}</span><span class="lw-body"><span class="lw-text">${escapeHtml(priced.play.text.split(' (')[0])}</span><span class="lw-bar"><i style="width:${Math.round(100 * swingOf(priced) / biggest)}%"></i></span><span class="lw-chips">${priced.entries.map((entry) => pill(leagueName.get(entry.leagueId), entry.net, entry.flipped, '')).join('')}</span></span></li>`).join('');
-    return `<ul class="lw-tiles">${tiles}</ul>${lastWeek.playsMissing ? lastWeekMessage('Plays unavailable right now.') : `${plays ? `<ul class="lw-plays">${plays}</ul>` : ''}`}`;
-  }
-
-  function renderLastWeek() {
-    if (root) dom.setHtml(byId('lastweek'), lastWeekHtml());
-  }
-
-  async function ensureLastWeek() {
-    const lastWeek = state.lastWeek;
-    if (lastWeek.status !== 'idle' || !state.ctx) return;
-    lastWeek.status = 'loading';
-    renderLastWeek();
-    try {
-      const nflState = await api.state();
-      const loaded = await NightOwl.liveWeekData.loadLastWeek({ nflState, userId: state.ctx.userId, excludedLeagueIds: state.settings.excluded });
-      lastWeek.week = loaded.week;
-      lastWeek.playsMissing = !loaded.plays;
-      lastWeek.review = loaded.week ? NightOwl.weekReview.reviewWeek({ leagues: loaded.leagues, plays: loaded.plays || [], playerIdOf: loaded.playerIdOf }) : null;
-      lastWeek.status = 'ready';
-    } catch (error) {
-      console.warn('[Night Owl live] last week unavailable', error);
-      lastWeek.status = 'failed';
-    }
-    renderLastWeek();
-  }
+  const lastWeekPane = NightOwl.liveLastWeek.create({
+    api,
+    context: () => (state.ctx ? { userId: state.ctx.userId, excluded: state.settings.excluded } : null),
+    paint: () => { if (root) dom.setHtml(byId('lastweek'), lastWeekPane.html()); }
+  });
 
   function showView() {
     for (const tab of byId('lv-tabs').children) tab.classList.toggle('on', tab.dataset.view === state.view);
@@ -858,7 +765,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!tab) return;
       state.view = tab.dataset.view;
       showView();
-      if (state.view === 'lastweek') ensureLastWeek();
+      if (state.view === 'lastweek') lastWeekPane.ensure();
       root.querySelector('.tool-scroll').scrollTop = 0;
       saveSettings();
     });
