@@ -4,7 +4,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, tracker, scoring, teams, players, storage, account, dom } = NightOwl;
-  const { escape: escapeHtml, points: formatPoints, signed, clock: clockOf, short: shortNumber } = NightOwl.format;
+  const { escape: escapeHtml, points: formatPoints, signed, delta, clock: clockOf, short: shortNumber } = NightOwl.format;
   const { isPlaying, mine, ownerNames, avatars, startingSlots, slotLabel, displayWeek, seasonType: seasonTypeOf } = NightOwl.leagues;
   let root = null;
   const byId = (elementId) => root.querySelector(`#${elementId}`);
@@ -723,8 +723,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const review = lastWeek.review;
     if (!review.results.length) return lastWeekMessage(`None of your leagues played in week ${lastWeek.week}.`);
     const headshot = (playerId) => `<img class="lw-face" src="${NightOwl.teams.headshot(playerId)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`;
-    const signed = (points) => NightOwl.weekReview.pointsText(points);
-    const tiles = review.results.map((result) => `<li class="lw-tile ${result.won ? 'up' : result.lost ? 'down' : ''}" title="${escapeHtml(result.leagueName)}: ${result.myPoints.toFixed(1)} to ${result.theirPoints.toFixed(1)}"><span class="lw-tile-name">${escapeHtml(result.leagueName)}</span><b>${signed(result.margin)}</b></li>`).join('');
+    const tiles = review.results.map((result) => `<li class="lw-tile ${result.won ? 'up' : result.lost ? 'down' : ''}" title="${escapeHtml(result.leagueName)}: ${result.myPoints.toFixed(1)} to ${result.theirPoints.toFixed(1)}"><span class="lw-tile-name">${escapeHtml(result.leagueName)}</span><b>${delta(result.margin)}</b></li>`).join('');
     const leagueName = new Map(review.results.map((result) => [result.leagueId, result.leagueName]));
     const pill = (name, points, decided, title) => `<span class="lw-chip ${points > 0 ? 'up' : 'down'}${decided ? ' decided' : ''}" title="${escapeHtml(title)}">${decided ? '★ ' : ''}<i>${escapeHtml(name)}</i> ${signed(points)}</span>`;
     const swingOf = (priced) => Math.max(...priced.entries.map((entry) => Math.abs(entry.net)));

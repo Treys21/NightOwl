@@ -4,12 +4,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, players, storage, account, dom, season, projection, model } = NightOwl;
-  const { isPlaying, mine: rosterOf, ownerNames, displayWeek } = NightOwl.leagues;
+  const { round1 } = NightOwl.numbers;
+  const { keepsPlayers, isPlaying, mine: rosterOf, ownerNames, displayWeek } = NightOwl.leagues;
   const { escape: escapeHtml, short: shortNumber, tenths, percent } = NightOwl.format;
 
   const REFRESH_MS = 10 * 60000;
   const LIVE_REFRESH_MS = 2 * 60000;
-  const KEEPS_PLAYERS = new Set([1, 2]);
   const SIMS = model.SIMS;
 
   let root = null;
@@ -78,12 +78,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const playing = (await api.leagues(userId, nfl.season)).filter((league) => isPlaying(league) && !excluded.has(league.league_id));
     state.leagues = (await Promise.all(playing.map(async (league) => {
-      const keeps = KEEPS_PLAYERS.has(league.settings && league.settings.type);
-      const [rosters, users, traded] = await Promise.all([
-        api.rosters(league.league_id),
-        api.users(league.league_id),
-        keeps ? api.tradedPicks(league.league_id).catch(() => []) : Promise.resolve([])
-      ]);
+      const { rosters, users, traded } = await api.leagueParts(league);
       const mine = rosterOf(rosters, userId);
       if (!mine) return null;
       const { playoffTeams, playoffStart, medianGame, finished, next, inProgress } = model.timeline(league, rosters, nfl);
@@ -130,7 +125,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           names
         },
         live: live ? next : null,
-        draft: keeps ? {
+        draft: keepsPlayers(league) ? {
           season: Number(league.season) + 1,
           rounds: (league.settings && league.settings.draft_rounds) || 4,
           owner: season.pickOwners(traded, Number(league.season) + 1)
@@ -222,7 +217,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return `${number}${tail}`;
   };
   const record = (wins, losses, ties) => `${wins}–${losses}${ties ? `–${ties}` : ''}`;
-  const signedTenth = (value) => { const rounded = Math.round(value * 10) / 10; return rounded === 0 ? '0' : `${rounded > 0 ? '+' : '−'}${shortNumber(Math.abs(rounded))}`; };
+  const signedTenth = (value) => { const rounded = round1(value); return rounded === 0 ? '0' : `${rounded > 0 ? '+' : '−'}${shortNumber(Math.abs(rounded))}`; };
   const oddsLabel = (probability) => (probability >= 0.995 ? '>99%' : probability > 0 && probability < 0.005 ? '<1%' : percent(probability));
 
   function table(league) {
@@ -314,7 +309,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     });
   }
 
-  const projRecord = (wins, losses) => `${shortNumber(Math.round(wins * 10) / 10)}–${shortNumber(Math.round(losses * 10) / 10)}`;
+  const projRecord = (wins, losses) => `${shortNumber(round1(wins))}–${shortNumber(round1(losses))}`;
   const nameOf = (league, rosterId) => {
     const row = league.rows.find((row) => row.rosterId === rosterId);
     return row ? row.name : `Team ${rosterId}`;
@@ -370,7 +365,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           return `<tr class="${holder === league.me.rosterId ? 'me' : ''}">
             <td>${pickLabel(1, pick.pick)}</td>
             <td class="se-team">${escapeHtml(nameOf(league, pick.rosterId))}${traded ? `<span class="se-via" title="Pick traded to ${escapeHtml(traded)}">→ ${escapeHtml(traded)}</span>` : ''}</td>
-            <td>${shortNumber(Math.round(pick.wins * 10) / 10)}</td>
+            <td>${shortNumber(round1(pick.wins))}</td>
             <td>${tenths(pick.max)}</td>
             <td>${pick.odds ? oddsLabel(pick.odds[0]) : '–'}</td>
             <td>${pick.odds ? oddsLabel(topThreePickOdds({ pickOdds: pick.odds })) : '–'}</td>
@@ -517,11 +512,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (state.mode === 'projected') { state.projections.clear(); runProjections(); }
       render();
     });
-    elementById('se-body').addEventListener('toggle', (event) => {
-      const leagueId = event.target.dataset && event.target.dataset.id;
-      if (!leagueId) return;
-      if (event.target.open) state.open.add(leagueId); else state.open.delete(leagueId);
-    }, true);
+    dom.trackOpenDetails(elementById('se-body'), state.open);
     render();
     if (Date.now() - state.loadedAt > REFRESH_MS / 2) refresh();
     else if (state.mode === 'projected' || state.mode === 'path') runProjections().then(() => state.mode === 'path' && extras().runPaths());

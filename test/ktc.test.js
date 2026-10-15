@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
+require('../src/shared/numbers.js');
 require('../src/draft/match-names.js');
 const ktc = require('../src/shared/ktc.js');
 

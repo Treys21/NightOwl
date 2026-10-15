@@ -5,7 +5,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const { api, teams, players, storage, account, dom, projection, value, model, ktc, replacement } = NightOwl;
   const { isPlaying, mine: rosterOf, ownerNames, teamUrl } = NightOwl.leagues;
-  const { escape: escapeHtml, percent } = NightOwl.format;
+  const { escape: escapeHtml, percent, delta: signed, leagueSelect } = NightOwl.format;
 
   const REFRESH_MS = 15 * 60000;
   const SHOWN = 6;
@@ -70,7 +70,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const REFERENCE_PPG = 12;
   const REFERENCE_WEEKS = 11;
   const DROP_PROTECTED = 2000;
-  const signed = (amount) => `${amount > 0 ? '+' : amount < 0 ? '−' : ''}${Math.abs(amount).toFixed(1)}`;
   const oddsLabel = (probability) => (probability >= 0.995 ? '>99%' : probability > 0 && probability < 0.005 ? '<1%' : percent(probability));
 
   async function load() {
@@ -83,12 +82,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     const playing = (await api.leagues(userId, nflState.season)).filter((league) => isPlaying(league) && !excluded.has(league.league_id));
     const leagues = (await Promise.all(playing.map(async (league) => {
-      const keeps = league.settings && (league.settings.type === 1 || league.settings.type === 2);
-      const [rosters, users, traded] = await Promise.all([
-        api.rosters(league.league_id),
-        api.users(league.league_id),
-        keeps ? api.tradedPicks(league.league_id).catch(() => []) : Promise.resolve([])
-      ]);
+      const { rosters, users, traded } = await api.leagueParts(league);
       const mine = rosterOf(rosters, userId);
       if (!mine) return null;
       const timeline = model.timeline(league, rosters, nflState);
@@ -453,7 +447,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const others = league.raw.rosters.filter((roster) => roster.roster_id !== league.mine.roster_id).sort((a, b) => nameOf(league, a).localeCompare(nameOf(league, b)));
     return `<div class="mv-trade">
       <div class="mv-selects">
-        <select id="mv-league" aria-label="League">${state.leagues.map((leagueChoice) => `<option value="${escapeHtml(leagueChoice.leagueId)}"${leagueChoice.leagueId === league.leagueId ? ' selected' : ''}>${escapeHtml(leagueChoice.name)}</option>`).join('')}</select>
+        ${leagueSelect(state.leagues, league.leagueId)}
         <select id="mv-partner" aria-label="Trade with">
           <option value="">Trade with…</option>
           ${others.map((roster) => `<option value="${roster.roster_id}"${partner && partner.roster_id === roster.roster_id ? ' selected' : ''}>${escapeHtml(nameOf(league, roster))}</option>`).join('')}
@@ -607,11 +601,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (state.mode === 'finder' && !state.finder.results && !state.finder.running) finder().run();
       if (state.mode === 'history' || state.mode === 'drafts') { const league = finderLeague(); if (league && !league.history) history().ensure(league).then(() => root && render()); }
     });
-    body.addEventListener('toggle', (event) => {
-      const leagueId = event.target.dataset && event.target.dataset.id;
-      if (!leagueId) return;
-      if (event.target.open) state.open.add(leagueId); else state.open.delete(leagueId);
-    }, true);
+    dom.trackOpenDetails(body, state.open);
     body.addEventListener('click', (event) => {
       if (state.mode === 'finder') finder().click(event);
       else if (state.mode === 'history') history().click(event);

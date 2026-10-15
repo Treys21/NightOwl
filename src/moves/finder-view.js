@@ -4,7 +4,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { players, model, finder, ktc, value } = NightOwl;
-  const { escape: escapeHtml, percent } = NightOwl.format;
+  const { escape: escapeHtml, percent, delta: signed, leagueSelect } = NightOwl.format;
   const { isPick, pickOf, nearestPickPerRound } = NightOwl.moveValues;
 
   const SHOWN = 8;
@@ -198,7 +198,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const ageOf = (assetId) => { const entry = state.ktc && state.ktc.players[assetId]; return entry && entry.a; };
     const slotText = (slot) => NightOwl.leagues.slotLabel(slot);
     const oddsLabel = (probability) => (probability >= 0.995 ? '>99%' : probability > 0 && probability < 0.005 ? '<1%' : percent(probability));
-    const signed = (amount) => `${amount > 0 ? '+' : amount < 0 ? '−' : ''}${Math.abs(amount).toFixed(1)}`;
 
     function reasons(league, item, partner, teamWindows) {
       const isDynasty = finderState.results.mode === 'dynasty';
@@ -347,7 +346,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         return topAssetIds.length ? `<optgroup label="${escapeHtml(nameOf(league, roster))}">${topAssetIds.map((assetId) => option(assetId, assetId === finderState.target)).join('')}</optgroup>` : '';
       }).join('');
       return `<div class="mv-selects mv-finder-controls">
-        <select id="mv-league" aria-label="League">${state.leagues.map((leagueChoice) => `<option value="${escapeHtml(leagueChoice.leagueId)}"${leagueChoice.leagueId === league.leagueId ? ' selected' : ''}>${escapeHtml(leagueChoice.name)}</option>`).join('')}</select>
+        ${leagueSelect(state.leagues, league.leagueId)}
         <select id="mv-shop" aria-label="Shop a player"><option value="">Shop one of yours…</option>${myAssetIds.map((assetId) => option(assetId, assetId === finderState.shop)).join('')}</select>
         <select id="mv-target" aria-label="Target a player"><option value="">Go after a player…</option>${targets}</select>
       </div>

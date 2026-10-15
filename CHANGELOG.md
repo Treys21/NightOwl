@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.17.5
+
+Internal cleanup, no change to what you see.
+
+- One shared `numbers` module replaces ten copies of the rounding helpers.
+- One shared formatter for signed point changes and for the league picker, instead of a copy in each view.
+- The three background fetch relays (KeepTradeCut, ESPN plays, ESPN data) share one handler.
+- The trade, waiver and season views load each league's rosters, users and traded picks through one `api.leagueParts`.
+- The season projection reuses the season's random generator instead of its own copy.
+- Remembering which league cards are open is one helper.
+
 ## 3.17.4
 - **Season recap** reads as a report: for each league, "What went right" (your top scorers, best pickup, best trade pickup) and "What went wrong" (the player you dropped or traded away who then produced for someone else), each with the headshot, name and points.
 

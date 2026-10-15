@@ -33,8 +33,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const teamUrl = (leagueId) => `https://sleeper.com/leagues/${leagueId}/team`;
 
+  const keepsPlayers = (league) => Boolean(league.settings) && (league.settings.type === 1 || league.settings.type === 2);
+
   NightOwl.leagues = {
-    isPlaying, mine, ownerNames, avatars, startingSlots, usesIdp, slotLabel,
+    keepsPlayers, isPlaying, mine, ownerNames, avatars, startingSlots, usesIdp, slotLabel,
     displayWeek, lookaheadWeek, seasonType, teamUrl
   };
 })(globalThis.NightOwl);

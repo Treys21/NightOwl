@@ -3,8 +3,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
+  const { round1, round2 } = NightOwl.numbers;
   const { winProbability } = NightOwl.season;
-  const round2 = (value) => Math.round(value * 100) / 100;
 
   function schedule(forecast, rosterId) {
     const out = [];
@@ -15,7 +15,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const myTeamWeek = week.teams[rosterId];
       const opponent = week.teams[opponentId];
       if (!myTeamWeek || !opponent) continue;
-      out.push({ week: week.week, oppId: opponentId, p: round2(winProbability(myTeamWeek, opponent)), mean: Math.round(myTeamWeek.mean * 10) / 10, oppMean: Math.round(opponent.mean * 10) / 10 });
+      out.push({ week: week.week, oppId: opponentId, p: round2(winProbability(myTeamWeek, opponent)), mean: round1(myTeamWeek.mean), oppMean: round1(opponent.mean) });
     }
     return out;
   }

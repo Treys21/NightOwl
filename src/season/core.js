@@ -3,9 +3,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
+  const { round1, round2 } = NightOwl.numbers;
   const { assign, canPlay, NOT_STARTING_SLOTS } = NightOwl.lineups;
-  const round1 = (value) => Math.round(value * 10) / 10;
-  const round2 = (value) => Math.round(value * 100) / 100;
 
   function optimal(slots, pids, pointsOf, positionsOf) {
     const starting = slots.filter((slot) => !NOT_STARTING_SLOTS.has(slot));
@@ -293,7 +292,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   NightOwl.season = {
-    optimal, biggestMiss, allPlay, standings, outlook, winProbability, phi, teamStrength, playoffOdds, hash,
+    optimal, biggestMiss, allPlay, standings, outlook, winProbability, phi, teamStrength, playoffOdds, hash, rng,
     asItStands, weeksRecorded, draftOrder, pickOwners, powerRatings, DRAFT_WIN_WEIGHT
   };
 })(globalThis.NightOwl);

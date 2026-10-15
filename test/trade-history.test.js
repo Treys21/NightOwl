@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
+require('../src/shared/numbers.js');
 const tradeHistory = require('../src/trades/history.js');
 
 const buildTransaction = (over) => Object.assign({

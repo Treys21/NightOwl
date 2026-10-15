@@ -3,7 +3,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { points, statDelta, deltaPoints, describe, round2 } = NightOwl.scoring;
+  const { points, statDelta, deltaPoints, describe } = NightOwl.scoring;
+  const { round2 } = NightOwl.numbers;
 
   function pickMatchup(matchups, myRosterId) {
     const mine = matchups.find((matchup) => matchup.roster_id === myRosterId);

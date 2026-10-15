@@ -3,6 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
+  const { round1 } = NightOwl.numbers;
   const ELIGIBLE = {
     QB: ['QB'], RB: ['RB'], WR: ['WR'], TE: ['TE'], K: ['K'], DEF: ['DEF'],
     FLEX: ['RB', 'WR', 'TE'], SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'], REC_FLEX: ['WR', 'TE'],
@@ -13,7 +14,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const MIN_GAIN = 1;
 
   const ESPN_TO_SLEEPER = { WSH: 'WAS' };
-  const round1 = (n) => Math.round(n * 10) / 10;
   const team = (abbr) => ESPN_TO_SLEEPER[abbr] || abbr;
 
   function parseGames(espnEvents) {

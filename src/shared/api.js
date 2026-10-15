@@ -101,6 +101,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     league: (leagueId) => getJson(`${SLEEPER_API_V1}/league/${leagueId}`),
     transactions: (leagueId, week) => getJson(`${SLEEPER_API_V1}/league/${leagueId}/transactions/${week}`),
     tradedPicks: (leagueId) => getJson(`${SLEEPER_API_V1}/league/${leagueId}/traded_picks`),
+    leagueParts(league) {
+      return Promise.all([
+        NightOwl.api.rosters(league.league_id),
+        NightOwl.api.users(league.league_id),
+        NightOwl.leagues.keepsPlayers(league) ? NightOwl.api.tradedPicks(league.league_id).catch(() => []) : []
+      ]).then(([rosters, users, traded]) => ({ rosters, users, traded }));
+    },
     leagueDrafts: (leagueId) => getJson(`${SLEEPER_API_V1}/league/${leagueId}/drafts`),
     draft: (draftId) => getJson(`${SLEEPER_API_V1}/draft/${draftId}`),
     draftPicks: (draftId) => getJson(`${SLEEPER_API_V1}/draft/${draftId}/picks`),

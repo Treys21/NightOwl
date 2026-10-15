@@ -3,8 +3,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
+  const { round1 } = NightOwl.numbers;
   const { optimal } = NightOwl.season;
-  const round1 = (value) => Math.round(value * 10) / 10;
 
   const SCAN_PER_POSITION = 14;
   const DROP_OPTIONS = 3;

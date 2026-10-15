@@ -3,6 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
+  const { round1 } = NightOwl.numbers;
   const sum = (values) => values.reduce((total, value) => total + value, 0);
   const median = (values) => {
     if (!values.length) return null;
@@ -47,7 +48,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           if (starters.has(playerId)) started += points; else bench += points;
         }
       }
-      out[rosterId] = { started: Math.round(started * 10) / 10, bench: Math.round(bench * 10) / 10 };
+      out[rosterId] = { started: round1(started), bench: round1(bench) };
     }
     return out;
   }
@@ -77,7 +78,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const valuePct = hasValue ? valueNet / size : 0;
       const ptsPct = ptsNet / ptsSize;
       const score = hasValue ? 0.85 * valuePct + 0.15 * ptsPct : ptsPct;
-      out[rosterId] = { valueNet, valuePct, ptsNet: Math.round(ptsNet * 10) / 10, ptsPct, score, letter: letterFor(score), tone: toneOf(letterFor(score)) };
+      out[rosterId] = { valueNet, valuePct, ptsNet: round1(ptsNet), ptsPct, score, letter: letterFor(score), tone: toneOf(letterFor(score)) };
     }
     return out;
   }

@@ -3,8 +3,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
+  const { round1 } = NightOwl.numbers;
   const { optimal, biggestMiss } = NightOwl.season;
-  const round1 = (value) => Math.round(value * 10) / 10;
 
   function lineups(rosterId, weekly, slots, positionsOf) {
     const weeks = [];

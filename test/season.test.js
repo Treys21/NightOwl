@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
+require('../src/shared/numbers.js');
 require('../src/lineups/core.js');
 const season = require('../src/season/core.js');
 const lineups = globalThis.NightOwl.lineups;

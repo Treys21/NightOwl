@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const round1 = (value) => Math.round(value * 10) / 10;
+  const { round1 } = NightOwl.numbers;
 
   const ANYTIME_TOUCHDOWN_LINE = 0.5;
 

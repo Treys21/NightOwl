@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const round2 = (value) => Math.round(value * 100) / 100;
+  const { round2 } = NightOwl.numbers;
 
   function points(stats, scoring) {
     if (!stats || !scoring) return 0;
@@ -85,7 +85,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return parts.map((part) => part.text).concat(extra).join(' · ');
   }
 
-  NightOwl.scoring = { points, statDelta, deltaPoints, describe, round2 };
+  NightOwl.scoring = { points, statDelta, deltaPoints, describe };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.scoring;

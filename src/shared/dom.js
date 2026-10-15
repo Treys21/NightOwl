@@ -47,5 +47,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }, true);
   }
 
-  NightOwl.dom = { adoptStyles, adoptCss, setHtml, hideBrokenImages };
+  function trackOpenDetails(container, openIds) {
+    container.addEventListener('toggle', (event) => {
+      const id = event.target.dataset && event.target.dataset.id;
+      if (!id) return;
+      if (event.target.open) openIds.add(id); else openIds.delete(id);
+    }, true);
+  }
+
+  NightOwl.dom = { adoptStyles, adoptCss, setHtml, hideBrokenImages, trackOpenDetails };
 })(globalThis.NightOwl);

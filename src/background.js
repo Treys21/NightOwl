@@ -1,4 +1,5 @@
 importScripts(
+  'shared/numbers.js',
   'shared/storage.js',
   'shared/leagues.js',
   'shared/ktc.js',
@@ -16,47 +17,53 @@ importScripts(
 
 const ALLOWED = ['https://site.api.espn.com/', 'https://sports.core.api.espn.com/'];
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (sender.id !== chrome.runtime.id || !message || message.type !== 'nightowl-ktc') return false;
-  fetch(globalThis.NightOwl.ktc.URLS[message.kind === 'redraft' ? 'redraft' : 'dynasty'], { credentials: 'omit', signal: AbortSignal.timeout(30000) })
-    .then((response) => (response.ok ? response.text() : Promise.reject(new Error(`KeepTradeCut ${response.status}`))))
-    .then(
-      (html) => sendResponse({ ok: true, data: globalThis.NightOwl.ktc.parse(html) }),
-      (error) => sendResponse({ ok: false, error: String(error.message || error) })
-    );
-  return true;
-});
+const errorMessage = (error) => String(error.message || error);
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (sender.id !== chrome.runtime.id || !message || message.type !== 'nightowl-scoring-plays') return false;
+function relay(type, prepare) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (sender.id !== chrome.runtime.id || !message || message.type !== type) return false;
+    const request = prepare(message);
+    if (request.error) {
+      sendResponse({ ok: false, error: request.error });
+      return false;
+    }
+    fetch(request.url, { credentials: 'omit', signal: AbortSignal.timeout(request.timeout) })
+      .then((response) => (response.ok ? request.read(response) : Promise.reject(new Error(request.failure(response)))))
+      .then(
+        (data) => sendResponse({ ok: true, data }),
+        (error) => sendResponse({ ok: false, error: errorMessage(error) })
+      );
+    return true;
+  });
+}
+
+relay('nightowl-ktc', (message) => ({
+  url: globalThis.NightOwl.ktc.URLS[message.kind === 'redraft' ? 'redraft' : 'dynasty'],
+  timeout: 30000,
+  read: (response) => response.text().then(globalThis.NightOwl.ktc.parse),
+  failure: (response) => `KeepTradeCut ${response.status}`
+}));
+
+relay('nightowl-scoring-plays', (message) => {
   const { trimScoringPlays, summaryUrl, isEventId } = globalThis.NightOwlEspnPlays;
-  if (!isEventId(message.eventId)) {
-    sendResponse({ ok: false, error: 'bad event id' });
-    return false;
-  }
-  fetch(summaryUrl(message.eventId), { credentials: 'omit', signal: AbortSignal.timeout(api.TIMEOUT_MS) })
-    .then((response) => (response.ok ? response.json() : Promise.reject(new Error(`ESPN ${response.status}`))))
-    .then(
-      (summary) => sendResponse({ ok: true, data: trimScoringPlays(summary) }),
-      (error) => sendResponse({ ok: false, error: String(error.message || error) })
-    );
-  return true;
+  if (!isEventId(message.eventId)) return { error: 'bad event id' };
+  return {
+    url: summaryUrl(message.eventId),
+    timeout: api.TIMEOUT_MS,
+    read: (response) => response.json().then(trimScoringPlays),
+    failure: (response) => `ESPN ${response.status}`
+  };
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (sender.id !== chrome.runtime.id) return false;
-  if (!message || message.type !== 'nightowl-fetch' || typeof message.url !== 'string') return false;
-  if (!ALLOWED.some((prefix) => message.url.startsWith(prefix))) {
-    sendResponse({ ok: false, error: 'host not allowed' });
-    return false;
-  }
-  fetch(message.url, { signal: AbortSignal.timeout(api.TIMEOUT_MS) })
-    .then((response) => (response.ok ? response.json() : Promise.reject(new Error(`${response.status} ${message.url}`))))
-    .then(
-      (data) => sendResponse({ ok: true, data }),
-      (error) => sendResponse({ ok: false, error: String(error.message || error) })
-    );
-  return true;
+relay('nightowl-fetch', (message) => {
+  if (typeof message.url !== 'string') return { error: 'bad url' };
+  if (!ALLOWED.some((prefix) => message.url.startsWith(prefix))) return { error: 'host not allowed' };
+  return {
+    url: message.url,
+    timeout: api.TIMEOUT_MS,
+    read: (response) => response.json(),
+    failure: (response) => `${response.status} ${message.url}`
+  };
 });
 
 const ALARM = 'night-owl-lineups';

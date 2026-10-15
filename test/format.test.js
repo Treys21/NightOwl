@@ -55,3 +55,15 @@ test('windowTitle: an approximate kickoff names the day, not a made-up time', ()
   assert.doesNotMatch(approx, /\d:\d\d/);
   assert.match(approx, /SEA @ DEN/);
 });
+
+test('delta: tenths with a sign, nothing for zero', () => {
+  assert.equal(format.delta(3.46), '+3.5');
+  assert.equal(format.delta(-0.04), '−0.0');
+  assert.equal(format.delta(0), '0.0');
+});
+
+test('leagueSelect escapes names and marks the current league', () => {
+  const html = format.leagueSelect([{ leagueId: '1', name: 'A & B' }, { leagueId: '2', name: 'C' }], '2');
+  assert.match(html, /A &amp; B/);
+  assert.match(html, /value="2" selected/);
+});

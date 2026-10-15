@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert');
 
 globalThis.NightOwl = {};
+require('../src/shared/numbers.js');
+require('../src/shared/format.js');
 require('../src/live/scoring.js');
 const review = require('../src/live/week-review.js');
 

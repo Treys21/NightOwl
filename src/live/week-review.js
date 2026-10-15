@@ -4,6 +4,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { points: fantasyPoints } = NightOwl.scoring;
+  const { round1 } = NightOwl.numbers;
+  const { delta } = NightOwl.format;
 
   const PASS_TOUCHDOWN = /^(.+?) (\d+) Yd pass from (.+?)(?: \(|$)/i;
   const RUSH_TOUCHDOWN = /^(.+?) (\d+) Yd Rush(?: \(|$)/i;
@@ -16,7 +18,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const SHOWN_INSIGHTS = 5;
   const ESPN_TO_SLEEPER_TEAM = { WSH: 'WAS' };
 
-  const roundTenth = (number) => Math.round(number * 10) / 10;
 
   function receivingStats(yards) {
     const stats = { rec: 1, rec_yd: yards, rec_td: 1, rec_fd: 1 };
@@ -87,7 +88,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   /** How a league's matchup ended: margin from your side, and whether you won. */
   function leagueResult(league) {
-    const margin = roundTenth(league.mine.points - league.opponent.points);
+    const margin = round1(league.mine.points - league.opponent.points);
     return { leagueId: league.id, leagueName: league.name, opponentName: league.opponent.name, myPoints: league.mine.points, theirPoints: league.opponent.points, margin, won: margin > 0, lost: margin < 0 };
   }
 
@@ -121,12 +122,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
           .map((participant) => ({ participant, side: sideOf(league, participant.playerId) }))
           .filter((item) => item.side)
           .map(({ participant, side }) => {
-            const earned = roundTenth(fantasyPoints(participant.stats, league.scoring));
+            const earned = round1(fantasyPoints(participant.stats, league.scoring));
             return { playerId: participant.playerId, role: participant.role, side, points: side === 'mine' ? earned : -earned };
           })
           .filter((item) => item.points !== 0);
         if (!touching.length) continue;
-        const net = roundTenth(touching.reduce((total, item) => total + item.points, 0));
+        const net = round1(touching.reduce((total, item) => total + item.points, 0));
         entries.push({ leagueId: league.id, net, flipped: decidedResult(resultOf.get(league.id), net), participants: touching });
       }
       if (entries.length) pricedPlays.push({ play, participants, entries });
@@ -142,7 +143,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         for (const item of entry.participants) {
           if (!swings.has(item.playerId)) swings.set(item.playerId, new Map());
           const byLeague = swings.get(item.playerId);
-          byLeague.set(entry.leagueId, roundTenth((byLeague.get(entry.leagueId) || 0) + item.points));
+          byLeague.set(entry.leagueId, round1((byLeague.get(entry.leagueId) || 0) + item.points));
         }
       }
     }
@@ -178,7 +179,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!connections.has(key)) connections.set(key, { passerId: passer.playerId, scorerId: scorer.playerId, touchdowns: 0, netByLeague: new Map() });
       const connection = connections.get(key);
       connection.touchdowns++;
-      for (const entry of entries) connection.netByLeague.set(entry.leagueId, roundTenth((connection.netByLeague.get(entry.leagueId) || 0) + entry.net));
+      for (const entry of entries) connection.netByLeague.set(entry.leagueId, round1((connection.netByLeague.get(entry.leagueId) || 0) + entry.net));
     }
     return [...connections.values()].map((connection) => {
       const leagues = [...connection.netByLeague].map(([leagueId, points]) => {
@@ -198,7 +199,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return players.concat(connections).sort((first, second) => second.score - first.score).slice(0, SHOWN_INSIGHTS);
   }
 
-  const pointsText = (points) => `${points > 0 ? '+' : points < 0 ? '−' : ''}${Math.abs(points).toFixed(1)}`;
   const leagueCount = (count) => `${count} league${count === 1 ? '' : 's'}`;
 
   /** The one-line headline for an insight, given a function that names a player. */
@@ -220,10 +220,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   function leagueLine(league) {
     const margin = Math.abs(league.margin).toFixed(1);
     const outcome = league.won ? `won by ${margin}` : league.margin < 0 ? `lost by ${margin}` : 'tied';
-    return { text: `${league.leagueName} ${pointsText(league.points)}`, outcome, decided: league.decided, tone: league.points > 0 ? 'up' : 'down' };
+    return { text: `${league.leagueName} ${delta(league.points)}`, outcome, decided: league.decided, tone: league.points > 0 ? 'up' : 'down' };
   }
 
-  NightOwl.weekReview = { readScoringPlay, reviewWeek, insightTitle, leagueLine, decidedResult, pointsText };
+  NightOwl.weekReview = { readScoringPlay, reviewWeek, insightTitle, leagueLine, decidedResult };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.weekReview;

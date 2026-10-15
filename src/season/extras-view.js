@@ -4,13 +4,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { players, model, path, recap, tradeLoader, tradeHistory } = NightOwl;
-  const { escape: escapeHtml, percent } = NightOwl.format;
+  const { round1 } = NightOwl.numbers;
+  const { escape: escapeHtml, percent, delta: signed } = NightOwl.format;
 
   const tick = () => new Promise((resolve) => setTimeout(resolve));
   const LEVERAGE_SIMS = 1500;
   const oddsLabel = (probability) => (probability >= 0.995 ? '>99%' : probability > 0 && probability < 0.005 ? '<1%' : percent(probability));
   const ordinal = (number) => `${number}${number % 100 >= 11 && number % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[number % 10] || 'th')}`;
-  const signed = (value) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}`;
 
   function create(deps) {
     const { state, render, nameOf, active } = deps;
@@ -125,7 +125,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         }
       }
       return {
-        lineups, wire, trades: mine.length, tradeNet: Math.round(net * 10) / 10, weeks: weekly.length,
+        lineups, wire, trades: mine.length, tradeNet: round1(net), weeks: weekly.length,
         bestPickup: bestPickup && bestPickup.pts > 0 ? bestPickup : null,
         bestGivenAway: bestGivenAway && bestGivenAway.pts > 0 ? bestGivenAway : null
       };

@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
+
+require('../src/shared/numbers.js');const fs = require('node:fs');
 const path = require('node:path');
 
 const bets = require('../src/bets/core.js');

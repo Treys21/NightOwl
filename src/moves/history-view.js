@@ -4,7 +4,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { players, tradeLoader, ktc } = NightOwl;
-  const { escape: escapeHtml } = NightOwl.format;
+  const { escape: escapeHtml, leagueSelect } = NightOwl.format;
 
   const SHOWN = 12;
   const sum = (numbers) => numbers.reduce((total, number) => total + number, 0);
@@ -112,7 +112,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     function pane() {
       const league = currentLeague();
       if (!league) return '<p class="empty muted">No league with a regular season left to play.</p>';
-      const select = `<div class="mv-selects"><select id="mv-league" aria-label="League">${state.leagues.map((leagueChoice) => `<option value="${escapeHtml(leagueChoice.leagueId)}"${leagueChoice.leagueId === league.leagueId ? ' selected' : ''}>${escapeHtml(leagueChoice.name)}</option>`).join('')}</select></div>`;
+      const select = `<div class="mv-selects">${leagueSelect(state.leagues, league.leagueId)}</div>`;
       const history = league.history;
       if (!history) {
         return `${select}<div class="skel" role="status"><i></i><i></i></div><p class="muted small mv-note">Reading this league's trades…</p>`;

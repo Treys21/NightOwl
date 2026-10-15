@@ -27,6 +27,7 @@ globalThis.NightOwl = {
     }
   }
 };
+require('../src/shared/numbers.js');
 require('../src/trades/history.js');
 require('../src/trades/drafts.js');
 require('../src/trades/loader.js');

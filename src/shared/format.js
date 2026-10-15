@@ -15,6 +15,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const signed = (value, format = points) => `${value > 0 ? '+' : value < 0 ? '−' : '±'}${format(Math.abs(value))}`;
 
+  const delta = (value) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}`;
+
+  const leagueSelect = (choices, currentId) => `<select id="mv-league" aria-label="League">${choices.map((choice) => `<option value="${escape(choice.leagueId)}"${choice.leagueId === currentId ? ' selected' : ''}>${escape(choice.name)}</option>`).join('')}</select>`;
+
   const percent = (probability) => `${Math.round(probability * 100)}%`;
 
   const dayTime = (timestamp) => new Date(timestamp).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
@@ -56,7 +60,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return hours < 24 ? `${hours}h ${mins % 60}m` : `${Math.floor(hours / 24)}d ${hours % 24}h`;
   }
 
-  NightOwl.format = { escape, points, tenths, short, signed, percent, dayTime, dayTimeShort, windowTitle, errorText, clock, countdown };
+  NightOwl.format = { escape, points, tenths, short, signed, delta, leagueSelect, percent, dayTime, dayTimeShort, windowTitle, errorText, clock, countdown };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.format;

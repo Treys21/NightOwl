@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
+require('../src/shared/numbers.js');
 require('../src/lineups/core.js');
 require('../src/season/core.js');
 const projection = require('../src/season/project.js');

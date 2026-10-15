@@ -3,9 +3,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { optimal, outlook, phi, draftOrder, DRAFT_WIN_WEIGHT } = NightOwl.season;
-  const round1 = (value) => Math.round(value * 10) / 10;
-  const round2 = (value) => Math.round(value * 100) / 100;
+  const { round1, round2 } = NightOwl.numbers;
+  const { optimal, outlook, phi, rng, draftOrder, DRAFT_WIN_WEIGHT } = NightOwl.season;
 
   const OUT_FOR_SEASON = new Set(['IR', 'PUP', 'Sus', 'NA']);
   const OUT_THIS_WEEK = new Set(['Out', 'Doubtful']);
@@ -61,17 +60,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   }
 
   const playoffWeeks = (format) => (format ? format.rounds.flatMap((round) => round.weeks) : []);
-
-  function rng(seed) {
-    let generatorState = seed >>> 0;
-    return () => {
-      generatorState = (generatorState + 0x6d2b79f5) >>> 0;
-      let mixed = generatorState;
-      mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1);
-      mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
-      return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
-    };
-  }
 
   const rankTeamsByRecord = (ids, wins, pointsFor) => ids.slice().sort((a, b) => wins.get(b) - wins.get(a) || pointsFor.get(b) - pointsFor.get(a) || a - b);
 

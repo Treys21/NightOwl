@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
+require('../src/shared/numbers.js');
 const core = require('../src/lineups/core.js');
 
 const event = (date, away, home, state = 'pre') => ({
