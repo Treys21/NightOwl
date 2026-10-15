@@ -39,7 +39,7 @@ for (let index = 0; index < todo.length; index += size) {
     const built = prompts.build(entry.view);
     parts.push(`=========== CASE ${entry.id} ===========`, `REPLY FILE: ${join(repliesDir, `${entry.id}.json`)}`, '--- SYSTEM ---', built.system, '--- DATA ---', built.user, '');
   }
-  const file = join(packDir, `batch-${files.length + 1}.md`);
+  const file = join(packDir, `batch-${options.kind}-${files.length + 1}.md`);
   writeFileSync(file, parts.join('\n'));
   files.push(file);
 }
