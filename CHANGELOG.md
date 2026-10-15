@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (3.15.0 in the manifest)
+## 3.15.0
 - **Drafts.** Kicker picks in a startup draft are recognised as placeholders for the rookie
   picks sold during it and replaced by the rookie pick they stand for (owned by whoever used
   it, ↔ where a trade moved it). Startup picks are judged against the picks around them
@@ -9,6 +9,7 @@
 - **Trade finder** offers only each team's soonest pick in every round and shows an incoming
   player in only one suggested deal.
 - **Trade finder** no longer offers a rebuilding team an aging player (older than 26 at running back, 28 at receiver, 29 at tight end, 33 at quarterback), and applies the same rule to you when you pick the Rebuild goal.
+- **Redraft teams** are never called rebuilding in the Trade finder (Playoff team, In the hunt, Long shot).
 - **Season.** An opened league card takes the full row, so the extra odds columns show.
 
 ## 3.14.0
