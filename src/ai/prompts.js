@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const VERSION = 'suggest-v1';
+  const VERSION = 'suggest-v2';
 
   const REDRAFT_GUIDE = [
     'This is a redraft league: there is no rebuilding, only the current season.',
@@ -32,11 +32,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       'You advise one fantasy football manager on which trades to propose. You reason only from the facts you are given and never invent players, stats or values.',
       guide,
       'A good suggestion raises my lineup points for the rest of the season, is something the partner would plausibly accept, and fits where each team stands in the standings.',
+      'Compare each player\'s recent weekly scoring with his weekly projection: a player scoring far above his projection is a sell-high, one far below with an unchanged role is a buy-low, and a player who has stopped scoring for several weeks may have lost his role. Prefer deals where the player I receive starts for me every week.',
       OUTPUT
     ].join('\n\n');
   }
 
-  const playerLine = (player) => `${player.id} | ${player.name} | ${player.pos} | age ${player.age == null ? '?' : player.age} | ${player.team || 'FA'} | market ${player.market} | projected ${player.projected} | lineup value ${player.lineupValue}`;
+  const playerLine = (player) => `${player.id} | ${player.name} | ${player.pos} | age ${player.age == null ? '?' : player.age} | ${player.team || 'FA'} | market ${player.market} | projected ${player.projected} (${player.perWeek == null ? '?' : player.perWeek} a week) | last 3 weeks ${player.recent == null ? '?' : player.recent} a week | lineup value ${player.lineupValue}`;
 
   function teamText(label, team, limit) {
     const rows = team.players.slice(0, limit).map(playerLine);
@@ -48,7 +49,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const lines = [
       `League: ${league.kind}, ${league.teams} teams, week ${league.week}, ${league.weeksLeft} regular season weeks left, playoffs start week ${league.playoffStart}`,
       `Lineup slots: ${league.slots.join(', ')}. Superflex: ${league.superflex ? 'yes' : 'no'}. Tight end premium: ${league.tightEndPremium ? 'yes' : 'no'}. Points per reception: ${league.scoring.reception}.`,
-      'Columns: id | name | position | age | team | market value | projected points for the rest of the regular season | lineup value (points my lineup loses if this player is removed).',
+      'Columns: id | name | position | age | team | market value | projected points for the rest of the regular season (and per week) | points per week over the last three weeks played | lineup value (points my lineup loses if this player is removed).',
       '',
       teamText('MY TEAM', { rosterId: 'me', record: view.me.record, rank: view.me.rank, pointsFor: view.me.pointsFor, window: view.me.window, players: view.me.players }, 30),
       ''

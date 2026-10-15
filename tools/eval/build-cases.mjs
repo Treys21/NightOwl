@@ -65,6 +65,10 @@ for (const leagueId of leagueIds) {
     const windows = windowsFromStandings(standings, week);
     const context = buildContext(world, preparation);
 
+    const recentWeeks = [];
+    for (let past = week - 1; past >= 1 && recentWeeks.length < 3; past--) if ((season.matchups[past] || []).some((row) => (row.points || 0) > 0)) recentWeeks.push(actualPoints(season, past));
+    const recentOf = (playerId) => (recentWeeks.length ? round(sum(recentWeeks.map((points) => points[playerId] || 0)) / recentWeeks.length) : null);
+
     const truthWeeks = [];
     for (let current = week; current <= LAST_WEEK; current++) {
       if (!(season.matchups[current] || []).length) continue;
@@ -100,7 +104,7 @@ for (const leagueId of leagueIds) {
       const playerView = (playerId) => {
         const info = world.info[playerId] || {};
         const projected = sum(preparation.weeks.map((entry) => entry.projOf(playerId)));
-        return { id: playerId, name: info.name || playerId, pos: (world.positionsOf(playerId)[0]) || info.pos, age: info.age, team: info.team, market: Math.round(context.rawOf(playerId)), projected: round(projected), lineupValue: round(need.get(playerId) || 0) };
+        return { id: playerId, name: info.name || playerId, pos: (world.positionsOf(playerId)[0]) || info.pos, age: info.age, team: info.team, market: Math.round(context.rawOf(playerId)), projected: round(projected), lineupValue: round(need.get(playerId) || 0), recent: recentOf(playerId), perWeek: round(projected / Math.max(1, preparation.weeks.length)) };
       };
       const teamView = (rosterIdValue) => {
         const standing = standings.get(rosterIdValue);

@@ -1,0 +1,28 @@
+# AI trade advice: design
+
+## What the evidence says (eval v1, 20 redraft + 20 dynasty tuning cases)
+- Dynasty: the model's first pick beat the static finder's first pick by +17 points over the rest of the season (interval 4 to 30, p = 0.009). The result holds with the market term turned off (+18, p = 0.004), so it is not the model optimizing a number it was shown.
+- Redraft: no difference (+1.7, interval -10 to 9, p = 0.72). The best candidate in hindsight averages 55 points and the model's pick 22, so there is headroom, but the model lacked the facts that predict it.
+- The model almost never proposes its own deals (2%). It re-ranks; it does not search.
+
+## Result of step 1 (v2: recent form added, 20 redraft tuning cases)
+Model first pick minus static first pick: -0.3 (interval -8 to 3, p = 0.89), against +1.7 for v1. Adding recent form did not help redraft re-ranking. Redraft AI stays off by default; next tests are verified custom deals (engine tools) and self-consistency, not more prompt wording.
+
+## Principles
+1. **The engine owns numbers, the model owns judgment.** Lineup points, fairness and acceptability come from the engine (`finder.judge`, `value.tradeImpact`). The model never invents or recomputes them.
+2. **Only decision-time facts.** Anything a manager could see that week: standings, rosters, projections, recent weekly scoring. Nothing from after the decision.
+3. **Ship per league type, only what beats the baseline.** Dynasty AI ships first. Redraft stays behind the static finder until it measures better.
+4. **Every claim is checkable.** Replies are JSON; every id is validated against the roster; every custom deal is re-judged by the engine before it is shown.
+
+## Layers
+1. **Facts (deterministic, versioned).** `tools/eval/build-cases.mjs` and `src/moves/finder-view.js` `aiView()` build the same shape: league, my team, partner teams, candidate deals. v2 adds per-player recent form (last three weeks) and a per-week projection, so the model can tell hot streaks and lost roles from projections.
+2. **Engine tools (next).** Expose `judge`, `impact` and `rank` to the agent as a small CLI inside the sandbox (`tools/local-agent`, analyst mode), so the model can propose its own deals and have them verified, instead of only choosing from the finder's list.
+3. **Agent.** Direct mode: one call, JSON out. Analyst mode: sandboxed shell with numpy, scipy, pandas, statsmodels, scikit-learn and the engine tools, no network, writes only to a scratch directory. Chat mode keeps a short transcript for follow-up questions. All run on the user's laptop through the Claude Agent SDK; tools are off by default.
+4. **Eval.** Pre-registered weights, quality-gated cases, tuning and held-out splits, paired league-clustered bootstrap, outlier clipping, noise floor. A prompt or facts change ships only if it beats the previous version on tuning and is confirmed once on held-out.
+
+## Roadmap, in order
+1. v2 facts and prompt (recent form): measure on the redraft tuning cases.
+2. Measure run-to-run noise (repeat runs) before trusting small differences.
+3. Engine tools in analyst mode; measure whether verified custom deals beat re-ranking.
+4. Self-consistency (several samples, vote) if noise is high.
+5. One check on the held-out set per milestone, then enable per league type in the extension.
