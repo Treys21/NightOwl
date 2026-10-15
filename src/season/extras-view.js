@@ -138,22 +138,23 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       else if (recapSummary.status === 'error') body = `<p class="error">Couldn't read this season: ${escapeHtml(recapSummary.error)}</p>`;
       else if (!recapSummary.weeks) body = '<p class="muted small se-note">No finished weeks yet.</p>';
       else {
-        const worst = recapSummary.lineups.weeks.filter((week) => week.miss && week.loss >= 1).sort((a, b) => b.loss - a.loss).slice(0, 3);
-        const perfect = recapSummary.lineups.weeks.filter((week) => week.loss < 0.05).length;
-        body = `<div class="se-kpis">
-            <div class="se-kpi"><b>${ordinal(myTeam.rank)}</b><span>${myTeam.wins}–${myTeam.losses}${myTeam.ties ? `–${myTeam.ties}` : ''}</span></div>
-            <div class="se-kpi ${myTeam.luck > 0 ? 'up' : myTeam.luck < 0 ? 'down' : ''}"><b>${myTeam.luck == null ? '–' : signed(myTeam.luck)}</b><span>wins of luck</span></div>
-            <div class="se-kpi"><b>${myTeam.efficiency == null ? '–' : percent(myTeam.efficiency)}</b><span>of max points</span></div>
-            <div class="se-kpi"><b>${recapSummary.lineups.totalLoss.toFixed(0)}</b><span>pts left on bench</span></div>
+        const face = (playerId) => `<img class="sr-face" src="${NightOwl.teams.headshot(playerId)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+        const luckTone = myTeam.luck > 0 ? 'up' : myTeam.luck < 0 ? 'down' : '';
+        const mvp = recapSummary.lineups.mvp;
+        const card = (label, playerId, text, tone) => `<li class="sr-card ${tone || ''}">${playerId ? face(playerId) : ''}<span><em>${label}</em><b>${text}</b></span></li>`;
+        const wireCount = recapSummary.wire.adds ? `${recapSummary.wire.adds} add${recapSummary.wire.adds === 1 ? '' : 's'} · ${recapSummary.wire.drops} drop${recapSummary.wire.drops === 1 ? '' : 's'}` : '';
+        const cards = [
+          mvp ? card('MVP', mvp.pid, `${pname(mvp.pid)} · ${mvp.pts.toFixed(0)} pts`, 'up') : '',
+          recapSummary.wire.bestAdd ? card('Best add', recapSummary.wire.bestAdd.pid, `${pname(recapSummary.wire.bestAdd.pid)} · ${recapSummary.wire.bestAdd.started.toFixed(0)} pts`, 'up') : '',
+          recapSummary.wire.regret ? card('Got away', recapSummary.wire.regret.pid, `${pname(recapSummary.wire.regret.pid)} · ${recapSummary.wire.regret.pts.toFixed(0)} pts`, 'down') : '',
+          recapSummary.trades ? card(`${recapSummary.trades} trade${recapSummary.trades === 1 ? '' : 's'}`, null, `${signed(recapSummary.tradeNet)} pts from trades`, recapSummary.tradeNet >= 0 ? 'up' : 'down') : '',
+          wireCount ? card('Wire', null, wireCount, '') : ''
+        ].join('');
+        body = `<div class="sr-top">
+            <div class="sr-rank"><b>${ordinal(myTeam.rank)}</b><span>${myTeam.wins}–${myTeam.losses}${myTeam.ties ? `–${myTeam.ties}` : ''}</span></div>
+            <div class="sr-luck ${luckTone}" title="Wins above what your weekly scores earned"><b>${myTeam.luck == null ? '–' : signed(myTeam.luck)}</b><span>wins of luck</span></div>
           </div>
-          <ul class="se-recap">
-            ${recapSummary.lineups.mvp ? `<li><b>MVP:</b> ${pname(recapSummary.lineups.mvp.pid)}, ${recapSummary.lineups.mvp.pts.toFixed(0)} pts in ${recapSummary.lineups.mvp.weeks} starts.</li>` : ''}
-            <li><b>Lineups:</b> perfect in ${perfect} of ${recapSummary.weeks} week${recapSummary.weeks === 1 ? '' : 's'}.${worst.length ? ` Costliest: ${worst.map((missedWeek) => `week ${missedWeek.week}, ${pname(missedWeek.miss.in)} over ${missedWeek.miss.out ? pname(missedWeek.miss.out) : 'an empty slot'} (${missedWeek.loss.toFixed(1)})`).join('; ')}.` : ''}</li>
-            ${recapSummary.wire.bestAdd ? `<li><b>Best add:</b> ${pname(recapSummary.wire.bestAdd.pid)} started ${recapSummary.wire.bestAdd.started.toFixed(0)} pts for you after week ${recapSummary.wire.bestAdd.week}.</li>` : ''}
-            ${recapSummary.wire.regret ? `<li><b>Got away:</b> ${pname(recapSummary.wire.regret.pid)} started ${recapSummary.wire.regret.pts.toFixed(0)} pts for others after you dropped him.</li>` : ''}
-            ${recapSummary.trades ? `<li><b>Trades:</b> ${recapSummary.trades} so far; the players you got started ${signed(recapSummary.tradeNet)} pts more than the ones you gave. Grades are in Moves → History.</li>` : ''}
-            ${recapSummary.wire.adds ? `<li class="muted">${recapSummary.wire.adds} add${recapSummary.wire.adds === 1 ? '' : 's'} and ${recapSummary.wire.drops} drop${recapSummary.wire.drops === 1 ? '' : 's'} on the wire.</li>` : ''}
-          </ul>`;
+          <ul class="sr-cards">${cards}</ul>`;
       }
       return `<details class="se-league" data-id="${escapeHtml(league.leagueId)}"${state.open.has(league.leagueId) ? ' open' : ''}>
         <summary><div class="se-head"><span class="se-name">${escapeHtml(league.name)}</span><span class="se-rank${league.playoffTeams && myTeam.rank <= league.playoffTeams ? ' in' : ''}">${ordinal(myTeam.rank)} of ${league.rows.length}</span></div></summary>

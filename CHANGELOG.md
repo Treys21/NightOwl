@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.17.2
+- **Season recap, visual.** Each league's recap is now a big rank and record, a luck pill, and cards with headshots for your MVP, best add, the one that got away, trades and wire activity, instead of a list of sentences. Lineup what-ifs are gone from it.
+
 ## 3.17.1
 - **Last week, visual.** Result tiles with the margin, player headshots, a ★ on the deciding plays, short points pills per league and a bar for how big each play was, instead of sentences.
 
