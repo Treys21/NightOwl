@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.17.9
+
+Internal cleanup, no change to what you see.
+
+- Live: the feed rows and recap cards moved to `plays-view.js` and the win-chance graph to `effects.js` (`live/view.js` is 727 lines, from 912 at the start of this cleanup).
+- Lineups: the league and player rows moved to `rows-view.js`.
+
 ## 3.17.8
 
 Internal cleanup, no change to what you see.

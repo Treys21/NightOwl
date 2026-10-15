@@ -4,8 +4,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const { api, tracker, scoring, teams, players, storage, account, dom } = NightOwl;
-  const { escape: escapeHtml, points: formatPoints, signed, clock: clockOf, short: shortNumber } = NightOwl.format;
-  const { figureHtml, spawnSparks, countUp, score } = NightOwl.liveEffects;
+  const { escape: escapeHtml, points: formatPoints, signed, clock: clockOf } = NightOwl.format;
+  const { figureHtml, spawnSparks, countUp, score, trendSvg } = NightOwl.liveEffects;
   const { isPlaying, mine, ownerNames, avatars, startingSlots, slotLabel, displayWeek, seasonType: seasonTypeOf } = NightOwl.leagues;
   let root = null;
   const byId = (elementId) => root.querySelector(`#${elementId}`);
@@ -229,21 +229,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (changed) storage.set({ 'live.trend': state.trend });
   }
 
-  function trendSvg(series) {
-    if (!series || series.length < 2) return '';
-    const width = TREND_WIDTH;
-    const height = TREND_HEIGHT;
-    const startTime = series[0][0];
-    const span = Math.max(1, series[series.length - 1][0] - startTime);
-    const points = series.map(([time, chance]) => `${((time - startTime) / span * width).toFixed(1)},${((1 - chance) * height).toFixed(1)}`).join(' ');
-    const end = series[series.length - 1][1];
-    return `<div class="trend"><span class="muted small">Win chance today</span>
-      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
-        <line x1="0" y1="${height / 2}" x2="${width}" y2="${height / 2}" class="mid"/>
-        <polyline points="${points}" class="${end >= 0.5 ? 'good' : 'bad'}"/>
-      </svg></div>`;
-  }
-
   async function pollLiveData(force) {
     if (state.busy || !root || !state.settings.username) return;
     state.busy = true;
@@ -371,12 +356,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const POP_MS = 2200;
   const POP_GAP_MS = 150;
   const MAX_POPS = 3;
-  const BIG_PTS = 4;
   const TREND_MIN_CHANGE = 0.005;
   const TREND_REPEAT_MS = 15 * 60000;
   const TREND_MAX_POINTS = 400;
-  const TREND_WIDTH = 300;
-  const TREND_HEIGHT = 44;
   const INTRO_MS = 1600;
   const MIN_POP_PTS = 1;
   const popQueue = [];
@@ -389,12 +371,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     popQueue.length = 0;
     popQueue.push(...ranked.slice(0, MAX_POPS));
     if (!popping) nextPop();
-  }
-
-  const maxImpact = (event) => Math.max(0, ...event.impacts.map((impact) => Math.abs(impact.pts)));
-
-  function isBig(event) {
-    return /TD|safety|2-pt/.test(event.text) || maxImpact(event) >= BIG_PTS;
   }
 
   function nextPop() {
@@ -546,70 +522,16 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (changed) root.querySelectorAll('.match .big[data-to]').forEach(countUp);
   }
 
-  const impactForMe = (impact) => (impact.side === 'me' ? impact.pts : -impact.pts);
-
-  function shownImpacts(event) {
-    return state.league ? event.impacts.filter((impact) => impact.leagueId === state.league) : event.impacts;
+  function renderLeagueSelect() {
+    const leagueSelect = byId('lv-league');
+    if (!state.ctx) return;
+    const leagues = activeLeagues();
+    if (state.league && !leagues.some((league) => league.leagueId === state.league)) state.league = '';
+    dom.setHtml(leagueSelect, '<option value="">All leagues</option>' + leagues.map((league) =>
+      `<option value="${escapeHtml(league.leagueId)}"${league.leagueId === state.league ? ' selected' : ''}>${escapeHtml(league.name)}</option>`).join(''));
   }
 
-  function impactChips(event) {
-    return shownImpacts(event).map((impact) => {
-      const signedPoints = impactForMe(impact);
-      const className = signedPoints > 0 ? 'helps' : signedPoints < 0 ? 'hurts' : 'zero';
-      return `<span class="impact ${className}" title="${impact.side === 'me' ? 'Your starter' : "Your opponent's starter"} in ${escapeHtml(impact.leagueName)}">${escapeHtml(impact.leagueName)} <b>${signed(signedPoints, shortNumber)}</b></span>`;
-    }).join('');
-  }
-
-  function moodOf(event) {
-    const impactValues = shownImpacts(event).map(impactForMe).filter((value) => value !== 0);
-    if (!impactValues.length) return 'even';
-    if (impactValues.every((value) => value > 0)) return 'good';
-    if (impactValues.every((value) => value < 0)) return 'bad';
-    return 'even';
-  }
-
-  function playValue(event) {
-    const points = [...new Set(event.impacts.map((impact) => impact.pts))].sort((x, y) => x - y);
-    if (points.length === 1) return `${signed(points[0])}<small> pts</small>`;
-    return `${signed(points[0])}–${formatPoints(points[points.length - 1])}<small> pts</small>`;
-  }
-
-  function matchesFilters(event) {
-    const shown = shownImpacts(event);
-    if (!shown.length) return false;
-    if (state.bigOnly && !isBig(event)) return false;
-    if (state.filter === 'all') return true;
-    const impactValues = shown.map(impactForMe);
-    return state.filter === 'good' ? impactValues.some((value) => value > 0) : impactValues.some((value) => value < 0);
-  }
-
-  function playRow(event, isNew) {
-    const mood = moodOf(event);
-    return `<li class="ev ${mood === 'even' ? '' : mood}${isNew ? ' new' : ''}${isBig(event) ? ' major' : ''}" style="--tc:${teams.colors(event.team).primary}">
-        <div class="ev-top">
-          <span class="ev-who">${teams.face(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.pos)} · ${escapeHtml(event.team)}</span></span></span>
-          <span class="ev-val">${playValue(event)}</span>
-        </div>
-        <div class="ev-text">${escapeHtml(event.text || 'stat correction')}</div>
-        <div class="impacts">${impactChips(event)}</div>
-      </li>`;
-  }
-
-  function recapCard(group) {
-    const since = group[0].since || group[0].ts;
-    const key = `${since}-${group[0].ts}`;
-    const rows = group.map((event) => `
-      <div class="recap-row">
-        <span class="ev-who">${teams.face(event.pid, event.team)}<span><span class="ev-name">${escapeHtml(event.name)}</span> <span class="muted small">${escapeHtml(event.text || 'stat correction')}</span></span></span>
-        <div class="impacts">${impactChips(event)}</div>
-      </div>`).join('');
-    return `<li class="recap"><details data-recap="${key}"${state.openRecaps.has(key) ? ' open' : ''}>
-        <summary>
-          <span class="recap-title"><b>${group[0].firstLook ? 'This week so far' : 'While you were away'}</b><span class="muted small">${group[0].firstLook ? `as of ${clockOf(group[0].ts)}` : `${clockOf(since)} – ${clockOf(group[0].ts)}`} · ${group.length} player${group.length === 1 ? '' : 's'}</span></span>
-        </summary>
-        <div class="recap-rows">${rows}</div>
-      </details></li>`;
-  }
+  const { isBig, maxImpact, impactChips, moodOf, playValue, matchesFilters, playRow, recapCard } = NightOwl.livePlays.create({ state });
 
   function renderFeed() {
     const list = state.events.filter(matchesFilters);
@@ -642,15 +564,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     dom.setHtml(byId('feed'), html.join(''));
     byId('lv-count-feed').textContent = String(state.events.filter((event) => !event.catchUp).length || '');
     for (const event of state.events) state.seenEventIds.add(event.id);
-  }
-
-  function renderLeagueSelect() {
-    const leagueSelect = byId('lv-league');
-    if (!state.ctx) return;
-    const leagues = activeLeagues();
-    if (state.league && !leagues.some((league) => league.leagueId === state.league)) state.league = '';
-    dom.setHtml(leagueSelect, '<option value="">All leagues</option>' + leagues.map((league) =>
-      `<option value="${escapeHtml(league.leagueId)}"${league.leagueId === state.league ? ' selected' : ''}>${escapeHtml(league.name)}</option>`).join(''));
   }
 
   const lastWeekPane = NightOwl.liveLastWeek.create({

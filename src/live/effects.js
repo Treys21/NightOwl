@@ -10,6 +10,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const SPARK_MIN_DISTANCE = 70;
   const SPARK_EXTRA_DISTANCE = 150;
   const SPARK_LIFETIME_MS = 1600;
+  const TREND_WIDTH = 300;
+  const TREND_HEIGHT = 44;
   const COUNT_UP_MS = 900;
 
   const score = (value) => (Math.round(value * 100) / 100).toFixed(2);
@@ -63,5 +65,21 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     requestAnimationFrame(step);
   }
 
-  NightOwl.liveEffects = { figureHtml, spawnSparks, countUp, score };
+
+  function trendSvg(series) {
+    if (!series || series.length < 2) return '';
+    const width = TREND_WIDTH;
+    const height = TREND_HEIGHT;
+    const startTime = series[0][0];
+    const span = Math.max(1, series[series.length - 1][0] - startTime);
+    const points = series.map(([time, chance]) => `${((time - startTime) / span * width).toFixed(1)},${((1 - chance) * height).toFixed(1)}`).join(' ');
+    const end = series[series.length - 1][1];
+    return `<div class="trend"><span class="muted small">Win chance today</span>
+      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="${height / 2}" x2="${width}" y2="${height / 2}" class="mid"/>
+        <polyline points="${points}" class="${end >= 0.5 ? 'good' : 'bad'}"/>
+      </svg></div>`;
+  }
+
+  NightOwl.liveEffects = { figureHtml, spawnSparks, countUp, score, trendSvg };
 })(globalThis.NightOwl);
