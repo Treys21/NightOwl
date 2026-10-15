@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const ktc = createRequire(import.meta.url)('../../src/shared/ktc.js');
+const espnPlays = createRequire(import.meta.url)('../../src/shared/espn-plays.js');
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const TYPES = { '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json', '.html': 'text/html' };
@@ -34,6 +35,16 @@ export function startServer(port = 8765) {
         const rows = ktc.parse(html);
         response.writeHead(200, { 'content-type': 'application/json' });
         return response.end(JSON.stringify(rows));
+      }
+      if (url.pathname === '/plays') {
+        const eventId = url.searchParams.get('event');
+        if (!espnPlays.isEventId(eventId)) {
+          response.writeHead(400);
+          return response.end('bad event id');
+        }
+        const summary = await (await fetch(espnPlays.summaryUrl(eventId))).json();
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify(espnPlays.trimScoringPlays(summary)));
       }
       if (url.pathname === '/relay') {
         const target = url.searchParams.get('url') || '';

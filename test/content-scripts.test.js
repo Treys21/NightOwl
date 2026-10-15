@@ -79,5 +79,5 @@ test('the background worker starts, with every script it imports', () => {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(root, manifest.background.service_worker), 'utf8'), context);
   assert.ok(context.NightOwl.alerts && context.NightOwl.api.injuries);
-  assert.equal(listeners.length, 6);
+  assert.equal(listeners.length, 7);
 });

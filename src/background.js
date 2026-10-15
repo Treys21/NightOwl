@@ -2,6 +2,7 @@ importScripts(
   'shared/storage.js',
   'shared/leagues.js',
   'shared/ktc.js',
+  'shared/espn-plays.js',
   'shared/api.js',
   'shared/account.js',
   'shared/teams.js',
@@ -21,6 +22,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     .then((response) => (response.ok ? response.text() : Promise.reject(new Error(`KeepTradeCut ${response.status}`))))
     .then(
       (html) => sendResponse({ ok: true, data: globalThis.NightOwl.ktc.parse(html) }),
+      (error) => sendResponse({ ok: false, error: String(error.message || error) })
+    );
+  return true;
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id || !message || message.type !== 'nightowl-scoring-plays') return false;
+  const { trimScoringPlays, summaryUrl, isEventId } = globalThis.NightOwlEspnPlays;
+  if (!isEventId(message.eventId)) {
+    sendResponse({ ok: false, error: 'bad event id' });
+    return false;
+  }
+  fetch(summaryUrl(message.eventId), { credentials: 'omit', signal: AbortSignal.timeout(api.TIMEOUT_MS) })
+    .then((response) => (response.ok ? response.json() : Promise.reject(new Error(`ESPN ${response.status}`))))
+    .then(
+      (summary) => sendResponse({ ok: true, data: trimScoringPlays(summary) }),
       (error) => sendResponse({ ok: false, error: String(error.message || error) })
     );
   return true;

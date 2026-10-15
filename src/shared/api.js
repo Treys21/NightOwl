@@ -117,6 +117,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     ktcRows,
 
+    scoringPlays(eventId) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('timed out: ESPN scoring plays')), TIMEOUT_MS + 5000);
+        chrome.runtime.sendMessage({ type: 'nightowl-scoring-plays', eventId }, (reply) => {
+          clearTimeout(timer);
+          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+          else if (!reply || !reply.ok) reject(new Error((reply && reply.error) || 'ESPN scoring plays unavailable'));
+          else resolve(reply.data);
+        });
+      });
+    },
 
     async kickoffs(season, week, seasonType) {
       const type = seasonType === 'post' ? 3 : 2;

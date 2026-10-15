@@ -327,3 +327,18 @@ details.game[open] > summary.game-h::after { transform: rotate(180deg); }
   .lv-toolbar > *, .lv-toolbar .tabs > * { flex: none; }
   #lv-league { position: sticky; right: 0; max-width: 112px; background: #131722; box-shadow: inset 0 0 0 1px var(--hair), -14px 0 10px -2px #131722; }
 }
+
+.lw-results, .lw-insights, .lw-plays { list-style: none; margin: 0 0 12px; padding: 0; }
+.lw-result { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line, rgba(128,128,128,.2)); }
+.lw-wl { font-weight: 700; width: 1.2em; }
+.lw-result.up .lw-wl { color: var(--good, #00ceb8); }
+.lw-result.down .lw-wl { color: var(--bad, #f75c8d); }
+.lw-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lw-score { font-variant-numeric: tabular-nums; }
+.lw-insight, .lw-play { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--line, rgba(128,128,128,.2)); }
+.lw-text { font-size: 13px; }
+.lw-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.lw-chip { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: rgba(128,128,128,.15); }
+.lw-chip.up { color: var(--good, #00ceb8); }
+.lw-chip.down { color: var(--bad, #f75c8d); }
+.lw-chip.decided { font-weight: 700; outline: 1px solid currentColor; }

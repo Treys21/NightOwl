@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.17.0
+- **Live: Last week.** A fourth Live tab for the previous finished week: your result in every league, the plays that decided them (a touchdown that cost you leagues, a passer-and-receiver pair that won one and helped another), priced in each league's own scoring, and the biggest scoring plays that touched you.
+
 ## 3.16.0
 - **Values rebuilt, redraft and dynasty separately.** Dynasty values blend the market with a multi-year production stream (position age curves, weighted by whether the team is contending or rebuilding). Redraft values are points over the league's real replacement level, with playoff weeks weighted by the team's standing (playoff team, in the hunt, long shot).
 - **Redraft trades.** Cards flag players to sell high or buy low from recent scoring against projection, charge a premium for the side taking more bodies, and favour consolidation for leaders and weekly-starter depth for teams in the hunt. The analyzer adds the same plain notes.

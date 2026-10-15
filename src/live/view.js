@@ -26,6 +26,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       <button data-view="feed" class="on">Feed <span class="lv-count" id="lv-count-feed"></span></button>
       <button data-view="matchups">Matchups <span id="net-total"></span></button>
       <button data-view="games">Games <span class="lv-count" id="lv-count-games"></span></button>
+      <button data-view="lastweek">Last week</button>
     </nav>
     <div class="tool-scroll">
       <section id="settings" class="card" hidden>
@@ -52,6 +53,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       <section data-pane="games" hidden>
         <div id="games"></div>
       </section>
+      <section data-pane="lastweek" hidden>
+        <div id="lastweek"></div>
+      </section>
     </div>
   `;
 
@@ -76,6 +80,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     schedule: { games: [], loadedAt: 0 },
     filter: 'all',
     view: 'feed',
+    lastWeek: { status: 'idle', review: null, week: null, playsMissing: false },
     league: '',
     bigOnly: false,
     gameOpen: new Map(),
@@ -125,6 +130,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }))).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
 
     state.ctx = { username, userId, season, seasonType, week, leagues, loadedAt: Date.now() };
+    if (state.view === 'lastweek') ensureLastWeek();
     await storage.set({ 'live.ctx': state.ctx });
   }
 
@@ -707,6 +713,50 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       `<option value="${escapeHtml(league.leagueId)}"${league.leagueId === state.league ? ' selected' : ''}>${escapeHtml(league.name)}</option>`).join(''));
   }
 
+  const lastWeekMessage = (text) => `<p class="muted small empty">${escapeHtml(text)}</p>`;
+
+  function lastWeekHtml() {
+    const lastWeek = state.lastWeek;
+    if (lastWeek.status === 'loading' || lastWeek.status === 'idle') return '<div class="skel" role="status" aria-label="Loading last week"><i></i><i></i><i></i></div>';
+    if (lastWeek.status === 'failed') return lastWeekMessage('Last week could not be loaded right now.');
+    if (!lastWeek.week) return lastWeekMessage('No finished week yet.');
+    const review = lastWeek.review;
+    if (!review.results.length) return lastWeekMessage(`None of your leagues played in week ${lastWeek.week}.`);
+    const results = review.results.map((result) => `<li class="lw-result ${result.won ? 'up' : result.lost ? 'down' : ''}"><span class="lw-wl">${result.won ? 'W' : result.lost ? 'L' : 'T'}</span><span class="lw-name">${escapeHtml(result.leagueName)}</span><span class="lw-score">${result.myPoints.toFixed(1)}–${result.theirPoints.toFixed(1)}</span></li>`).join('');
+    const nameOf = (playerId) => info(playerId).name;
+    const insights = review.insights.map((insight) => `<li class="lw-insight"><b>${escapeHtml(NightOwl.weekReview.insightTitle(insight, nameOf))}</b><span class="lw-chips">${insight.leagues.map((league) => {
+      const line = NightOwl.weekReview.leagueLine(league);
+      return `<span class="lw-chip ${line.tone}${line.decided ? ' decided' : ''}" title="${escapeHtml(line.outcome)}">${escapeHtml(line.text)}, ${escapeHtml(line.outcome)}${line.decided ? ' · decided it' : ''}</span>`;
+    }).join('')}</span></li>`).join('');
+    const leagueName = new Map(review.results.map((result) => [result.leagueId, result.leagueName]));
+    const plays = review.plays.slice().sort((first, second) => Math.max(...second.entries.map((entry) => Math.abs(entry.net))) - Math.max(...first.entries.map((entry) => Math.abs(entry.net)))).slice(0, 12).map((priced) => `<li class="lw-play"><span class="lw-text">${escapeHtml(priced.play.text)}</span><span class="lw-chips">${priced.entries.map((entry) => `<span class="lw-chip ${entry.net > 0 ? 'up' : 'down'}${entry.flipped ? ' decided' : ''}">${escapeHtml(leagueName.get(entry.leagueId))} ${NightOwl.weekReview.pointsText(entry.net)}</span>`).join('')}</span></li>`).join('');
+    return `<p class="lv-set-h">Week ${lastWeek.week}</p><ul class="lw-results">${results}</ul>
+      ${lastWeek.playsMissing ? lastWeekMessage('Scoring plays could not be loaded, so only results are shown.') : `${insights ? `<ul class="lw-insights">${insights}</ul>` : ''}${plays ? `<p class="lv-set-h">Plays that touched you</p><ul class="lw-plays">${plays}</ul>` : ''}`}`;
+  }
+
+  function renderLastWeek() {
+    if (root) dom.setHtml(byId('lastweek'), lastWeekHtml());
+  }
+
+  async function ensureLastWeek() {
+    const lastWeek = state.lastWeek;
+    if (lastWeek.status !== 'idle' || !state.ctx) return;
+    lastWeek.status = 'loading';
+    renderLastWeek();
+    try {
+      const nflState = await api.state();
+      const loaded = await NightOwl.liveWeekData.loadLastWeek({ nflState, userId: state.ctx.userId, excludedLeagueIds: state.settings.excluded });
+      lastWeek.week = loaded.week;
+      lastWeek.playsMissing = !loaded.plays;
+      lastWeek.review = loaded.week ? NightOwl.weekReview.reviewWeek({ leagues: loaded.leagues, plays: loaded.plays || [], playerIdOf: loaded.playerIdOf }) : null;
+      lastWeek.status = 'ready';
+    } catch (error) {
+      console.warn('[Night Owl live] last week unavailable', error);
+      lastWeek.status = 'failed';
+    }
+    renderLastWeek();
+  }
+
   function showView() {
     for (const tab of byId('lv-tabs').children) tab.classList.toggle('on', tab.dataset.view === state.view);
     root.querySelectorAll('[data-pane]').forEach((pane) => { pane.hidden = pane.dataset.pane !== state.view; });
@@ -809,6 +859,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!tab) return;
       state.view = tab.dataset.view;
       showView();
+      if (state.view === 'lastweek') ensureLastWeek();
       root.querySelector('.tool-scroll').scrollTop = 0;
       saveSettings();
     });
