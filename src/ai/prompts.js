@@ -57,18 +57,42 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const nameOf = new Map([view.me].concat(view.partners).flatMap((team) => team.players.map((player) => [player.id, player.name])));
     lines.push('CANDIDATE DEALS (from a rules-based finder; points are the finder projections for the rest of the season):');
     for (const candidate of view.candidates) {
-      const give = candidate.give.map((id) => nameOf.get(id) || id).join(' + ');
-      const get = candidate.get.map((id) => nameOf.get(id) || id).join(' + ');
+      const give = candidate.giveText || candidate.give.map((id) => nameOf.get(id) || id).join(' + ');
+      const get = candidate.getText || candidate.get.map((id) => nameOf.get(id) || id).join(' + ');
       lines.push(`${candidate.key} | partnerId ${candidate.partnerId} | I give ${give} (${candidate.give.join(',')}) | I get ${get} (${candidate.get.join(',')}) | my points ${candidate.static.myPoints} | their points ${candidate.static.theirPoints} | likelihood ${candidate.static.likelihood}`);
     }
     return lines.join('\n');
+  }
+
+  const ANALYST_NOTE = [
+    'You also have a sandboxed shell with python3 (numpy, scipy, pandas, statsmodels, scikit-learn) and no network.',
+    'The working directory has players.csv (every player on my roster and the partner rosters: team, id, name, pos, age, nflTeam, market, projected, lineupValue) and candidates.csv (the listed deals, with give and get ids).',
+    'Before you answer, run short scripts to check the numbers that matter: for example how much each deal changes my starting lineup, how thin each position is, how large the market gap is against the typical gap, or how a deal compares with the other candidates.',
+    'Keep it to a handful of short commands, then reply with the JSON only. Every id in your reply must come from the data.'
+  ].join('\n');
+
+  function analystSystem(view) {
+    return `${system(view)}\n\n${ANALYST_NOTE}`;
+  }
+
+  function chatSystem(view) {
+    const guide = view.league.kind === 'redraft' ? REDRAFT_GUIDE : DYNASTY_GUIDE;
+    return [
+      'You are chatting with one fantasy football manager about their trades. Answer in plain, short sentences, using only the facts in the data and what they tell you. Never invent players, stats or values; say so when the data does not cover a question.',
+      guide,
+      'When you suggest a trade, name the players on both sides and say why it helps both teams.'
+    ].join('\n\n');
+  }
+
+  function transcript(messages) {
+    return messages.map((message) => `${message.role === 'assistant' ? 'ADVISOR' : 'MANAGER'}: ${message.content}`).join('\n\n');
   }
 
   function build(view) {
     return { version: VERSION, system: system(view), user: `${facts(view)}\n\nPick the best trades for my team.` };
   }
 
-  NightOwl.aiPrompts = { VERSION, build, system, facts };
+  NightOwl.aiPrompts = { VERSION, build, system, analystSystem, analystNote: ANALYST_NOTE, chatSystem, transcript, facts };
 })(globalThis.NightOwl);
 
 if (typeof module !== 'undefined') module.exports = globalThis.NightOwl.aiPrompts;

@@ -337,6 +337,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       else if (state.mode === 'history') history().click(event);
       else if (state.mode === 'drafts') drafts().click(event);
     });
+    body.addEventListener('keydown', (event) => {
+      if (state.mode === 'finder') finder().key(event);
+    });
     body.addEventListener('change', (event) => {
       if (state.mode === 'finder') { finder().change(event); return; }
       if (state.mode === 'history') { history().change(event); return; }

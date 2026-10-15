@@ -4,7 +4,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   'use strict';
 
   const DEFAULTS = {
-    settings: { username: '', userId: null, format: 'half-ppr', alerts: true },
+    settings: { username: '', userId: null, format: 'half-ppr', alerts: true, agent: { url: 'http://127.0.0.1:8787', token: '' } },
     rankings: [],
     ui: {
       x: null,

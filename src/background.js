@@ -4,6 +4,7 @@ importScripts(
   'shared/leagues.js',
   'shared/ktc.js',
   'shared/espn-plays.js',
+  'shared/agent.js',
   'shared/api.js',
   'shared/account.js',
   'shared/teams.js',
@@ -64,6 +65,18 @@ relay('nightowl-fetch', (message) => {
     read: (response) => response.json(),
     failure: (response) => `${response.status} ${message.url}`
   };
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id || !message || message.type !== 'nightowl-agent') return false;
+  globalThis.NightOwl.storage.getSettings().then((settings) => {
+    const prepared = globalThis.NightOwl.agent.request(settings, message);
+    if (prepared.error) { sendResponse({ ok: false, error: prepared.error }); return; }
+    return fetch(prepared.url, Object.assign({ signal: AbortSignal.timeout(prepared.timeout) }, prepared.init))
+      .then((response) => response.json().then((data) => (response.ok ? sendResponse({ ok: true, data }) : sendResponse({ ok: false, error: data && data.error === 'bad-token' ? 'The token does not match the local agent.' : (data && data.error) || `Local agent ${response.status}` }))))
+      .catch((error) => sendResponse({ ok: false, error: error && error.name === 'TimeoutError' ? 'The local agent took too long.' : 'Cannot reach the local agent. Is it running?' }));
+  });
+  return true;
 });
 
 const ALARM = 'night-owl-lineups';

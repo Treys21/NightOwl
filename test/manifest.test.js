@@ -35,6 +35,7 @@ test('the panel stylesheets are exposed to the content script', () => {
 
 test('only the hosts the extension actually calls', () => {
   assert.deepEqual(manifest.host_permissions.slice().sort(), [
+    'http://127.0.0.1/*',
     'https://api.sleeper.app/*',
     'https://api.sleeper.com/*',
     'https://keeptradecut.com/*',

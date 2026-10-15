@@ -26,6 +26,18 @@
     </section>
 
     <section class="card">
+      <h2>Local AI agent</h2>
+      <div class="row">
+        <input id="agent-url" type="text" placeholder="http://127.0.0.1:8787" spellcheck="false" aria-label="Local agent address" />
+      </div>
+      <div class="row">
+        <input id="agent-token" type="password" placeholder="Agent token" spellcheck="false" aria-label="Local agent token" />
+        <button id="agent-save">Save</button>
+      </div>
+      <p id="agent-status" class="status"></p>
+    </section>
+
+    <section class="card">
       <h2>Draft rankings <span id="synced" class="muted"></span></h2>
       <div class="row">
         <select id="format" aria-label="Scoring"></select>
@@ -49,6 +61,7 @@
     <script src="../shared/storage.js"></script>
     <script src="../shared/format.js"></script>
     <script src="../shared/api.js"></script>
+    <script src="../shared/agent.js"></script>
     <script src="../draft/ringer.js"></script>
     <script src="popup.js"></script>
   </body>

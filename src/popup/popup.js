@@ -46,6 +46,12 @@
     if (settings.userId) status(userStatusEl, `✓ Connected as ${settings.username}`, 'ok');
     else status(userStatusEl, settings.username ? 'Not found yet. Check the spelling, then Save.' : 'Add your username to turn on Live, Lineups, Bets and Season.');
 
+    const agentSettings = settings.agent || {};
+    byId('agent-url').value = agentSettings.url || NightOwl.agent.DEFAULT_URL;
+    byId('agent-token').value = agentSettings.token || '';
+    if (agentSettings.token) checkAgent();
+    else status(byId('agent-status'), 'Run the local agent, then paste its token to turn on AI in the Finder.');
+
     const lastSynced = await NightOwl.storage.getLastSynced();
     syncedEl.textContent = lastSynced ? `synced ${timeAgo(lastSynced)}` : 'not synced yet';
 
@@ -128,6 +134,23 @@
     });
     nameEl.value = positionInput.value = teamEl.value = '';
     await persist();
+  });
+
+  function checkAgent() {
+    const statusEl = byId('agent-status');
+    status(statusEl, 'Checking…');
+    chrome.runtime.sendMessage({ type: 'nightowl-agent', path: '/health' }, (reply) => {
+      if (chrome.runtime.lastError || !reply) status(statusEl, 'Could not reach the extension. Reload it.', 'bad');
+      else if (reply.ok) status(statusEl, `✓ Agent ready (${reply.data.model})`, 'ok');
+      else status(statusEl, reply.error, 'bad');
+    });
+  }
+
+  byId('agent-save').addEventListener('click', async () => {
+    const url = byId('agent-url').value.trim() || NightOwl.agent.DEFAULT_URL;
+    if (!NightOwl.agent.baseUrl(url)) { status(byId('agent-status'), 'The address must be http://127.0.0.1 with a port.', 'bad'); return; }
+    await NightOwl.storage.saveSettings({ agent: { url, token: byId('agent-token').value.trim() } });
+    checkAgent();
   });
 
   byId('save-user').addEventListener('click', async () => {

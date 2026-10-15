@@ -353,6 +353,36 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       ${isDynasty ? `<div class="tabs mv-goals" role="group" aria-label="Goal">${GOALS.map((goal) => `<button type="button" class="tab${finderState.goal === goal.id ? ' on' : ''}" data-goal="${goal.id}" title="${escapeHtml(goal.title)}">${goal.label}</button>`).join('')}</div>` : ''}`;
     }
 
+    function aiView(league) {
+      const results = finderState.results;
+      const isDynasty = results.mode === 'dynasty';
+      const context = buildContext(league);
+      const teamWindows = results.windows;
+      const rosterView = (roster, label) => {
+        const team = teamOf(league, roster, teamWindows.get(roster.roster_id), isDynasty);
+        const losses = finder.dropLosses(team, context).out;
+        const listed = (roster.players || []).filter((playerId) => !isPick(playerId) && players.info(playerId).pos).map((playerId) => {
+          const info = players.info(playerId);
+          return { id: playerId, name: info.name, pos: info.pos, age: ageOf(playerId) ? Math.round(ageOf(playerId)) : null, team: info.team || null, market: Math.round(context.rawOf(playerId)), projected: Math.round(leagueValues.restOfSeasonPoints(league, playerId) * 10) / 10, lineupValue: Math.round((losses.get(playerId) || 0) * 10) / 10 };
+        }).sort((a, b) => b.projected - a.projected);
+        const settings = roster.settings || {};
+        return { rosterId: label || roster.roster_id, record: `${settings.wins || 0}-${settings.losses || 0}`, rank: league.ranks.get(roster.roster_id) || 1, pointsFor: Math.round((settings.fpts || 0) + (settings.fpts_decimal || 0) / 100), window: Math.round(teamWindows.get(roster.roster_id).contention * 100) / 100, players: listed };
+      };
+      const partnerIds = [...new Set(results.items.map((item) => item.partnerId))];
+      return {
+        league: { kind: isDynasty ? 'dynasty' : 'redraft', teams: league.raw.rosters.length, week: state.nfl ? state.nfl.week : 0, weeksLeft: league.weeks.length, playoffStart: league.raw.playoffStart || null, playoffTeams: league.playoffTeams || null, slots: league.raw.slots, superflex: Boolean(league.superflex), tightEndPremium: Boolean(league.tep), scoring: { reception: (league.raw.scoring && league.raw.scoring.rec) || 0, passTouchdown: (league.raw.scoring && league.raw.scoring.pass_td) || 4 } },
+        me: rosterView(league.mine, 'me'),
+        partners: partnerIds.map((partnerId) => rosterView(league.raw.rosters.find((roster) => roster.roster_id === partnerId))),
+        candidates: results.items.map((item, index) => ({ key: `c${index + 1}`, partnerId: item.partnerId, give: item.give, get: item.get, giveText: list(league, item.give), getText: list(league, item.get), static: { myPoints: Math.round(item.me.dPts * 10) / 10, theirPoints: Math.round(item.them.dPts * 10) / 10, fairnessToThem: Math.round(item.rawNetThem * 100) / 100, likelihood: Math.round(item.likelihood * 100) / 100 } }))
+      };
+    }
+
+    const aiPane = NightOwl.movesAi.create({
+      finderState, nameOf, currentLeague, render, openTrade,
+      buildView: aiView,
+      listAssets: (league, assetIds) => list(league, assetIds)
+    });
+
     function pane() {
       const league = currentLeague();
       if (!league) return '<p class="empty muted">No league with a regular season left to play.</p>';
@@ -371,7 +401,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       } else {
         body = finderState.results.items.map((item, i) => card(league, item, i, finderState.results.windows)).join('');
       }
-      return `<div class="mv-finder" title="${escapeHtml(kind)}">${controls(league)}${noValues}${deadline}${body}</div>`;
+      return `<div class="mv-finder" title="${escapeHtml(kind)}">${controls(league)}${noValues}${deadline}${aiPane.block(league)}${body}</div>`;
     }
 
     function change(event) {
@@ -385,6 +415,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
 
     function click(event) {
+      if (aiPane.click(event)) return true;
       const goal = event.target.closest('[data-goal]');
       if (goal) { finderState.goal = goal.dataset.goal; run(); return true; }
       const button = event.target.closest('[data-finder]');
@@ -406,7 +437,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       });
     }
 
-    return { pane, change, click, run };
+    return { pane, change, click, run, key: aiPane.key };
   }
 
   NightOwl.movesFinder = { create };

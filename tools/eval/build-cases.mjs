@@ -51,6 +51,8 @@ for (const leagueId of leagueIds) {
     return zeroWeeks >= 3;
   };
 
+  if (active.length < season.rosters.length - 1 || season.rosters.filter((roster) => unplayed(roster.roster_id)).length > 1) { dropped['league-has-abandoned-teams'] = (dropped['league-has-abandoned-teams'] || 0) + 1; continue; }
+
   for (const week of WEEKS) {
     if (kept.length >= LIMIT) break;
     if (week > playoffStart - 1) continue;
