@@ -26,7 +26,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const out = [];
     const seen = new Set();
 
-    for (const entry of parsed.suggestions.slice(0, MAX_SUGGESTIONS)) {
+    for (const entry of parsed.suggestions.slice(0, MAX_SUGGESTIONS * 3)) {
+      if (out.length >= MAX_SUGGESTIONS) break;
       let deal = null;
       const pitch = String((entry && entry.pitch) || '').slice(0, 280);
       if (entry && entry.candidate) {
