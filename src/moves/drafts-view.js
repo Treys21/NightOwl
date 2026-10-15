@@ -39,11 +39,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (!boardCell) return '<div class="dv-cell empty"></div>';
       const player = players.info(boardCell.pid);
       const last = (player.name || boardCell.pid).split(' ').slice(-1)[0];
-      const tip = `${player.name} (${player.pos || '?'}${player.team ? `, ${player.team}` : ''}) · pick ${boardCell.no} (${boardCell.label}), made by ${teamName(league, boardCell.by)}${boardCell.traded ? `, traded from ${teamName(league, boardCell.from)}` : ''}\nWorth ${leagueValues.worth(boardCell.value)} now; the picks around it returned ${leagueValues.worth(boardCell.expected)} (${percentChangeText(boardCell.score)})`;
+      const swapNote = boardCell.rookiePickLabel ? `\nTaken as a kicker placeholder at ${boardCell.label}; it stands for rookie pick ${boardCell.rookiePickLabel}` : '';
+      const tip = `${player.name} (${player.pos || '?'}${player.team ? `, ${player.team}` : ''}) · pick ${boardCell.no} (${boardCell.label}), made by ${teamName(league, boardCell.by)}${boardCell.traded ? `, traded from ${teamName(league, boardCell.from)}` : ''}${swapNote}\nWorth ${leagueValues.worth(boardCell.value)} now; the picks around it returned ${leagueValues.worth(boardCell.expected)} (${percentChangeText(boardCell.score)})`;
+      if (boardCell.placeholder) {
+        return `<div class="dv-cell placeholder" title="${escapeHtml(`${player.name}, a kicker taken as a placeholder pick (pick ${boardCell.no}, made by ${teamName(league, boardCell.by)}). Not graded.`)}">
+          <span class="dv-no">${boardCell.label}${boardCell.traded ? ' <b title="Traded pick">↔</b>' : ''}</span>
+          <span class="dv-name">${escapeHtml(last)}</span>
+          <span class="dv-pos">K</span>
+        </div>`;
+      }
       const shown = scoreOf(boardCell);
       const kind = Math.abs(shown) < NEAR ? ' near' : '';
       return `<div class="dv-cell${kind}" style="background:${colour(shown)}" title="${escapeHtml(tip)}">
-        <span class="dv-no">${boardCell.label}${boardCell.traded ? ' <b title="Traded pick">↔</b>' : ''}</span>
+        <span class="dv-no">${boardCell.rookiePickLabel ? `R${boardCell.rookiePickLabel}` : boardCell.label}${boardCell.traded ? ' <b title="Traded pick">↔</b>' : ''}</span>
         <span class="dv-name">${escapeHtml(last)}</span>
         <span class="dv-pos">${escapeHtml(player.pos || '')}</span>
         <span class="dv-val">${boardCell.value ? leagueValues.worth(boardCell.value) : '–'}</span>
@@ -54,9 +62,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const value = valueFn(league);
       if (!value) return '<p class="empty muted">Draft grades need KeepTradeCut values, which are not loaded.</p>';
       const chart = leagueValues.usesKtc(league) && state.ktc && state.ktc.picks;
-      const b = tradeDrafts.board(draft, value, chart ? ({ round, slot, teams }) => ktc.pickBaseline(chart, { round, slot, teams, superflex: league.superflex }) : null);
+      const isKickerPlaceholder = (playerId) => leagueValues.usesKtc(league) && players.info(playerId).pos === 'K';
+      const rookieDraft = tradeDrafts.rookieDraft(league.history.drafts, draft.season);
+      const swapped = leagueValues.usesKtc(league) && rookieDraft && rookieDraft.rounds < draft.rounds
+        ? tradeDrafts.swapPlaceholdersForRookiePicks(draft, rookieDraft, isKickerPlaceholder).draft
+        : draft;
+      const b = tradeDrafts.board(swapped, value, chart ? ({ round, slot, teams }) => ktc.pickBaseline(chart, { round, slot, teams, superflex: league.superflex }) : null, isKickerPlaceholder);
       const slots = Array.from({ length: b.teams }, (_, i) => i + 1);
-      const sorted = b.picks.map((pick) => pick.value).sort((left, right) => left - right);
+      const sorted = b.picks.filter((pick) => !pick.placeholder).map((pick) => pick.value).sort((left, right) => left - right);
       const medianValue = sorted[Math.floor(sorted.length / 2)] || 0;
       const bestValue = sorted[sorted.length - 1] || 0;
       const scoreOf = draftsState.color === 'value' ? (boardCell) => absoluteScore(boardCell.value, medianValue, bestValue) : (boardCell) => (boardCell.score < 0 ? boardCell.score * boardCell.weight : boardCell.score);
@@ -69,7 +82,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         .sort((left, right) => right.result.score - left.result.score);
       const signed = (amount) => `${amount > 0 ? '+' : amount < 0 ? '−' : ''}${leagueValues.worth(Math.abs(amount))}`;
       const table = `<table class="mv-table mv-managers"><thead><tr><th>Team</th><th>Grade</th><th title="Value now of the players taken with the picks the team used">Picks</th><th title="Value now of what the team got in trades that moved this draft's picks, less what it gave">Trades</th><th title="Total value gained over what the pick chart said the team's own slots were worth, picks and trades together">Gain</th></tr></thead><tbody>
-        ${grades.map((grade) => `<tr class="${grade.rosterId === league.mine.roster_id ? 'me' : ''}"><td>${escapeHtml(teamName(league, grade.rosterId))}</td><td class="num"><span class="mv-grade g-${tradeHistory.toneOf(grade.letter)}">${grade.letter}</span></td><td class="num">${leagueValues.worth(grade.result.value)}</td><td class="num ${grade.result.trades > 0 ? 'up' : grade.result.trades < 0 ? 'down' : ''}">${grade.result.trades ? signed(grade.result.trades) : '–'}</td><td class="num ${grade.result.gain > 0 ? 'up' : grade.result.gain < 0 ? 'down' : ''}">${grade.result.gain ? signed(grade.result.gain) : '–'}</td></tr>`).join('')}
+        ${grades.map((grade) => `<tr class="${grade.rosterId === league.mine.roster_id ? 'me' : ''}"><td>${escapeHtml(teamName(league, grade.rosterId))}</td><td class="num"><span class="mv-grade g-${tradeHistory.toneOf(grade.letter)}"${grade.result.tradesUnknown ? ' title="Some of this team\'s picks came from trades with no record, so it is graded on the players it took with the picks it used"' : ''}>${grade.letter}${grade.result.tradesUnknown ? '*' : ''}</span></td><td class="num">${leagueValues.worth(grade.result.value)}</td><td class="num ${grade.result.trades > 0 ? 'up' : grade.result.trades < 0 ? 'down' : ''}">${grade.result.trades ? signed(grade.result.trades) : '–'}</td><td class="num ${grade.result.gain > 0 ? 'up' : grade.result.gain < 0 ? 'down' : ''}">${grade.result.gain ? signed(grade.result.gain) : '–'}</td></tr>`).join('')}
       </tbody></table>`;
       return `<div class="dv-wrap"><div class="dv-grid" style="--teams:${b.teams}"><div class="dv-corner"></div>${head}${rows}</div></div>
         <p class="muted small mv-note dv-legend" title="Values are today's, so older drafts carry hindsight. Team grades include what was paid or received in pick trades."><i class="dv-key up"></i> ${draftsState.color === 'value' ? 'worth the most' : 'beat its slot'} <i class="dv-key down"></i> ${draftsState.color === 'value' ? 'worth little' : 'fell short'} · ↔ traded pick</p>

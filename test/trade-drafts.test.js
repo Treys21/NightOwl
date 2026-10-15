@@ -69,7 +69,7 @@ test('the pick chart sets each slot\'s baseline, and a late-round hit is graded 
   const net = tradeDrafts.afterTrades(board, rookie, [], () => 0);
   const best = Object.entries(net).sort((first, second) => second[1].gain - first[1].gain)[0];
   assert.strictEqual(best[0], '10', 'the team with the 9,000 second-rounder gained the most');
-  assert.strictEqual(best[1].gain, 11000);
+  assert.strictEqual(best[1].gain, 5000);
 });
 
 test('settle: a pick passed on before its draft is worth its slot; the player counts for the one who used it', () => {
@@ -105,4 +105,75 @@ test('a late pick that loses all its value costs little; an early one costs its 
   assert.strictEqual(early.excess, -6000, 'an early bust counts in full');
   assert.ok(late.excess > -1500 * 0.5 && late.excess < 0, `a late bust counts for a fraction: ${late.excess}`);
   assert.ok(late.weight < early.weight);
+});
+
+test('a team whose picks changed hands with no trade on record is graded on the picks it used, and flagged', () => {
+  const values = { A: 5000, B: 4800, C: 9000, D: 4500, E: 3000, F: 0, G: 2800, H: 2500 };
+  const board = tradeDrafts.board(rookie, (playerId) => values[playerId]);
+  const unrecorded = tradeDrafts.afterTrades(board, rookie, [], () => 0);
+  assert.strictEqual(unrecorded[30].tradesUnknown, true, 'roster 30 lost its round-one slot to roster 10 with no trade on record');
+  assert.strictEqual(unrecorded[10].tradesUnknown, true);
+  assert.strictEqual(unrecorded[20].tradesUnknown, false, 'roster 20 kept every pick');
+  assert.strictEqual(unrecorded[30].gain, Math.round(board.byRoster[30].excess), 'no phantom loss for slots it no longer held');
+  const trade = { sides: { 10: { got: [], gave: ['P'], gotPicks: [{ season: '2025', round: 1, from: 30 }], gavePicks: [] }, 30: { got: ['P'], gave: [], gotPicks: [], gavePicks: [{ season: '2025', round: 1, from: 30 }] } } };
+  const recorded = tradeDrafts.afterTrades(board, rookie, [trade], () => 100);
+  assert.strictEqual(recorded[30].tradesUnknown, false);
+  assert.strictEqual(recorded[10].tradesUnknown, false);
+});
+
+test('a kicker taken as a placeholder is left out of the grades and of its neighbours\' expectations', () => {
+  const values = { A: 6000, B: 6000, C: 6000, D: 6000, E: 4000, F: 4000, G: 4000, H: 4000 };
+  const chart = ({ round }) => ({ 1: 6000, 2: 4000 }[round]);
+  const kickerAtSlotThree = (playerId) => playerId === 'C';
+  const board = tradeDrafts.board(rookie, (playerId) => values[playerId], chart, kickerAtSlotThree);
+  const placeholder = board.picks.find((pick) => pick.pid === 'C');
+  assert.deepStrictEqual([placeholder.placeholder, placeholder.value, placeholder.expected, placeholder.score, placeholder.excess], [true, 0, 0, 0, 0]);
+  assert.strictEqual(board.byRoster[10].picks, 2, 'roster 10 made three picks, one of them a placeholder');
+  const around = tradeDrafts.expected([5000, null, 7000, 9000]);
+  assert.deepStrictEqual(around, [7000, 0, 7000, 7000], 'a placeholder is not a neighbour and has no expectation of its own');
+  const unrelated = tradeDrafts.board(rookie, (playerId) => values[playerId], chart);
+  assert.strictEqual(unrelated.picks.every((pick) => !pick.placeholder), true);
+});
+
+test('kicker placeholders in a startup draft are replaced by the rookie-draft picks they stand for, in order', () => {
+  const startup = { season: '2026', rounds: 5, teams: 2, slotToRoster: { 1: 1, 2: 2 }, picks: [
+    { no: 1, round: 1, slot: 1, by: 1, pid: 'star' }, { no: 2, round: 1, slot: 2, by: 2, pid: 'kickerA' },
+    { no: 3, round: 2, slot: 2, by: 2, pid: 'other' }, { no: 4, round: 2, slot: 1, by: 1, pid: 'kickerB' } ] };
+  const rookie = { season: '2026', rounds: 2, teams: 2, slotToRoster: { 1: 1, 2: 2 }, picks: [
+    { no: 1, round: 1, slot: 1, by: 1, pid: 'rookie1' }, { no: 2, round: 1, slot: 2, by: 2, pid: 'rookie2' }, { no: 3, round: 2, slot: 1, by: 1, pid: 'rookie3' } ] };
+  const isKicker = (playerId) => playerId.startsWith('kicker');
+  const { draft, swapped } = tradeDrafts.swapPlaceholdersForRookiePicks(startup, rookie, isKicker);
+  assert.strictEqual(swapped, 0, 'owners do not line up (team 2 took the first kicker, team 1 made the first rookie pick), so it is left as placeholders');
+  assert.strictEqual(draft.picks[1].pid, 'kickerA');
+
+  const matching = { season: '2026', rounds: 2, teams: 2, slotToRoster: { 1: 1, 2: 2 }, picks: [
+    { no: 1, round: 1, slot: 1, by: 2, pid: 'rookie1' }, { no: 2, round: 1, slot: 2, by: 1, pid: 'rookie2' }, { no: 3, round: 2, slot: 1, by: 1, pid: 'rookie3' } ] };
+  const kickersInRookieOrder = { season: '2026', rounds: 5, teams: 2, slotToRoster: { 1: 1, 2: 2 }, picks: [
+    { no: 1, round: 1, slot: 1, by: 1, pid: 'star' }, { no: 2, round: 1, slot: 2, by: 2, pid: 'kickerA' },
+    { no: 3, round: 2, slot: 2, by: 2, pid: 'other' }, { no: 4, round: 2, slot: 1, by: 1, pid: 'kickerB' } ] };
+  const aligned = Object.assign({}, matching, { picks: [{ no: 1, round: 1, slot: 1, by: 2, pid: 'rookie1' }, { no: 2, round: 1, slot: 2, by: 1, pid: 'rookie2' }] });
+  const swappedBoard = tradeDrafts.swapPlaceholdersForRookiePicks(kickersInRookieOrder, aligned, isKicker);
+  assert.strictEqual(swappedBoard.swapped, 2);
+  const [first, second] = [swappedBoard.draft.picks[1], swappedBoard.draft.picks[3]];
+  assert.deepStrictEqual([first.pid, first.by, first.originalOwner, first.rookiePickLabel], ['rookie1', 2, 2, '1.01']);
+  assert.deepStrictEqual([second.pid, second.by, second.originalOwner, second.rookiePickLabel], ['rookie2', 1, 1, '1.02']);
+  const board = tradeDrafts.board(swappedBoard.draft, () => 5000, () => 5000, isKicker);
+  assert.strictEqual(board.picks.every((pick) => !pick.placeholder), true, 'nothing is left as a placeholder');
+  assert.strictEqual(board.picks.find((pick) => pick.no === 2).rookiePickLabel, '1.01');
+});
+
+test('a rookie pick traded after the kicker was taken shows as traded, with its first holder as the original owner', () => {
+  const startup = { season: '2026', rounds: 5, teams: 2, slotToRoster: { 1: 1, 2: 2 }, picks: [
+    { no: 1, round: 1, slot: 1, by: 1, pid: 'kickerA' }, { no: 2, round: 1, slot: 2, by: 2, pid: 'kickerB' },
+    { no: 3, round: 2, slot: 2, by: 1, pid: 'kickerC' }, { no: 4, round: 2, slot: 1, by: 2, pid: 'kickerD' }, { no: 5, round: 3, slot: 1, by: 1, pid: 'star' } ] };
+  const rookie = { season: '2026', rounds: 2, teams: 2, slotToRoster: { 1: 1, 2: 2 }, picks: [
+    { no: 1, round: 1, slot: 1, by: 1, pid: 'rookie1' }, { no: 2, round: 1, slot: 2, by: 2, pid: 'rookie2' },
+    { no: 3, round: 2, slot: 1, by: 1, pid: 'rookie3' }, { no: 4, round: 2, slot: 2, by: 1, pid: 'rookie4' } ] };
+  const { draft, swapped } = tradeDrafts.swapPlaceholdersForRookiePicks(startup, rookie, (playerId) => playerId.startsWith('kicker'));
+  assert.strictEqual(swapped, 4, 'three of four owners line up, which is enough');
+  const board = tradeDrafts.board(draft, () => 4000, null, null);
+  const moved = board.picks.find((pick) => pick.no === 4);
+  assert.deepStrictEqual([moved.by, moved.from, moved.traded, moved.rookiePickLabel], [1, 2, true, '2.02']);
+  const kept = board.picks.find((pick) => pick.no === 1);
+  assert.deepStrictEqual([kept.by, kept.traded], [1, false]);
 });

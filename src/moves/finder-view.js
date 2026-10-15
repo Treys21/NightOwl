@@ -5,7 +5,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const { players, model, finder, ktc, value } = NightOwl;
   const { escape: escapeHtml, percent } = NightOwl.format;
-  const { isPick, pickOf } = NightOwl.moveValues;
+  const { isPick, pickOf, nearestPickPerRound } = NightOwl.moveValues;
 
   const SHOWN = 8;
   const CANDIDATES = 12;
@@ -52,10 +52,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const chosen = new Set();
       const perPartner = new Map();
       const used = new Map();
+      const incomingPlayers = new Set();
       const admit = (deal) => {
         if (chosen.has(deal)) return;
         const assetIds = deal.give.concat(deal.get);
-        if (limits && ((perPartner.get(deal.partnerId) || 0) >= PER_PARTNER || assetIds.some((assetId) => (used.get(assetId) || 0) >= PER_ASSET))) return;
+        const incomingPlayerIds = deal.get.filter((assetId) => !isPick(assetId));
+        if (limits && (incomingPlayerIds.some((playerId) => incomingPlayers.has(playerId)) || (perPartner.get(deal.partnerId) || 0) >= PER_PARTNER || assetIds.some((assetId) => (used.get(assetId) || 0) >= PER_ASSET))) return;
+        for (const playerId of incomingPlayerIds) incomingPlayers.add(playerId);
         chosen.add(deal);
         perPartner.set(deal.partnerId, (perPartner.get(deal.partnerId) || 0) + 1);
         for (const assetId of assetIds) used.set(assetId, (used.get(assetId) || 0) + 1);
@@ -97,7 +100,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     function teamOf(league, roster, contentionLevel, isDynasty) {
       const pool = model.activePool(roster);
       const priced = (assetId) => (isDynasty ? leagueValues.blendedValue(league, assetId) > 0 : leagueValues.restOfSeasonPoints(league, assetId) > 0);
-      const assets = (isDynasty ? (roster.players || []) : pool).filter(priced).concat(isDynasty ? (league.picks.get(roster.roster_id) || []).filter(priced) : []);
+      const assets = (isDynasty ? (roster.players || []) : pool).filter(priced).concat(isDynasty ? nearestPickPerRound((league.picks.get(roster.roster_id) || []).filter(priced)) : []);
       const appetite = league.trade ? league.trade.appetite.get(roster.roster_id) : null;
       return { id: roster.roster_id, pool: league.rep.pool(pool), assets, players: roster.players || [], count: (roster.players || []).length, capacity: league.capacity, w: contentionLevel, appetite };
     }

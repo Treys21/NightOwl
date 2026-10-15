@@ -172,5 +172,17 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     };
   }
 
-  NightOwl.moveValues = { create, isPick, pickOf, standingsRanks, PICK_ROUNDS, PICK_YEARS };
+  function nearestPickPerRound(pickIds) {
+    const earliestYearByRound = new Map();
+    for (const pickId of pickIds) {
+      const { year, round } = pickOf(pickId);
+      if (!earliestYearByRound.has(round) || year < earliestYearByRound.get(round)) earliestYearByRound.set(round, year);
+    }
+    return pickIds.filter((pickId) => {
+      const { year, round } = pickOf(pickId);
+      return year === earliestYearByRound.get(round);
+    });
+  }
+
+  NightOwl.moveValues = { create, isPick, pickOf, standingsRanks, nearestPickPerRound, PICK_ROUNDS, PICK_YEARS };
 })(globalThis.NightOwl);
