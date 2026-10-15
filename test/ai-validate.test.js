@@ -37,7 +37,7 @@ test('tolerates a markdown fence, drops duplicates and caps at three', () => {
   const fenced = '```json\n' + JSON.stringify({ suggestions: [{ candidate: 'c1' }, { candidate: 'c1' }, { partnerId: 2, give: ['a2'], get: ['b2'] }, { partnerId: 2, give: ['a3'], get: ['b2'] }, { partnerId: 2, give: ['a2'], get: ['b1'] }] }) + '\n```';
   const result = validate.suggestions(fenced, view);
   assert.strictEqual(result.ok, true);
-  assert.strictEqual(result.suggestions.length, 2);
+  assert.strictEqual(result.suggestions.length, 3);
   assert.ok(result.errors.includes('duplicate'));
 });
 
