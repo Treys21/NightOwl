@@ -14,8 +14,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const NOT_TRADE_CHIPS = new Set(['K', 'DEF']);
   const DEAD_WEIGHT = 0.12;
   const REBUILDING_BELOW = 0.3;
-  const DEFAULT_AGE_LIMIT = 28;
-  const AGE_LIMIT_BY_POSITION = { QB: 33, RB: 26, WR: 28, TE: 29 };
 
   const DEFAULTS = {
     fairTolerance: 0.12,
@@ -165,8 +163,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (context.isPick(assetId)) return false;
       const age = context.ageOf(assetId);
       if (!age) return false;
-      const position = (context.positionsOf(assetId) || [])[0];
-      return age > (AGE_LIMIT_BY_POSITION[position] || DEFAULT_AGE_LIMIT);
+      return NightOwl.ageCurves.losesTooMuchForRebuild((context.positionsOf(assetId) || [])[0], age);
     });
   }
 

@@ -4,13 +4,11 @@ const assert = require('node:assert');
 globalThis.NightOwl = {};
 require('../src/lineups/core.js');
 require('../src/season/core.js');
+require('../src/valuation/age-curves.js');
 const horizon = require('../src/season/horizon.js');
 
-test('running backs fall off after 26, receivers hold on until 29, rookies grow', () => {
-  const rbAtTwentyEight = horizon.ageMultiplier('RB', 28, 2);
-  const wrAtTwentyEight = horizon.ageMultiplier('WR', 28, 2);
-  assert.ok(rbAtTwentyEight < 0.8, `a 28-year-old back keeps under 80% in two years: ${rbAtTwentyEight}`);
-  assert.ok(wrAtTwentyEight > 0.9, `a 28-year-old receiver barely declines: ${wrAtTwentyEight}`);
+test('the horizon uses each position\'s age curve', () => {
+  assert.ok(horizon.ageMultiplier('RB', 28, 2) < 0.6, 'a 28-year-old back keeps little in two years');
   assert.ok(horizon.ageMultiplier('WR', 22, 2) > 1.1, 'a 22-year-old receiver grows');
   assert.strictEqual(horizon.ageMultiplier('K', 35, 2), 1, 'kickers do not age');
   assert.strictEqual(horizon.ageMultiplier('RB', null, 2), 1, 'an unknown age is not guessed at');

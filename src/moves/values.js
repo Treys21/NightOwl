@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { season, value, ktc } = NightOwl;
+  const { season, value, ktc, dynastyValues } = NightOwl;
 
   const PICK_ROUNDS = 4;
   const PICK_YEARS = 3;
@@ -98,40 +98,61 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }
     const worth = (amount) => Math.round(amount).toLocaleString();
 
-    const AGE_PRIME = 27;
     function windowFactor(league, assetId, contentionLevel) {
-      if (isPick(assetId)) return contentionLevel > 0.6 ? 0.97 : contentionLevel < 0.3 ? 1.06 : 1;
-      const entry = state.ktc && state.ktc.players[assetId];
-      const age = entry && entry.a;
-      if (!age) return 1;
-      if (contentionLevel < 0.3) return age > AGE_PRIME ? Math.max(0.7, 1 - 0.05 * (age - AGE_PRIME)) : age <= 23 ? 1.05 : 1;
-      if (contentionLevel > 0.6) return age > AGE_PRIME ? 1.03 : age <= 22 ? 0.97 : 1;
-      return 1;
+      if (!isPick(assetId)) return 1;
+      return contentionLevel > 0.6 ? 0.97 : contentionLevel < 0.3 ? 1.06 : 1;
     }
 
-    const MIX = { now: 0.45, mixed: 0.3, rebuild: 0.15 };
-    const productionMixFor = (contentionLevel) => (contentionLevel > 0.6 ? MIX.now : contentionLevel < 0.3 ? MIX.rebuild : MIX.mixed);
     const YOUTH_AGE = 23;
     const YOUTH_CAP = 4500;
     const YOUTH_HAIRCUT = 0.92;
-    const PRODUCTION_CAP = 1.5;
+    const CONTENTION_STEP = 0.1;
 
-    function blendedValue(league, playerId, mix = MIX.mixed) {
+    const ageOf = (playerId) => { const entry = state.ktc && state.ktc.players[playerId]; return entry ? entry.a : null; };
+    const positionOf = (league, playerId) => ((league.rep ? league.rep.positionsOf(playerId) : []) || [])[0];
+
+    function productionStreamOf(league, playerId) {
+      return dynastyValues.productionStream({
+        restOfSeasonPoints: restOfSeasonPoints(league, playerId),
+        gamesLeft: league.weeks.length,
+        perGameRate: NightOwl.horizon.perGameRate(playerId, league.weeks),
+        replacementRate: league.rep.rate(playerId),
+        position: positionOf(league, playerId),
+        age: ageOf(playerId),
+        thisSeasonOverReplacement: overReplacement(league, playerId)
+      });
+    }
+
+    function priceOfProduction(league) {
+      if (league.productionPrice !== undefined) return league.productionPrice;
+      const samples = [];
+      for (const roster of league.raw.rosters) {
+        for (const playerId of roster.players || []) {
+          if (!state.ktc || !state.ktc.players[playerId]) continue;
+          samples.push({ marketValue: dynastyValue(league, playerId), neutralProduction: dynastyValues.weightedProduction(productionStreamOf(league, playerId), dynastyValues.NEUTRAL_CONTENTION) });
+        }
+      }
+      league.productionPrice = dynastyValues.priceOfProduction(samples) || pointValue(league);
+      return league.productionPrice;
+    }
+
+    function blendedValue(league, playerId, contention = dynastyValues.NEUTRAL_CONTENTION) {
       const market = dynastyValue(league, playerId);
       if (!market || isPick(playerId) || !league.rep || !league.rep.weeks.some((week) => !week.isOut(playerId))) return market;
+      const step = Math.round(contention / CONTENTION_STEP) * CONTENTION_STEP;
       league.blend = league.blend || new Map();
-      const key = `${playerId}:${mix}`;
+      const key = `${playerId}:${step.toFixed(1)}`;
       if (league.blend.has(key)) return league.blend.get(key);
-      const production = Math.min(market * PRODUCTION_CAP, overReplacement(league, playerId) * pointValue(league));
-      let blended = (1 - mix) * market + mix * production;
-      const age = state.ktc && state.ktc.players[playerId] && state.ktc.players[playerId].a;
+      const production = priceOfProduction(league) * dynastyValues.weightedProduction(productionStreamOf(league, playerId), step);
+      const age = ageOf(playerId);
+      let blended = dynastyValues.blendedValue({ marketValue: market, productionValue: production, age, hasProjection: NightOwl.horizon.perGameRate(playerId, league.weeks) > 0 });
       if (age && age <= YOUTH_AGE && market < YOUTH_CAP) blended *= YOUTH_HAIRCUT;
       blended = Math.round(blended);
       league.blend.set(key, blended);
       return blended;
     }
 
-    const valueFor = (league, assetId, contentionLevel) => blendedValue(league, assetId, productionMixFor(contentionLevel)) * windowFactor(league, assetId, contentionLevel);
+    const valueFor = (league, assetId, contentionLevel) => (isPick(assetId) ? dynastyValue(league, assetId) * windowFactor(league, assetId, contentionLevel) : blendedValue(league, assetId, contentionLevel));
 
     function pointValue(league) {
       if (league.pointPrice !== undefined) return league.pointPrice;

@@ -7,36 +7,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
   const SEASON_GAMES = 17;
   const YEARS_AHEAD = 2;
-  const UNKNOWN_AGE_MULTIPLIER = 1;
-  const STEEP_DECLINE_YEARS = 3;
-  const STEEP_DECLINE_FACTOR = 1.6;
   const NEGLIGIBLE_POINTS_PER_WEEK = 0.7;
   const MODEST_POINTS_PER_WEEK = 2.3;
 
-  const AGE_CURVES = {
-    QB: { growthUntil: 26, declineFrom: 34, growth: 0.05, decline: 0.08 },
-    RB: { growthUntil: 23, declineFrom: 26, growth: 0.06, decline: 0.12 },
-    WR: { growthUntil: 24, declineFrom: 29, growth: 0.06, decline: 0.08 },
-    TE: { growthUntil: 25, declineFrom: 30, growth: 0.06, decline: 0.08 }
-  };
-
-  function yearlyChange(position, age) {
-    const curve = AGE_CURVES[position];
-    if (!curve) return 1;
-    if (age < curve.growthUntil) return 1 + curve.growth;
-    if (age >= curve.declineFrom) {
-      const steep = age >= curve.declineFrom + STEEP_DECLINE_YEARS ? STEEP_DECLINE_FACTOR : 1;
-      return 1 - curve.decline * steep;
-    }
-    return 1;
-  }
-
-  function ageMultiplier(position, age, yearsAhead) {
-    if (!age) return UNKNOWN_AGE_MULTIPLIER;
-    let multiplier = 1;
-    for (let year = 0; year < yearsAhead; year++) multiplier *= yearlyChange(position, age + year);
-    return multiplier;
-  }
+  const ageMultiplier = (position, age, yearsAhead) => NightOwl.ageCurves.futureMultiplier(position, age, yearsAhead);
 
   function perGameRate(playerId, weeks) {
     let total = 0;
