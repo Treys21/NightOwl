@@ -108,7 +108,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const real = tradeHistory.realized(trade, weekly);
         net += real[myRosterId].started - Object.entries(real).filter(([rosterId]) => Number(rosterId) !== myRosterId).reduce((total, [, entry]) => total + entry.started, 0);
       }
-      return { lineups, wire, trades: mine.length, tradeNet: Math.round(net * 10) / 10, weeks: weekly.length };
+      const startedPoints = (rosterId, playerId, afterWeek) => weekly.reduce((total, weekEntry) => {
+        const entry = weekEntry.rosters[rosterId];
+        return weekEntry.week > afterWeek && entry && (entry.starters || []).includes(playerId) ? total + ((entry.points && entry.points[playerId]) || 0) : total;
+      }, 0);
+      let bestPickup = null;
+      let bestGivenAway = null;
+      for (const trade of mine) {
+        for (const [rosterId, side] of Object.entries(trade.sides)) {
+          const mineSide = Number(rosterId) === myRosterId;
+          for (const playerId of side.got) {
+            const points = Math.round(startedPoints(Number(rosterId), playerId, trade.week) * 10) / 10;
+            if (mineSide && (!bestPickup || points > bestPickup.pts)) bestPickup = { pid: playerId, pts: points };
+            if (!mineSide && (!bestGivenAway || points > bestGivenAway.pts)) bestGivenAway = { pid: playerId, pts: points };
+          }
+        }
+      }
+      return {
+        lineups, wire, trades: mine.length, tradeNet: Math.round(net * 10) / 10, weeks: weekly.length,
+        bestPickup: bestPickup && bestPickup.pts > 0 ? bestPickup : null,
+        bestGivenAway: bestGivenAway && bestGivenAway.pts > 0 ? bestGivenAway : null
+      };
     }
 
     async function runRecaps() {
@@ -140,21 +160,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       else {
         const face = (playerId) => `<img class="sr-face" src="${NightOwl.teams.headshot(playerId)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
         const luckTone = myTeam.luck > 0 ? 'up' : myTeam.luck < 0 ? 'down' : '';
-        const mvp = recapSummary.lineups.mvp;
-        const card = (label, playerId, text, tone) => `<li class="sr-card ${tone || ''}">${playerId ? face(playerId) : ''}<span><em>${label}</em><b>${text}</b></span></li>`;
-        const wireCount = recapSummary.wire.adds ? `${recapSummary.wire.adds} add${recapSummary.wire.adds === 1 ? '' : 's'} · ${recapSummary.wire.drops} drop${recapSummary.wire.drops === 1 ? '' : 's'}` : '';
-        const cards = [
-          mvp ? card('MVP', mvp.pid, `${pname(mvp.pid)} · ${mvp.pts.toFixed(0)} pts`, 'up') : '',
-          recapSummary.wire.bestAdd ? card('Best add', recapSummary.wire.bestAdd.pid, `${pname(recapSummary.wire.bestAdd.pid)} · ${recapSummary.wire.bestAdd.started.toFixed(0)} pts`, 'up') : '',
-          recapSummary.wire.regret ? card('Got away', recapSummary.wire.regret.pid, `${pname(recapSummary.wire.regret.pid)} · ${recapSummary.wire.regret.pts.toFixed(0)} pts`, 'down') : '',
-          recapSummary.trades ? card(`${recapSummary.trades} trade${recapSummary.trades === 1 ? '' : 's'}`, null, `${signed(recapSummary.tradeNet)} pts from trades`, recapSummary.tradeNet >= 0 ? 'up' : 'down') : '',
-          wireCount ? card('Wire', null, wireCount, '') : ''
-        ].join('');
+        const row = (playerId, note, points) => `<li class="sr-row">${face(playerId)}<span class="sr-who"><b>${pname(playerId)}</b><em>${note}</em></span><span class="sr-pts">${points.toFixed(0)}</span></li>`;
+        const weeksText = (count) => `${count} start${count === 1 ? '' : 's'}`;
+        const wire = recapSummary.wire;
+        const good = [
+          ...recapSummary.lineups.scorers.map((scorer, index) => row(scorer.pid, index === 0 ? `MVP, ${weeksText(scorer.weeks)}` : `Carried you, ${weeksText(scorer.weeks)}`, scorer.pts)),
+          wire.bestAdd ? row(wire.bestAdd.pid, `Pickup after week ${wire.bestAdd.week}`, wire.bestAdd.started) : '',
+          recapSummary.bestPickup ? row(recapSummary.bestPickup.pid, 'Trade pickup', recapSummary.bestPickup.pts) : ''
+        ].filter(Boolean).join('');
+        const bad = [
+          wire.regret ? row(wire.regret.pid, 'Dropped, then starred for others', wire.regret.pts) : '',
+          recapSummary.bestGivenAway ? row(recapSummary.bestGivenAway.pid, 'Traded away, started for them', recapSummary.bestGivenAway.pts) : ''
+        ].filter(Boolean).join('');
+        const tradeLine = recapSummary.trades ? `<span>${recapSummary.trades} trade${recapSummary.trades === 1 ? '' : 's'}: ${signed(recapSummary.tradeNet)} pts</span>` : '';
+        const wireLine = wire.adds ? `<span>${wire.adds} adds, ${wire.drops} drops</span>` : '';
         body = `<div class="sr-top">
             <div class="sr-rank"><b>${ordinal(myTeam.rank)}</b><span>${myTeam.wins}–${myTeam.losses}${myTeam.ties ? `–${myTeam.ties}` : ''}</span></div>
             <div class="sr-luck ${luckTone}" title="Wins above what your weekly scores earned"><b>${myTeam.luck == null ? '–' : signed(myTeam.luck)}</b><span>wins of luck</span></div>
+            <div class="sr-meta">${tradeLine}${wireLine}</div>
           </div>
-          <ul class="sr-cards">${cards}</ul>`;
+          ${good ? `<p class="sr-h up">What went right</p><ul class="sr-rows up">${good}</ul>` : ''}
+          ${bad ? `<p class="sr-h down">What went wrong</p><ul class="sr-rows down">${bad}</ul>` : ''}`;
       }
       return `<details class="se-league" data-id="${escapeHtml(league.leagueId)}"${state.open.has(league.leagueId) ? ' open' : ''}>
         <summary><div class="se-head"><span class="se-name">${escapeHtml(league.name)}</span><span class="se-rank${league.playoffTeams && myTeam.rank <= league.playoffTeams ? ' in' : ''}">${ordinal(myTeam.rank)} of ${league.rows.length}</span></div></summary>

@@ -35,7 +35,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return {
       weeks,
       totalLoss: round1(weeks.reduce((sum, week) => sum + week.loss, 0)),
-      mvp: top ? { pid: top[0], pts: round1(top[1].pts), weeks: top[1].weeks } : null
+      mvp: top ? { pid: top[0], pts: round1(top[1].pts), weeks: top[1].weeks } : null,
+      scorers: [...started.entries()].sort((a, b) => b[1].pts - a[1].pts).slice(0, 3).map(([pid, totals]) => ({ pid, pts: round1(totals.pts), weeks: totals.weeks }))
     };
   }
 

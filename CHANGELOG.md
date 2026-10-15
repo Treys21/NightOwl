@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.17.4
+- **Season recap** reads as a report: for each league, "What went right" (your top scorers, best pickup, best trade pickup) and "What went wrong" (the player you dropped or traded away who then produced for someone else), each with the headshot, name and points.
+
 ## 3.17.3
 - **Last week** now leads with the plays themselves (twelve biggest, each with its headshot, size bar and per-league points); the insight cards are gone.
 
