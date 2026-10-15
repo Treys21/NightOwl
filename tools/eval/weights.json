@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "redraft": { "regular": 1, "playoff": 0.5, "market": 0, "gift": 0.3, "rejected": 30 },
+  "dynasty": { "regular": 0.6, "playoff": 0.3, "market": 0.4, "gift": 0.3, "rejected": 30 },
+  "headline": "first suggestion minus the static finder's first candidate, paired per case",
+  "minimumEffect": 3,
+  "outlierMads": 3,
+  "bootstrapIterations": 10000
+}
