@@ -1,0 +1,4202 @@
+[
+ {
+  "id": "1048366950373543936-w4-r2",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1048366950373543936-w7-r2",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1048366950373543936-w10-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1048386748260241408-w7-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1048386748260241408-w7-r10",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1093978338437214208-w4-r9",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1093978338437214208-w7-r1",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1109239653107990528-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1109239653107990528-w4-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1109239653107990528-w7-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1109239653107990528-w10-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1109239653107990528-w10-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1124853382872330240-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1124853382872330240-w4-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1124853382872330240-w7-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1124853382872330240-w7-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1124853382872330240-w10-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1124853382872330240-w10-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1124854410338385920-w4-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1124854410338385920-w4-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1124854410338385920-w7-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1124854410338385920-w10-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1124854410338385920-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1126221449154408448-w4-r3",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1126221449154408448-w7-r1",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1126221449154408448-w10-r11",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1126221449154408448-w10-r2",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1126633564553994240-w4-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1126633564553994240-w4-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1126633564553994240-w7-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1126633564553994240-w10-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1126633564553994240-w10-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1129853036207337472-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1129853036207337472-w4-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1129853036207337472-w7-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1129853036207337472-w7-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1129853036207337472-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1129853036207337472-w10-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1131758096910704640-w4-r12",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1131758096910704640-w4-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1131758096910704640-w7-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1131758096910704640-w7-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1131758096910704640-w10-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1178413481454886912-w4-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1178413481454886912-w7-r9",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1178413481454886912-w7-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1178413481454886912-w10-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180092401648943104-w4-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180092401648943104-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180092401648943104-w7-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180092401648943104-w7-r12",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180092401648943104-w10-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180092401648943104-w10-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180092558252679168-w4-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180092558252679168-w4-r11",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180092558252679168-w7-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180092558252679168-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180092558252679168-w10-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180145866219773952-w4-r12",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180145866219773952-w7-r1",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180157996303147008-w4-r8",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180157996303147008-w7-r8",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180157996303147008-w10-r5",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180157996303147008-w10-r3",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180160590047531008-w4-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180160590047531008-w7-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180160590047531008-w7-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180160590047531008-w10-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180160590047531008-w10-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180172796326912000-w4-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180174492705050624-w4-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180174492705050624-w4-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180174492705050624-w7-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180174492705050624-w7-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180174492705050624-w10-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180174492705050624-w10-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1180184942900514816-w4-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180184942900514816-w4-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180184942900514816-w7-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180184942900514816-w10-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180185965862105088-w7-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180189331122126848-w4-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180189331122126848-w4-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180189331122126848-w7-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180203732667707392-w10-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180209456973922304-w4-r12",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180209456973922304-w7-r8",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180209456973922304-w10-r8",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180209456973922304-w10-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180213817211871232-w7-r9",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180213817211871232-w10-r1",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180217158638854144-w7-r11",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180238487071715328-w10-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180244250175504384-w7-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180244250175504384-w10-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180263272813436928-w4-r3",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180263272813436928-w7-r8",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180263272813436928-w7-r2",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180263272813436928-w10-r6",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180279761375342592-w4-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180279761375342592-w4-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180279761375342592-w7-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180288364594143232-w4-r9",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180288364594143232-w7-r6",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180288364594143232-w10-r1",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180300061589024768-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180300061589024768-w10-r10",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180314694791503872-w7-r7",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180319245030821888-w4-r7",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180319245030821888-w10-r4",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180319979069083648-w4-r12",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180319979069083648-w4-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180319979069083648-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180319979069083648-w10-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180319979069083648-w10-r12",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180333216832114688-w4-r1",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180349643808837632-w7-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180349643808837632-w7-r11",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180352546114359296-w4-r12",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180361412023083008-w4-r4",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180361412023083008-w7-r8",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180361412023083008-w10-r4",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180361412023083008-w10-r14",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180366931205353472-w10-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180366931205353472-w10-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180438228581883904-w4-r3",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180438228581883904-w7-r12",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180648843477925888-w4-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180648843477925888-w4-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180648843477925888-w7-r12",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180648843477925888-w10-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180649094846566400-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180649094846566400-w7-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180649094846566400-w10-r12",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180653166811602944-w4-r10",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180663903803871232-w4-r3",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180663903803871232-w7-r4",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180663903803871232-w10-r1",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180664252283437056-w4-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180664252283437056-w10-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180714370886922240-w10-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180730900115345408-w4-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180730900115345408-w7-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180730900115345408-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180733050925387776-w4-r8",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180741911988346880-w7-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180769388910465024-w4-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180947953223675904-w7-r3",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180947953223675904-w10-r9",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180947953223675904-w10-r2",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180957866633990144-w10-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180988150072041472-w4-r14",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180988150072041472-w7-r14",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180988150072041472-w10-r14",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1180995252055453696-w4-r3",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180995252055453696-w4-r5",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180995252055453696-w7-r1",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180995252055453696-w7-r8",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180995252055453696-w10-r1",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1180995252055453696-w10-r7",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1181045260146241536-w4-r10",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181045260146241536-w7-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181045260146241536-w10-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181049419897057280-w4-r9",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181049419897057280-w4-r3",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181049419897057280-w7-r10",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181049419897057280-w10-r5",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181102068794126336-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181102068794126336-w10-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181106352152109056-w4-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181106352152109056-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181106352152109056-w7-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181106352152109056-w10-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181107619774062592-w4-r6",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181107619774062592-w7-r8",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181107619774062592-w10-r8",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181263700693426176-w4-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181263700693426176-w7-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181263700693426176-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181263700693426176-w10-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181263700693426176-w10-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181300076399972352-w4-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181300076399972352-w7-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181300076399972352-w10-r11",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181342966504431616-w4-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181342966504431616-w7-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181354676431249408-w4-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181354676431249408-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181354676431249408-w10-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181464434824556544-w7-r10",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181535873231638528-w4-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181535873231638528-w4-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181535873231638528-w7-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181642255302938624-w4-r12",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181642255302938624-w7-r2",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181642255302938624-w10-r5",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181720135123001344-w10-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181729280211292160-w10-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181765431266529280-w4-r6",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181765431266529280-w7-r5",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181765431266529280-w10-r1",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181787223523119104-w4-r5",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181787223523119104-w4-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181787223523119104-w7-r12",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1181787223523119104-w7-r7",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1181787223523119104-w10-r6",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181787223523119104-w10-r12",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181803785289326592-w4-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181803785289326592-w4-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181803785289326592-w7-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181803785289326592-w10-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181803785289326592-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181806130934308864-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181806130934308864-w7-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181806130934308864-w7-r12",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181806130934308864-w10-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181806130934308864-w10-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1181889659542228992-w4-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181889659542228992-w7-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181889659542228992-w10-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1181889659542228992-w10-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182057341910409216-w7-r12",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182057341910409216-w10-r2",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182057341910409216-w10-r12",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182058584294989824-w4-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182058584294989824-w7-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182058584294989824-w10-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182076153002016768-w4-r6",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1182076153002016768-w4-r8",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1182076153002016768-w7-r6",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1182137398065451008-w7-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182137398065451008-w7-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182137398065451008-w10-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182476491321004032-w7-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182476491321004032-w10-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182513298323222528-w7-r1",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182558510142545920-w4-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182558510142545920-w4-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182558510142545920-w10-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182655692538929152-w7-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182763103607062528-w7-r10",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182763103607062528-w7-r6",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182763103607062528-w10-r5",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182815946946080768-w10-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182840159598874624-w4-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182840159598874624-w10-r5",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182864782810177536-w4-r10",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182864782810177536-w4-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182864782810177536-w10-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182939385387905024-w4-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182939385387905024-w4-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182939385387905024-w7-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182939385387905024-w10-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1182939385387905024-w10-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183143176591253504-w7-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183160417353355264-w10-r4",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1183259777814183936-w7-r12",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183259777814183936-w10-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183259777814183936-w10-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183286725269577728-w7-r1",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183286725269577728-w7-r2",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183286725269577728-w10-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183314335648108544-w7-r12",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183314335648108544-w7-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183314335648108544-w10-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183314335648108544-w10-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183472590827573248-w4-r1",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1183472590827573248-w7-r10",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1183472590827573248-w10-r6",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1183870280358838272-w4-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183870280358838272-w7-r6",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183870280358838272-w7-r11",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183870280358838272-w10-r6",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1183870280358838272-w10-r7",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1184299455981006848-w4-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1184299455981006848-w10-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1184299455981006848-w10-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1185748183606702080-w4-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1185748183606702080-w4-r11",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1185748183606702080-w7-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1185748183606702080-w7-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1185748183606702080-w10-r10",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1185863584354004992-w7-r12",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1185863584354004992-w10-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1186018374431997952-w4-r1",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1186018374431997952-w4-r9",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1186018374431997952-w7-r1",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1186018374431997952-w7-r2",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1186018374431997952-w10-r4",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1186897777669386240-w10-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1187799629877841920-w4-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1187799629877841920-w7-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1187799629877841920-w7-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1191554400354455552-w7-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1191554400354455552-w7-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1195049860683542528-w4-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1195049860683542528-w7-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1195049860683542528-w10-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1195049860683542528-w10-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1196341357426245632-w4-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1196341357426245632-w7-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1197238641257103360-w4-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1197238641257103360-w4-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1197238641257103360-w7-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1197238641257103360-w7-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1197238641257103360-w10-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1198177508973887488-w4-r6",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1198177508973887488-w4-r7",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1198177508973887488-w7-r5",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1198177508973887488-w10-r11",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1200520182519312384-w4-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1200520182519312384-w10-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201001788266786816-w4-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201001788266786816-w7-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201001788266786816-w10-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201001788266786816-w10-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201046137893556224-w4-r6",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201046137893556224-w10-r5",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201622628620582912-w4-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201632392268230656-w4-r11",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201632392268230656-w4-r10",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201632392268230656-w7-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1201632392268230656-w7-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1202123973614116864-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1202123973614116864-w4-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1202123973614116864-w7-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1202123973614116864-w7-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1202123973614116864-w10-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1202123973614116864-w10-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1202238302845935616-w4-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1202238302845935616-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1202238302845935616-w10-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1203159798174986240-w4-r7",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1203159798174986240-w4-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1203159798174986240-w7-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1203159798174986240-w7-r2",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1203159798174986240-w10-r6",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1203159798174986240-w10-r7",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1204994875594919936-w4-r7",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1204994875594919936-w7-r4",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1204994875594919936-w7-r5",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1204994875594919936-w10-r7",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1204994875594919936-w10-r8",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1205839718047031296-w4-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1205839718047031296-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1205839718047031296-w7-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1205839718047031296-w7-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1205839718047031296-w10-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1205839718047031296-w10-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1206054912861937664-w4-r7",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1206054912861937664-w7-r7",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1206054912861937664-w10-r11",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1206054912861937664-w10-r12",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1207069901278171136-w7-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1207150786115551233-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1207150786115551233-w4-r12",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207150786115551233-w7-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207150786115551233-w7-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207150786115551233-w10-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207150786115551233-w10-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207160522982572032-w4-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207160522982572032-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207160522982572032-w7-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207160522982572032-w7-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207160522982572032-w10-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207160522982572032-w10-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207432516265320448-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207432516265320448-w4-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207432516265320448-w7-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1207432516265320448-w7-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1207432516265320448-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1207432516265320448-w10-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1208253428585725952-w4-r1",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1208253428585725952-w7-r1",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1208980281982189568-w4-r2",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1208980281982189568-w4-r7",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1208980281982189568-w7-r7",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1208980281982189568-w10-r3",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1209615792828592128-w4-r2",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1209615792828592128-w4-r8",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1209615792828592128-w10-r4",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1210029523089768448-w4-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1210029523089768448-w4-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1210029523089768448-w7-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1210029523089768448-w7-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1210029523089768448-w10-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1210029523089768448-w10-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1211209919718490112-w7-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1211209919718490112-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1213207023508803584-w4-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1213207023508803584-w4-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1213207023508803584-w7-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1213207023508803584-w7-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1213207023508803584-w10-r12",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1213207023508803584-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1213682449180000256-w4-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1213682449180000256-w7-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1213682449180000256-w7-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1213682449180000256-w10-r10",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1213682449180000256-w10-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1216907019194216448-w4-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1216907019194216448-w10-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1216907019194216448-w10-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1217252586436956160-w4-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1217252586436956160-w4-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1217252586436956160-w7-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1217252586436956160-w7-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1217252586436956160-w10-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1217252586436956160-w10-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1218089473972113408-w4-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1218089473972113408-w7-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1218344866094780416-w7-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1218344866094780416-w10-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1218433857313853440-w4-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1218433857313853440-w4-r3",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1218433857313853440-w7-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1218433857313853440-w7-r2",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1218433857313853440-w10-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1218433857313853440-w10-r2",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1218491272109494272-w10-r9",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1218491272109494272-w10-r4",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1221900537188843520-w4-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1221900537188843520-w7-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1221900537188843520-w7-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1221900537188843520-w10-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1222636865216065536-w4-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1222636865216065536-w4-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1222636865216065536-w10-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1222636865216065536-w10-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1223334504723132416-w4-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1223334504723132416-w4-r5",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1223334504723132416-w7-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1223334504723132416-w7-r5",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1223334504723132416-w10-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1223334504723132416-w10-r3",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1226055425326063616-w4-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1226055425326063616-w4-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1226055425326063616-w7-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1226055425326063616-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1226055425326063616-w10-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1226608580069687296-w4-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1226608580069687296-w4-r9",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1226608580069687296-w7-r10",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1226608580069687296-w10-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1226608580069687296-w10-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1226712342033596418-w4-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1226712342033596418-w7-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1226712342033596418-w10-r10",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1227039893197168640-w4-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1227039893197168640-w7-r10",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1227724913243070464-w4-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1227724913243070464-w7-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1227884325479907328-w4-r2",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1227884325479907328-w4-r12",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1227884325479907328-w7-r3",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1227884325479907328-w10-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1227884325479907328-w10-r5",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1228611706544988160-w4-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1228611706544988160-w4-r12",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1228611706544988160-w7-r7",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1228611706544988160-w10-r5",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1228611706544988160-w10-r9",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1228801345985708032-w4-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1228801345985708032-w4-r6",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1228801345985708032-w7-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1228801345985708032-w7-r6",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1228801345985708032-w10-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1228801345985708032-w10-r9",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1230390425659904000-w4-r12",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1230390425659904000-w4-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1230390425659904000-w7-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1230390425659904000-w10-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1230390425659904000-w10-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1230635082734108672-w7-r7",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1230635082734108672-w7-r8",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1230635082734108672-w10-r5",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1230635082734108672-w10-r3",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1231364725699260416-w7-r4",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1231644057906728960-w4-r6",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1231644057906728960-w10-r5",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1231644057906728960-w10-r7",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1232503528564477952-w4-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1234259363674214400-w7-r9",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1234259363674214400-w10-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1235438944078790656-w4-r4",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1235438944078790656-w7-r3",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1235438944078790656-w10-r7",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1235438944078790656-w10-r2",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1236447616577847296-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236447616577847296-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236447616577847296-w7-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236447616577847296-w7-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1236447616577847296-w10-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236447616577847296-w10-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236533017401360384-w4-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236533017401360384-w4-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1236533017401360384-w7-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236533017401360384-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236533017401360384-w10-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236720219318128640-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1236720219318128640-w4-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1236720219318128640-w7-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236720219318128640-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236928268624465920-w4-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236928268624465920-w4-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1236928268624465920-w7-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236928268624465920-w7-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1236928268624465920-w10-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1237588470319300608-w4-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1238143514382979072-w4-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238143514382979072-w4-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238143514382979072-w7-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238143514382979072-w7-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238143514382979072-w10-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1238143514382979072-w10-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1238216330071523328-w4-r4",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1238216330071523328-w7-r1",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1238233902921809920-w4-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238233902921809920-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238233902921809920-w7-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1238233902921809920-w7-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238233902921809920-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238233902921809920-w10-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238290004980006912-w4-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1238290004980006912-w4-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238290004980006912-w7-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238290004980006912-w7-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1238290004980006912-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1240082381742813184-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1240082381742813184-w4-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1240082381742813184-w7-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1240082381742813184-w7-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1240082381742813184-w10-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1242327870139813888-w4-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1242327870139813888-w4-r3",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1242327870139813888-w7-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1242327870139813888-w7-r9",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1242327870139813888-w10-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1242406951560687616-w7-r1",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1242406951560687616-w7-r5",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1242406951560687616-w10-r3",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1242653356858556416-w7-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1242653356858556416-w10-r14",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1242653356858556416-w10-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1245066017051262976-w4-r2",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1245066017051262976-w7-r1",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1245066017051262976-w7-r8",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1245066017051262976-w10-r1",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1245165020094922752-w4-r8",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1245165020094922752-w7-r2",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1245165020094922752-w7-r7",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1245165020094922752-w10-r6",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1245218922643341312-w4-r4",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1245218922643341312-w4-r3",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1245218922643341312-w10-r2",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1247071664013852672-w4-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1247071664013852672-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1247071664013852672-w7-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1247071664013852672-w7-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1247071664013852672-w10-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1247697615538114560-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1247697615538114560-w4-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1247697615538114560-w7-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1247697615538114560-w7-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1247697615538114560-w10-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1248408963460894720-w4-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1248408963460894720-w4-r11",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1248408963460894720-w7-r11",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1248408963460894720-w7-r2",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1248408963460894720-w10-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1248758889822814208-w7-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1248758889822814208-w7-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1248758889822814208-w10-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1249869801103298560-w4-r11",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1249869801103298560-w4-r12",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1249869801103298560-w7-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1249869801103298560-w10-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1249869801103298560-w10-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1250169675384373249-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1250169675384373249-w4-r12",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1250169675384373249-w7-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1250169675384373249-w7-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1250169675384373249-w10-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1250169675384373249-w10-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1250212317606453248-w4-r1",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1250212317606453248-w4-r8",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1250212317606453248-w7-r1",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1250212317606453248-w7-r8",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1250212317606453248-w10-r3",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1250262102585659392-w10-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1250533073594884096-w4-r5",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1250533073594884096-w4-r12",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1250533073594884096-w7-r2",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1250533073594884096-w7-r10",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1250623709312458752-w7-r11",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251280972301737984-w4-r2",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251280972301737984-w7-r8",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251280972301737984-w10-r2",
+  "split": "heldout",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251288069319966720-w4-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251288069319966720-w4-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251288069319966720-w7-r12",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251288069319966720-w7-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251288069319966720-w10-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251663191457419264-w7-r8",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251663191457419264-w7-r7",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251663191457419264-w10-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251740763272777728-w4-r1",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1251740763272777728-w7-r2",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1252426760239194112-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1252426760239194112-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1252426760239194112-w7-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1252426760239194112-w7-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1252426760239194112-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1252426760239194112-w10-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1252805896501727232-w4-r3",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1252805896501727232-w7-r6",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1252805896501727232-w7-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1252805896501727232-w10-r5",
+  "split": "tuning",
+  "kind": "dynasty",
+  "quality": 0.9
+ },
+ {
+  "id": "1253022061303955456-w4-r6",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1253022061303955456-w4-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1253022061303955456-w7-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1253022061303955456-w7-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1253022061303955456-w10-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1253022061303955456-w10-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1253945586994909184-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1253945586994909184-w4-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1253945586994909184-w7-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1253945586994909184-w10-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1253945586994909184-w10-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254093084568846336-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1254093084568846336-w7-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254093084568846336-w10-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254219959509188608-w4-r7",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254219959509188608-w4-r6",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254219959509188608-w7-r3",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1254219959509188608-w7-r11",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254219959509188608-w10-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254219959509188608-w10-r10",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254984626930192385-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1254984626930192385-w7-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254984626930192385-w7-r2",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254984626930192385-w10-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1254984626930192385-w10-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1255675396846780416-w7-r7",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1255675396846780416-w7-r4",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1255675396846780416-w10-r4",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1255675396846780416-w10-r1",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1255796895251431424-w4-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1255796895251431424-w7-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1255796895251431424-w7-r3",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1255796895251431424-w10-r11",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256031614199136256-w4-r4",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256031614199136256-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256031614199136256-w7-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256031614199136256-w7-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256031614199136256-w10-r12",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256031614199136256-w10-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256042550121222144-w4-r9",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1256042550121222144-w4-r8",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256042550121222144-w7-r3",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256042550121222144-w7-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1256042550121222144-w10-r2",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1256309372934430720-w4-r5",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1256309372934430720-w7-r5",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1256309372934430720-w10-r6",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1256376358519455744-w4-r1",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256376358519455744-w4-r2",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256376358519455744-w7-r7",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256376358519455744-w7-r9",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256376358519455744-w10-r9",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256376358519455744-w10-r6",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1256749338202210304-w7-r3",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1256749338202210304-w7-r11",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1256749338202210304-w10-r1",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1256749338202210304-w10-r12",
+  "split": "tuning",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1257029500286283776-w4-r10",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257029500286283776-w4-r5",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257029500286283776-w7-r12",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257029500286283776-w7-r3",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1257029500286283776-w10-r4",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1257046857272545280-w4-r4",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1257046857272545280-w7-r7",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1257046857272545280-w7-r4",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1257046857272545280-w10-r1",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1257046857272545280-w10-r4",
+  "split": "heldout",
+  "kind": "keeper",
+  "quality": 0.9
+ },
+ {
+  "id": "1257057121216774144-w4-r11",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257057121216774144-w4-r3",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257057121216774144-w7-r12",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257057121216774144-w7-r6",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257057121216774144-w10-r7",
+  "split": "heldout",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257072800384946176-w4-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257072800384946176-w4-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1257072800384946176-w7-r8",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1257072800384946176-w7-r7",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ },
+ {
+  "id": "1257072800384946176-w10-r10",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257103970187362304-w4-r1",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257103970187362304-w4-r12",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257103970187362304-w7-r9",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257103970187362304-w7-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 1
+ },
+ {
+  "id": "1257103970187362304-w10-r5",
+  "split": "tuning",
+  "kind": "redraft",
+  "quality": 0.8
+ }
+]

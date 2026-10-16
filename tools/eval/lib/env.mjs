@@ -5,8 +5,8 @@ import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 export const ROOT = new URL('../../../', import.meta.url).pathname;
-export const EVAL_DIR = join(ROOT, '.eval');
-const HTTP_DIR = join(EVAL_DIR, 'http');
+export const EVAL_DIR = process.env.NIGHT_OWL_EVAL_DIR || join(ROOT, '.eval');
+const HTTP_DIR = join(ROOT, '.eval', 'http');
 const SLEEPER_API = 'https://api.sleeper.app/v1';
 
 globalThis.NightOwl = {};

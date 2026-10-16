@@ -1,0 +1,705 @@
+{
+ "report": {
+  "version": "suggest-v2",
+  "runs": [
+   "run1"
+  ],
+  "split": "tuning",
+  "weightsVersion": 1,
+  "kinds": {
+   "dynasty": {
+    "cases": 30,
+    "leagues": 12,
+    "outliersClipped": 3,
+    "rawPaired": {
+     "mean": 17.84,
+     "low": 3.35,
+     "high": 34.45
+    },
+    "llmTop1": 25.76,
+    "staticTop1": 7.92,
+    "allCandidates": 0.61,
+    "bestPossible": 43.84,
+    "pairedTop1": {
+     "mean": 15.97,
+     "low": 3.25,
+     "high": 29.88,
+     "p": 0.015
+    },
+    "pairedTop3": {
+     "mean": 9.59,
+     "low": 0.48,
+     "high": 19.44
+    },
+    "validity": 1,
+    "firstSuggestionAccepted": 0.87,
+    "customShare": 0.12,
+    "noiseFloor": null,
+    "detectableEffect": 26.8,
+    "clearWin": true
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "1048386748260241408-w7-r10",
+   "leagueId": "1048386748260241408",
+   "kind": "dynasty",
+   "staticTop1": -76.17649224120998,
+   "staticTop3": -77.28512040856414,
+   "staticAll": -85.4159224513848,
+   "best": -67.71237674327244,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": -79.21234963661362,
+     "top3": -80.76902533883323,
+     "accepted": 2,
+     "custom": 1,
+     "firstAccepted": false
+    }
+   ]
+  },
+  {
+   "id": "1048386748260241408-w7-r5",
+   "leagueId": "1048386748260241408",
+   "kind": "dynasty",
+   "staticTop1": 61.41649224120997,
+   "staticTop3": 50.784961959012634,
+   "staticAll": 49.75708434492241,
+   "best": 62.43934433313691,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 33.99119151443724,
+     "top3": 52.61567602959471,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180092558252679168-w10-r5",
+   "leagueId": "1180092558252679168",
+   "kind": "dynasty",
+   "staticTop1": 3.5314642533936658,
+   "staticTop3": 22.93547993966817,
+   "staticAll": 23.31830196078431,
+   "best": 47.32355294117646,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 47.32355294117646,
+     "top3": 36.39394841628959,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180092558252679168-w4-r11",
+   "leagueId": "1180092558252679168",
+   "kind": "dynasty",
+   "staticTop1": 22.257449235048682,
+   "staticTop3": 23.81732715190852,
+   "staticAll": 32.587819811466545,
+   "best": 55.23111172925359,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 22.257449235048682,
+     "top3": 20.792934322361305,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180092558252679168-w4-r5",
+   "leagueId": "1180092558252679168",
+   "kind": "dynasty",
+   "staticTop1": 42.547305516921654,
+   "staticTop3": 26.0626706845928,
+   "staticAll": 37.00995000772678,
+   "best": 68.6966842837274,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 68.6966842837274,
+     "top3": 47.48680636686756,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180092558252679168-w7-r1",
+   "leagueId": "1180092558252679168",
+   "kind": "dynasty",
+   "staticTop1": 23.634550143266473,
+   "staticTop3": 16.216290353390637,
+   "staticAll": -26.03276160458453,
+   "best": 23.634550143266473,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": -29.91327220630373,
+     "top3": -14.171083094555875,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180092558252679168-w7-r5",
+   "leagueId": "1180092558252679168",
+   "kind": "dynasty",
+   "staticTop1": 45.6350888252149,
+   "staticTop3": 20.837682903533906,
+   "staticAll": 4.180783190066859,
+   "best": 45.6350888252149,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 45.6350888252149,
+     "top3": 18.545329512893986,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180157996303147008-w10-r3",
+   "leagueId": "1180157996303147008",
+   "kind": "dynasty",
+   "staticTop1": 49.12483480453972,
+   "staticTop3": 42.43212862547289,
+   "staticAll": 25.846401569286815,
+   "best": 57.23377301387138,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 49.12483480453972,
+     "top3": 47.38605968894493,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180157996303147008-w10-r5",
+   "leagueId": "1180157996303147008",
+   "kind": "dynasty",
+   "staticTop1": -121.32676670870114,
+   "staticTop3": -115.89367465321565,
+   "staticAll": -80.41645577373447,
+   "best": -19.102708701134926,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": -82.25613871374527,
+     "top3": -61.891435897435905,
+     "accepted": 3,
+     "custom": 2,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180157996303147008-w4-r8",
+   "leagueId": "1180157996303147008",
+   "kind": "dynasty",
+   "staticTop1": -90.16797900262468,
+   "staticTop3": -84.61417906095072,
+   "staticAll": -90.56619811412463,
+   "best": -21.978693496646255,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": -61.71147856517935,
+     "top3": -47.600619228152034,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180157996303147008-w7-r8",
+   "leagueId": "1180157996303147008",
+   "kind": "dynasty",
+   "staticTop1": -21.38556854735767,
+   "staticTop3": -64.11451944515359,
+   "staticAll": -44.101940770998205,
+   "best": 62.79698697983151,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 25.170591779423027,
+     "top3": 11.452526253084846,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180160590047531008-w10-r5",
+   "leagueId": "1180160590047531008",
+   "kind": "dynasty",
+   "staticTop1": -20.88,
+   "staticTop3": -9.25,
+   "staticAll": 37.269927239022124,
+   "best": 130.0347945776851,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 82.29016823079596,
+     "top3": 7.743159309465876,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180160590047531008-w10-r7",
+   "leagueId": "1180160590047531008",
+   "kind": "dynasty",
+   "staticTop1": -90.98817309697601,
+   "staticTop3": -71.56806233344919,
+   "staticAll": -77.99349826207856,
+   "best": -42.03324157108098,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": -35.313249913103924,
+     "top3": -52.591332869887616,
+     "accepted": 1,
+     "custom": 2,
+     "firstAccepted": false
+    }
+   ]
+  },
+  {
+   "id": "1180160590047531008-w4-r9",
+   "leagueId": "1180160590047531008",
+   "kind": "dynasty",
+   "staticTop1": 67.53,
+   "staticTop3": 63.02,
+   "staticAll": 37.597500000000004,
+   "best": 74.61,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 56.58,
+     "top3": 44.57,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180160590047531008-w7-r3",
+   "leagueId": "1180160590047531008",
+   "kind": "dynasty",
+   "staticTop1": -70.22999999999999,
+   "staticTop3": -22.735542476791036,
+   "staticAll": 30.442481170082328,
+   "best": 103.84935575407252,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 51.1615239096164,
+     "top3": 53.91598143282537,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180160590047531008-w7-r7",
+   "leagueId": "1180160590047531008",
+   "kind": "dynasty",
+   "staticTop1": 45.89999999999999,
+   "staticTop3": 26.679999999999996,
+   "staticAll": 11.916189174986862,
+   "best": 46.60156594850237,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 45.89999999999999,
+     "top3": 26.679999999999996,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180184942900514816-w10-r9",
+   "leagueId": "1180184942900514816",
+   "kind": "dynasty",
+   "staticTop1": 19.217983678593846,
+   "staticTop3": 9.24764595103578,
+   "staticAll": 10.876297708725676,
+   "best": 19.217983678593846,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 19.217983678593846,
+     "top3": 11.889717514124293,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180184942900514816-w4-r3",
+   "leagueId": "1180184942900514816",
+   "kind": "dynasty",
+   "staticTop1": -1.56,
+   "staticTop3": -25.77029062432021,
+   "staticAll": -63.977911681531445,
+   "best": 23.66858907983467,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 2,
+     "top1": -1.56,
+     "top3": 11.054294539917336,
+     "accepted": 2,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180184942900514816-w4-r9",
+   "leagueId": "1180184942900514816",
+   "kind": "dynasty",
+   "staticTop1": 53.4812864911899,
+   "staticTop3": 37.70135566673917,
+   "staticAll": 14.25576581000031,
+   "best": 55.10946095279531,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 53.4812864911899,
+     "top3": 40.72434326734827,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180184942900514816-w7-r2",
+   "leagueId": "1180184942900514816",
+   "kind": "dynasty",
+   "staticTop1": 1.4446876404494389,
+   "staticTop3": -4.844314606741572,
+   "staticAll": -14.508901123595503,
+   "best": 5.69885393258427,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 18.046179775280898,
+     "top3": 3.2953153558052435,
+     "accepted": 1,
+     "custom": 2,
+     "firstAccepted": false
+    }
+   ]
+  },
+  {
+   "id": "1180185965862105088-w7-r9",
+   "leagueId": "1180185965862105088",
+   "kind": "dynasty",
+   "staticTop1": -46.964226838854565,
+   "staticTop3": -24.31606064008983,
+   "staticAll": -5.262844148552174,
+   "best": 45.118120157215046,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 2,
+     "top1": 45.118120157215046,
+     "top3": 24.880790567097137,
+     "accepted": 1,
+     "custom": 1,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180189331122126848-w4-r7",
+   "leagueId": "1180189331122126848",
+   "kind": "dynasty",
+   "staticTop1": 133.91727736549166,
+   "staticTop3": 98.3806103896104,
+   "staticAll": 56.56810482374768,
+   "best": 133.91727736549166,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 133.91727736549166,
+     "top3": 75.43378818800248,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180189331122126848-w4-r9",
+   "leagueId": "1180189331122126848",
+   "kind": "dynasty",
+   "staticTop1": 38.33039517625231,
+   "staticTop3": 18.934839517625228,
+   "staticAll": 8.835893320964747,
+   "best": 38.33039517625231,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 38.33039517625231,
+     "top3": 8.568447742733456,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180189331122126848-w7-r2",
+   "leagueId": "1180189331122126848",
+   "kind": "dynasty",
+   "staticTop1": 96.39614395036196,
+   "staticTop3": 76.69375263702172,
+   "staticAll": 74.78416866597726,
+   "best": 106.78885873836609,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 96.39614395036196,
+     "top3": 85.39815222337126,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180203732667707392-w10-r2",
+   "leagueId": "1180203732667707392",
+   "kind": "dynasty",
+   "staticTop1": 20.279999999999998,
+   "staticTop3": 32.82,
+   "staticAll": 33.94059618611747,
+   "best": 47.71798352402746,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 27.057610068649886,
+     "top3": 28.479203356216626,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180217158638854144-w7-r11",
+   "leagueId": "1180217158638854144",
+   "kind": "dynasty",
+   "staticTop1": -5.340000000000001,
+   "staticTop3": 6.663380623973725,
+   "staticAll": 13.187155172413794,
+   "best": 92.17516650246306,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 37.69965320197044,
+     "top3": 7.9523789819376,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180238487071715328-w10-r7",
+   "leagueId": "1180238487071715328",
+   "kind": "dynasty",
+   "staticTop1": 29.93752242499226,
+   "staticTop3": -2.9369532941540393,
+   "staticAll": -9.694364986081041,
+   "best": 29.93752242499226,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 29.93752242499226,
+     "top3": -2.9369532941540393,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180244250175504384-w10-r5",
+   "leagueId": "1180244250175504384",
+   "kind": "dynasty",
+   "staticTop1": 7.77,
+   "staticTop3": -3.7300000000000004,
+   "staticAll": 3.239300974345222,
+   "best": 25.242204344328233,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": -0.293995172968625,
+     "top3": 7.991354250469295,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180244250175504384-w7-r7",
+   "leagueId": "1180244250175504384",
+   "kind": "dynasty",
+   "staticTop1": 39.059999999999995,
+   "staticTop3": 48.97671699551997,
+   "staticAll": 30.078177131418766,
+   "best": 63.83618816128109,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": 63.83618816128109,
+     "top3": 43.81243828043085,
+     "accepted": 3,
+     "custom": 0,
+     "firstAccepted": true
+    }
+   ]
+  },
+  {
+   "id": "1180263272813436928-w10-r6",
+   "leagueId": "1180263272813436928",
+   "kind": "dynasty",
+   "staticTop1": -18.646561797752806,
+   "staticTop3": -13.14068913857678,
+   "staticAll": -19.40860674157303,
+   "best": 1.2252584269662914,
+   "perRun": [
+    {
+     "run": "run1",
+     "valid": true,
+     "errors": [],
+     "suggestions": 3,
+     "top1": -28.073999999999998,
+     "top3": -19.39569288389513,
+     "accepted": 1,
+     "custom": 2,
+     "firstAccepted": false
+    }
+   ]
+  }
+ ]
+}

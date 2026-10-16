@@ -1,0 +1,1055 @@
+{
+ "id": "1228801345985708032-w10-r9",
+ "split": "heldout",
+ "meta": {
+  "seasonComplete": true,
+  "actingTeamAbandoned": false,
+  "weeksLeft": 9,
+  "candidateCount": 6,
+  "teams": 10,
+  "marketValuesFromToday": false,
+  "lopsidedShare": 0
+ },
+ "quality": {
+  "score": 1,
+  "reasons": [],
+  "accepted": true
+ },
+ "rosterId": 9,
+ "leagueId": "1228801345985708032",
+ "season": "2025",
+ "week": 10,
+ "kind": "redraft",
+ "view": {
+  "id": "1228801345985708032-w10-r9",
+  "league": {
+   "kind": "redraft",
+   "teams": 10,
+   "week": 10,
+   "weeksLeft": 5,
+   "playoffStart": 15,
+   "playoffTeams": 6,
+   "slots": [
+    "QB",
+    "RB",
+    "RB",
+    "WR",
+    "WR",
+    "TE",
+    "FLEX",
+    "FLEX",
+    "FLEX",
+    "K",
+    "BN",
+    "BN",
+    "BN",
+    "BN",
+    "BN",
+    "BN",
+    "BN"
+   ],
+   "superflex": false,
+   "tightEndPremium": true,
+   "scoring": {
+    "reception": 1,
+    "passTouchdown": 5
+   }
+  },
+  "me": {
+   "rosterId": 9,
+   "record": "5-4",
+   "rank": 5,
+   "pointsFor": 1254.4,
+   "window": 0.58,
+   "players": [
+    {
+     "id": "421",
+     "name": "Matthew Stafford",
+     "pos": "QB",
+     "age": 38,
+     "team": "LAR",
+     "market": 103,
+     "projected": 103.3,
+     "lineupValue": 42.9,
+     "recent": 21.1,
+     "perWeek": 20.7
+    },
+    {
+     "id": "6786",
+     "name": "CeeDee Lamb",
+     "pos": "WR",
+     "age": 27,
+     "team": "DAL",
+     "market": 80,
+     "projected": 80,
+     "lineupValue": 44.8,
+     "recent": 19.4,
+     "perWeek": 16
+    },
+    {
+     "id": "12527",
+     "name": "Ashton Jeanty",
+     "pos": "RB",
+     "age": 22,
+     "team": "LV",
+     "market": 79,
+     "projected": 79.5,
+     "lineupValue": 34,
+     "recent": 8.1,
+     "perWeek": 15.9
+    },
+    {
+     "id": "12512",
+     "name": "Quinshon Judkins",
+     "pos": "RB",
+     "age": 22,
+     "team": "CLE",
+     "market": 71,
+     "projected": 71.5,
+     "lineupValue": 26,
+     "recent": 11.4,
+     "perWeek": 14.3
+    },
+    {
+     "id": "8148",
+     "name": "Jameson Williams",
+     "pos": "WR",
+     "age": 25,
+     "team": "DET",
+     "market": 64,
+     "projected": 64.5,
+     "lineupValue": 18.4,
+     "recent": 5.5,
+     "perWeek": 12.9
+    },
+    {
+     "id": "8134",
+     "name": "Khalil Shakir",
+     "pos": "WR",
+     "age": 26,
+     "team": "BUF",
+     "market": 64,
+     "projected": 64.1,
+     "lineupValue": 18,
+     "recent": 12.7,
+     "perWeek": 12.8
+    },
+    {
+     "id": "2449",
+     "name": "Stefon Diggs",
+     "pos": "WR",
+     "age": 32,
+     "team": "WAS",
+     "market": 60,
+     "projected": 60.5,
+     "lineupValue": 22.8,
+     "recent": 12.4,
+     "perWeek": 12.1
+    },
+    {
+     "id": "8151",
+     "name": "Kenneth Walker",
+     "pos": "RB",
+     "age": 25,
+     "team": "KC",
+     "market": 59,
+     "projected": 59.5,
+     "lineupValue": 14,
+     "recent": 4.9,
+     "perWeek": 11.9
+    },
+    {
+     "id": "11597",
+     "name": "Theo Johnson",
+     "pos": "TE",
+     "age": 25,
+     "team": "NYG",
+     "market": 58,
+     "projected": 57.7,
+     "lineupValue": 46.9,
+     "recent": 16.3,
+     "perWeek": 11.5
+    },
+    {
+     "id": "12508",
+     "name": "Jaxson Dart",
+     "pos": "QB",
+     "age": 23,
+     "team": "NYG",
+     "market": 46,
+     "projected": 45.5,
+     "lineupValue": 4.4,
+     "recent": 16.6,
+     "perWeek": 9.1
+    },
+    {
+     "id": "6783",
+     "name": "Jerry Jeudy",
+     "pos": "WR",
+     "age": 27,
+     "team": "CLE",
+     "market": 44,
+     "projected": 43.8,
+     "lineupValue": 1.2,
+     "recent": 1.2,
+     "perWeek": 8.8
+    },
+    {
+     "id": "1945",
+     "name": "Chris Boswell",
+     "pos": "K",
+     "age": 35,
+     "team": "PIT",
+     "market": 37,
+     "projected": 36.6,
+     "lineupValue": 36.5,
+     "recent": 12.7,
+     "perWeek": 7.3
+    },
+    {
+     "id": "8112",
+     "name": "Drake London",
+     "pos": "WR",
+     "age": 25,
+     "team": "ATL",
+     "market": 35,
+     "projected": 34.5,
+     "lineupValue": 14.2,
+     "recent": 16,
+     "perWeek": 6.9
+    },
+    {
+     "id": "5967",
+     "name": "Tony Pollard",
+     "pos": "RB",
+     "age": 29,
+     "team": "TEN",
+     "market": 34,
+     "projected": 34,
+     "lineupValue": 0,
+     "recent": 8.7,
+     "perWeek": 6.8
+    },
+    {
+     "id": "10859",
+     "name": "Sam LaPorta",
+     "pos": "TE",
+     "age": 25,
+     "team": "DET",
+     "market": 20,
+     "projected": 20,
+     "lineupValue": 9.2,
+     "recent": 14.2,
+     "perWeek": 4
+    },
+    {
+     "id": "11566",
+     "name": "Jayden Daniels",
+     "pos": "QB",
+     "age": 25,
+     "team": "WAS",
+     "market": 19,
+     "projected": 19.3,
+     "lineupValue": 0,
+     "recent": 12,
+     "perWeek": 3.9
+    },
+    {
+     "id": "8205",
+     "name": "Isiah Pacheco",
+     "pos": "RB",
+     "age": 27,
+     "team": "DET",
+     "market": 13,
+     "projected": 13.3,
+     "lineupValue": 0,
+     "recent": 1.9,
+     "perWeek": 2.7
+    },
+    {
+     "id": "4981",
+     "name": "Calvin Ridley",
+     "pos": "WR",
+     "age": 31,
+     "team": "TEN",
+     "market": 10,
+     "projected": 9.5,
+     "lineupValue": 0,
+     "recent": 0,
+     "perWeek": 1.9
+    },
+    {
+     "id": "6803",
+     "name": "Brandon Aiyuk",
+     "pos": "WR",
+     "age": 28,
+     "team": "SF",
+     "market": 0,
+     "projected": 0,
+     "lineupValue": 0,
+     "recent": 0,
+     "perWeek": 0
+    }
+   ]
+  },
+  "partners": [
+   {
+    "rosterId": 4,
+    "record": "0-9",
+    "rank": 10,
+    "pointsFor": 733.9,
+    "window": 0,
+    "players": [
+     {
+      "id": "5859",
+      "name": "A.J. Brown",
+      "pos": "WR",
+      "age": 29,
+      "team": "NE",
+      "market": 78,
+      "projected": 77.9,
+      "lineupValue": 61.4,
+      "recent": 9.7,
+      "perWeek": 15.6
+     },
+     {
+      "id": "9228",
+      "name": "Bryce Young",
+      "pos": "QB",
+      "age": 25,
+      "team": "CAR",
+      "market": 69,
+      "projected": 69,
+      "lineupValue": 19.3,
+      "recent": 5.2,
+      "perWeek": 13.8
+     },
+     {
+      "id": "1339",
+      "name": "Zach Ertz",
+      "pos": "TE",
+      "age": 35,
+      "team": "PHI",
+      "market": 68,
+      "projected": 67.7,
+      "lineupValue": 51.2,
+      "recent": 14.5,
+      "perWeek": 13.5
+     },
+     {
+      "id": "12526",
+      "name": "Tetairoa McMillan",
+      "pos": "WR",
+      "age": 23,
+      "team": "CAR",
+      "market": 56,
+      "projected": 55.7,
+      "lineupValue": 43.7,
+      "recent": 10.6,
+      "perWeek": 11.1
+     },
+     {
+      "id": "8121",
+      "name": "Romeo Doubs",
+      "pos": "WR",
+      "age": 26,
+      "team": "NE",
+      "market": 54,
+      "projected": 54.2,
+      "lineupValue": 37.7,
+      "recent": 12.9,
+      "perWeek": 10.8
+     },
+     {
+      "id": "7591",
+      "name": "Justin Fields",
+      "pos": "QB",
+      "age": 27,
+      "team": "KC",
+      "market": 36,
+      "projected": 36.3,
+      "lineupValue": 2.6,
+      "recent": 8.6,
+      "perWeek": 7.3
+     },
+     {
+      "id": "9758",
+      "name": "C.J. Stroud",
+      "pos": "QB",
+      "age": 25,
+      "team": "HOU",
+      "market": 35,
+      "projected": 35.2,
+      "lineupValue": 19.1,
+      "recent": 15.9,
+      "perWeek": 7
+     },
+     {
+      "id": "8259",
+      "name": "Cameron Dicker",
+      "pos": "K",
+      "age": 26,
+      "team": "LAC",
+      "market": 30,
+      "projected": 30.5,
+      "lineupValue": 9.9,
+      "recent": 10.7,
+      "perWeek": 6.1
+     },
+     {
+      "id": "6826",
+      "name": "Cole Kmet",
+      "pos": "TE",
+      "age": 27,
+      "team": "CHI",
+      "market": 30,
+      "projected": 29.6,
+      "lineupValue": 13.1,
+      "recent": 2.5,
+      "perWeek": 5.9
+     },
+     {
+      "id": "1426",
+      "name": "DeAndre Hopkins",
+      "pos": "WR",
+      "age": 33,
+      "team": "",
+      "market": 29,
+      "projected": 28.5,
+      "lineupValue": 12,
+      "recent": 0.8,
+      "perWeek": 5.7
+     },
+     {
+      "id": "1433",
+      "name": "Brandon McManus",
+      "pos": "K",
+      "age": 34,
+      "team": "",
+      "market": 28,
+      "projected": 27.7,
+      "lineupValue": 7.1,
+      "recent": 4.7,
+      "perWeek": 5.5
+     },
+     {
+      "id": "5927",
+      "name": "Terry McLaurin",
+      "pos": "WR",
+      "age": 31,
+      "team": "WAS",
+      "market": 25,
+      "projected": 24.9,
+      "lineupValue": 16,
+      "recent": 4.8,
+      "perWeek": 5
+     },
+     {
+      "id": "12469",
+      "name": "Dylan Sampson",
+      "pos": "RB",
+      "age": 22,
+      "team": "CLE",
+      "market": 22,
+      "projected": 21.6,
+      "lineupValue": 21.6,
+      "recent": 3.5,
+      "perWeek": 4.3
+     },
+     {
+      "id": "12509",
+      "name": "Tre' Harris",
+      "pos": "WR",
+      "age": 24,
+      "team": "LAC",
+      "market": 14,
+      "projected": 13.9,
+      "lineupValue": 0,
+      "recent": 5.6,
+      "perWeek": 2.8
+     },
+     {
+      "id": "12507",
+      "name": "Omarion Hampton",
+      "pos": "RB",
+      "age": 23,
+      "team": "LAC",
+      "market": 11,
+      "projected": 10.7,
+      "lineupValue": 10.7,
+      "recent": 0,
+      "perWeek": 2.1
+     },
+     {
+      "id": "12501",
+      "name": "Matthew Golden",
+      "pos": "WR",
+      "age": 23,
+      "team": "GB",
+      "market": 9,
+      "projected": 9.3,
+      "lineupValue": 0.4,
+      "recent": 4.7,
+      "perWeek": 1.9
+     },
+     {
+      "id": "11589",
+      "name": "Trey Benson",
+      "pos": "RB",
+      "age": 24,
+      "team": "ARI",
+      "market": 0,
+      "projected": 0,
+      "lineupValue": 0,
+      "recent": 0,
+      "perWeek": 0
+     }
+    ]
+   },
+   {
+    "rosterId": 8,
+    "record": "5-4",
+    "rank": 6,
+    "pointsFor": 1091.3,
+    "window": 0.42,
+    "players": [
+     {
+      "id": "4892",
+      "name": "Baker Mayfield",
+      "pos": "QB",
+      "age": 31,
+      "team": "TB",
+      "market": 106,
+      "projected": 106,
+      "lineupValue": 10.9,
+      "recent": 5.7,
+      "perWeek": 21.2
+     },
+     {
+      "id": "6804",
+      "name": "Jordan Love",
+      "pos": "QB",
+      "age": 27,
+      "team": "GB",
+      "market": 95,
+      "projected": 95.1,
+      "lineupValue": 0,
+      "recent": 19.2,
+      "perWeek": 19
+     },
+     {
+      "id": "9226",
+      "name": "De'Von Achane",
+      "pos": "RB",
+      "age": 25,
+      "team": "MIA",
+      "market": 93,
+      "projected": 93.3,
+      "lineupValue": 85.8,
+      "recent": 16.8,
+      "perWeek": 18.7
+     },
+     {
+      "id": "5022",
+      "name": "Dallas Goedert",
+      "pos": "TE",
+      "age": 31,
+      "team": "PHI",
+      "market": 88,
+      "projected": 87.9,
+      "lineupValue": 70.3,
+      "recent": 10.5,
+      "perWeek": 17.6
+     },
+     {
+      "id": "6794",
+      "name": "Justin Jefferson",
+      "pos": "WR",
+      "age": 27,
+      "team": "MIN",
+      "market": 78,
+      "projected": 78.2,
+      "lineupValue": 60.5,
+      "recent": 15,
+      "perWeek": 15.6
+     },
+     {
+      "id": "12518",
+      "name": "Tyler Warren",
+      "pos": "TE",
+      "age": 24,
+      "team": "IND",
+      "market": 78,
+      "projected": 78.1,
+      "lineupValue": 60.4,
+      "recent": 17.8,
+      "perWeek": 15.6
+     },
+     {
+      "id": "10229",
+      "name": "Rashee Rice",
+      "pos": "WR",
+      "age": 26,
+      "team": "KC",
+      "market": 73,
+      "projected": 72.6,
+      "lineupValue": 55,
+      "recent": 22.4,
+      "perWeek": 14.5
+     },
+     {
+      "id": "7021",
+      "name": "Rico Dowdle",
+      "pos": "RB",
+      "age": 28,
+      "team": "PIT",
+      "market": 65,
+      "projected": 65.5,
+      "lineupValue": 57.9,
+      "recent": 14.7,
+      "perWeek": 13.1
+     },
+     {
+      "id": "12522",
+      "name": "Cam Ward",
+      "pos": "QB",
+      "age": 24,
+      "team": "TEN",
+      "market": 56,
+      "projected": 55.6,
+      "lineupValue": 0,
+      "recent": 11.1,
+      "perWeek": 11.1
+     },
+     {
+      "id": "6819",
+      "name": "Michael Pittman",
+      "pos": "WR",
+      "age": 29,
+      "team": "PIT",
+      "market": 52,
+      "projected": 52.4,
+      "lineupValue": 34.8,
+      "recent": 21.6,
+      "perWeek": 10.5
+     },
+     {
+      "id": "11539",
+      "name": "Jake Bates",
+      "pos": "K",
+      "age": 27,
+      "team": "DET",
+      "market": 39,
+      "projected": 38.8,
+      "lineupValue": 38.8,
+      "recent": 4.3,
+      "perWeek": 7.8
+     },
+     {
+      "id": "12519",
+      "name": "Luther Burden",
+      "pos": "WR",
+      "age": 22,
+      "team": "CHI",
+      "market": 32,
+      "projected": 32.3,
+      "lineupValue": 14.6,
+      "recent": 1.3,
+      "perWeek": 6.5
+     },
+     {
+      "id": "10236",
+      "name": "Dalton Kincaid",
+      "pos": "TE",
+      "age": 26,
+      "team": "BUF",
+      "market": 31,
+      "projected": 31.2,
+      "lineupValue": 21.1,
+      "recent": 12.3,
+      "perWeek": 6.2
+     },
+     {
+      "id": "7611",
+      "name": "Rhamondre Stevenson",
+      "pos": "RB",
+      "age": 28,
+      "team": "NE",
+      "market": 16,
+      "projected": 16.4,
+      "lineupValue": 8.8,
+      "recent": 7.6,
+      "perWeek": 3.3
+     },
+     {
+      "id": "12530",
+      "name": "Travis Hunter",
+      "pos": "DB",
+      "age": 23,
+      "team": "JAX",
+      "market": 0,
+      "projected": 0,
+      "lineupValue": 0,
+      "recent": 8,
+      "perWeek": 0
+     },
+     {
+      "id": "4018",
+      "name": "Joe Mixon",
+      "pos": "RB",
+      "age": 30,
+      "team": "",
+      "market": 0,
+      "projected": 0,
+      "lineupValue": 0,
+      "recent": 0,
+      "perWeek": 0
+     },
+     {
+      "id": "5849",
+      "name": "Kyler Murray",
+      "pos": "QB",
+      "age": 29,
+      "team": "MIN",
+      "market": 0,
+      "projected": 0,
+      "lineupValue": 0,
+      "recent": 0,
+      "perWeek": 0
+     }
+    ]
+   },
+   {
+    "rosterId": 10,
+    "record": "6-3",
+    "rank": 4,
+    "pointsFor": 1219.2,
+    "window": 0.73,
+    "players": [
+     {
+      "id": "9493",
+      "name": "Puka Nacua",
+      "pos": "WR",
+      "age": 25,
+      "team": "LAR",
+      "market": 107,
+      "projected": 106.9,
+      "lineupValue": 46,
+      "recent": 7.6,
+      "perWeek": 21.4
+     },
+     {
+      "id": "3163",
+      "name": "Jared Goff",
+      "pos": "QB",
+      "age": 32,
+      "team": "DET",
+      "market": 105,
+      "projected": 105,
+      "lineupValue": 22.2,
+      "recent": 12.2,
+      "perWeek": 21
+     },
+     {
+      "id": "4046",
+      "name": "Patrick Mahomes",
+      "pos": "QB",
+      "age": 31,
+      "team": "KC",
+      "market": 97,
+      "projected": 97.1,
+      "lineupValue": 14.3,
+      "recent": 23.6,
+      "perWeek": 19.4
+     },
+     {
+      "id": "8138",
+      "name": "James Cook",
+      "pos": "RB",
+      "age": 27,
+      "team": "BUF",
+      "market": 91,
+      "projected": 91.4,
+      "lineupValue": 30.5,
+      "recent": 17.7,
+      "perWeek": 18.3
+     },
+     {
+      "id": "7569",
+      "name": "Nico Collins",
+      "pos": "WR",
+      "age": 27,
+      "team": "HOU",
+      "market": 83,
+      "projected": 82.7,
+      "lineupValue": 21.8,
+      "recent": 7.1,
+      "perWeek": 16.5
+     },
+     {
+      "id": "5001",
+      "name": "Dalton Schultz",
+      "pos": "TE",
+      "age": 30,
+      "team": "HOU",
+      "market": 81,
+      "projected": 80.5,
+      "lineupValue": 28.9,
+      "recent": 21.1,
+      "perWeek": 16.1
+     },
+     {
+      "id": "8228",
+      "name": "Jaylen Warren",
+      "pos": "RB",
+      "age": 27,
+      "team": "PIT",
+      "market": 71,
+      "projected": 70.8,
+      "lineupValue": 9.9,
+      "recent": 15.3,
+      "perWeek": 14.2
+     },
+     {
+      "id": "7543",
+      "name": "Travis Etienne",
+      "pos": "RB",
+      "age": 27,
+      "team": "NO",
+      "market": 68,
+      "projected": 68.4,
+      "lineupValue": 7.7,
+      "recent": 7.7,
+      "perWeek": 13.7
+     },
+     {
+      "id": "8144",
+      "name": "Chris Olave",
+      "pos": "WR",
+      "age": 26,
+      "team": "NO",
+      "market": 65,
+      "projected": 65.4,
+      "lineupValue": 18.1,
+      "recent": 16.8,
+      "perWeek": 13.1
+     },
+     {
+      "id": "7526",
+      "name": "Jaylen Waddle",
+      "pos": "WR",
+      "age": 27,
+      "team": "DEN",
+      "market": 62,
+      "projected": 61.7,
+      "lineupValue": 10.1,
+      "recent": 13.5,
+      "perWeek": 12.3
+     },
+     {
+      "id": "4199",
+      "name": "Aaron Jones",
+      "pos": "RB",
+      "age": 31,
+      "team": "MIN",
+      "market": 59,
+      "projected": 58.7,
+      "lineupValue": 2.9,
+      "recent": 5.6,
+      "perWeek": 11.7
+     },
+     {
+      "id": "4066",
+      "name": "Evan Engram",
+      "pos": "TE",
+      "age": 32,
+      "team": "DEN",
+      "market": 56,
+      "projected": 55.7,
+      "lineupValue": 4.1,
+      "recent": 10.1,
+      "perWeek": 11.1
+     },
+     {
+      "id": "4983",
+      "name": "DJ Moore",
+      "pos": "WR",
+      "age": 29,
+      "team": "BUF",
+      "market": 50,
+      "projected": 50,
+      "lineupValue": 0,
+      "recent": 14.9,
+      "perWeek": 10
+     },
+     {
+      "id": "4195",
+      "name": "Jake Elliott",
+      "pos": "K",
+      "age": 31,
+      "team": "PHI",
+      "market": 37,
+      "projected": 36.7,
+      "lineupValue": 36.7,
+      "recent": 3.7,
+      "perWeek": 7.3
+     },
+     {
+      "id": "11783",
+      "name": "Ryan Flournoy",
+      "pos": "WR",
+      "age": 26,
+      "team": "DAL",
+      "market": 11,
+      "projected": 11.4,
+      "lineupValue": 0,
+      "recent": 3.6,
+      "perWeek": 2.3
+     },
+     {
+      "id": "10222",
+      "name": "Jayden Reed",
+      "pos": "WR",
+      "age": 26,
+      "team": "GB",
+      "market": 7,
+      "projected": 7.4,
+      "lineupValue": 0,
+      "recent": 0,
+      "perWeek": 1.5
+     },
+     {
+      "id": "4137",
+      "name": "James Conner",
+      "pos": "RB",
+      "age": 31,
+      "team": "ARI",
+      "market": 0,
+      "projected": 0,
+      "lineupValue": 0,
+      "recent": 0,
+      "perWeek": 0
+     },
+     {
+      "id": "7528",
+      "name": "Najee Harris",
+      "pos": "RB",
+      "age": 28,
+      "team": "NYG",
+      "market": 0,
+      "projected": 0,
+      "lineupValue": 0,
+      "recent": 0,
+      "perWeek": 0
+     }
+    ]
+   }
+  ],
+  "candidates": [
+   {
+    "key": "c1",
+    "partnerId": 4,
+    "give": [
+     "8151",
+     "6783"
+    ],
+    "get": [
+     "1339",
+     "7591"
+    ],
+    "static": {
+     "myPoints": 17.5,
+     "theirPoints": 28.2,
+     "fairnessToThem": -0.01,
+     "likelihood": 0.65
+    }
+   },
+   {
+    "key": "c2",
+    "partnerId": 8,
+    "give": [
+     "8112",
+     "6783"
+    ],
+    "get": [
+     "10236",
+     "12522"
+    ],
+    "static": {
+     "myPoints": 5,
+     "theirPoints": 29.8,
+     "fairnessToThem": -0.1,
+     "likelihood": 0.73
+    }
+   },
+   {
+    "key": "c3",
+    "partnerId": 4,
+    "give": [
+     "12512"
+    ],
+    "get": [
+     "1339"
+    ],
+    "static": {
+     "myPoints": 10.1,
+     "theirPoints": 15.8,
+     "fairnessToThem": 0.05,
+     "likelihood": 0.55
+    }
+   },
+   {
+    "key": "c4",
+    "partnerId": 4,
+    "give": [
+     "5967",
+     "6783"
+    ],
+    "get": [
+     "1339",
+     "12509"
+    ],
+    "static": {
+     "myPoints": 28,
+     "theirPoints": 5.4,
+     "fairnessToThem": -0.05,
+     "likelihood": 0.39
+    }
+   },
+   {
+    "key": "c5",
+    "partnerId": 10,
+    "give": [
+     "5967",
+     "10859"
+    ],
+    "get": [
+     "4066"
+    ],
+    "static": {
+     "myPoints": 11.5,
+     "theirPoints": 3.3,
+     "fairnessToThem": -0.03,
+     "likelihood": 0.55
+    }
+   },
+   {
+    "key": "c6",
+    "partnerId": 4,
+    "give": [
+     "6783"
+    ],
+    "get": [
+     "12509",
+     "6826"
+    ],
+    "static": {
+     "myPoints": 6,
+     "theirPoints": 14.1,
+     "fairnessToThem": 0.01,
+     "likelihood": 0.52
+    }
+   }
+  ]
+ }
+}

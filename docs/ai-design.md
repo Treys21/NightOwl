@@ -40,3 +40,9 @@ Model first pick minus static first pick: -0.3 (interval -8 to 3, p = 0.89), aga
 - Tuning set, 30 cases in 11 leagues, two independent runs: +14.9 [4.1, 25.0] and +19.1 [5.9, 31.1]. The model picked the same first deal in both runs for 19 of 30 cases.
 - Giving the model the engine verification tool (`tools/eval/engine.mjs`) did not help: +6.1 [-3.5, 15.4]. Own deals stayed at 1% to 7% in every arm. The model re-ranks; it does not search.
 - The learned-likelihood gate (drop the least likely 30% of candidates) cost about 2 points on the first pick over 268 dynasty cases, and the dropped candidates were not worse in hindsight, so the finder only uses the learned score for its Likely, Fair shot and Long shot labels.
+
+## Without KeepTradeCut (all values from the fitted market)
+- The finder, the prompt and the scorer now use a market value fitted on real dynasty trades from Sleeper's search rank, age and position. Cases were rebuilt (373 dynasty cases) and the v2 prompt was rerun with no other change.
+- Tuning, 30 cases in 12 leagues: model first pick minus static finder first pick +16.0 [3.3, 29.9], p = 0.015.
+- Held-out, 48 cases in 20 leagues, run once: +26.0 [17.4, 35.3] (model 29.0, static 2.9).
+- Caveats: the case set is new, so the absolute scores are not comparable with the KeepTradeCut runs; search rank is a current snapshot, so values carry some end-of-season information.
