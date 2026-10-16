@@ -17,7 +17,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     { id: 'future', label: 'Rebuild', title: 'Sell production for picks and youth' }
   ];
   const HISTORY_WAIT_MS = 8000;
-  const LEARNED_GATE = 0.3;
+  const LEARNED_GATE = 0;
   const MIN_AFTER_GATE = 4;
   const LEARNED_LIKELY = 0.5;
   const LEARNED_FAIR = 0.36;

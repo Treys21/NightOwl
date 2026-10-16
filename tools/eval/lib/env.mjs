@@ -60,7 +60,7 @@ export async function loadWorld() {
     const positions = (player.fantasy_positions && player.fantasy_positions.length ? player.fantasy_positions : [player.position]).filter(Boolean);
     info[playerId] = {
       name: player.position === 'DEF' ? `${player.first_name} ${player.last_name}` : player.full_name || `${player.first_name || ''} ${player.last_name || ''}`.trim(),
-      pos: player.position || '', team: player.team || '', age: player.age || null, positions
+      pos: player.position || '', team: player.team || '', age: player.age || null, searchRank: player.search_rank == null ? null : player.search_rank, positions
     };
     if (['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(player.position)) sleeperList.push({ id: playerId, name: info[playerId].name, position: player.position, team: player.team });
   }
