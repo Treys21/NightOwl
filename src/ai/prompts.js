@@ -37,7 +37,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     ].join('\n\n');
   }
 
-  const playerLine = (player) => `${player.id} | ${player.name} | ${player.pos} | age ${player.age == null ? '?' : player.age} | ${player.team || 'FA'} | market ${player.market} | projected ${player.projected} (${player.perWeek == null ? '?' : player.perWeek} a week) | last 3 weeks ${player.recent == null ? '?' : player.recent} a week | lineup value ${player.lineupValue}`;
+  const playerLine = (player) => `${player.id} | ${player.name} | ${player.pos} | age ${player.age == null ? '?' : player.age} | ${player.team || 'FA'} | ${player.market === undefined ? '' : `market ${player.market} | `}projected ${player.projected} (${player.perWeek == null ? '?' : player.perWeek} a week) | last 3 weeks ${player.recent == null ? '?' : player.recent} a week | lineup value ${player.lineupValue}`;
 
   function teamText(label, team, limit) {
     const rows = team.players.slice(0, limit).map(playerLine);
@@ -49,7 +49,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const lines = [
       `League: ${league.kind}, ${league.teams} teams, week ${league.week}, ${league.weeksLeft} regular season weeks left, playoffs start week ${league.playoffStart}`,
       `Lineup slots: ${league.slots.join(', ')}. Superflex: ${league.superflex ? 'yes' : 'no'}. Tight end premium: ${league.tightEndPremium ? 'yes' : 'no'}. Points per reception: ${league.scoring.reception}.`,
-      'Columns: id | name | position | age | team | market value | projected points for the rest of the regular season (and per week) | points per week over the last three weeks played | lineup value (points my lineup loses if this player is removed).',
+      `Columns: id | name | position | age | team | ${league.hideMarket ? '' : 'market value | '}projected points for the rest of the regular season (and per week) | points per week over the last three weeks played | lineup value (points my lineup loses if this player is removed).`,
       '',
       teamText('MY TEAM', { rosterId: 'me', record: view.me.record, rank: view.me.rank, pointsFor: view.me.pointsFor, window: view.me.window, players: view.me.players }, 30),
       ''
@@ -60,7 +60,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     for (const candidate of view.candidates) {
       const give = candidate.giveText || candidate.give.map((id) => nameOf.get(id) || id).join(' + ');
       const get = candidate.getText || candidate.get.map((id) => nameOf.get(id) || id).join(' + ');
-      lines.push(`${candidate.key} | partnerId ${candidate.partnerId} | I give ${give} (${candidate.give.join(',')}) | I get ${get} (${candidate.get.join(',')}) | my points ${candidate.static.myPoints} | their points ${candidate.static.theirPoints} | likelihood ${candidate.static.likelihood}`);
+      lines.push(`${candidate.key} | partnerId ${candidate.partnerId} | I give ${give} (${candidate.give.join(',')}) | I get ${get} (${candidate.get.join(',')}) | my points ${candidate.static.myPoints} | their points ${candidate.static.theirPoints}${candidate.static.likelihood === undefined ? '' : ` | likelihood ${candidate.static.likelihood}`}`);
     }
     return lines.join('\n');
   }
@@ -89,8 +89,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     return messages.map((message) => `${message.role === 'assistant' ? 'ADVISOR' : 'MANAGER'}: ${message.content}`).join('\n\n');
   }
 
-  function build(view) {
-    return { version: VERSION, system: system(view), user: `${facts(view)}\n\nPick the best trades for my team.` };
+  function withoutMarket(view) {
+    const strip = (team) => Object.assign({}, team, { players: team.players.map((player) => { const copy = Object.assign({}, player); delete copy.market; return copy; }) });
+    return Object.assign({}, view, {
+      league: Object.assign({}, view.league, { hideMarket: true }),
+      me: strip(view.me), partners: view.partners.map(strip),
+      candidates: view.candidates.map((candidate) => ({ key: candidate.key, partnerId: candidate.partnerId, give: candidate.give, get: candidate.get, giveText: candidate.giveText, getText: candidate.getText, static: { myPoints: candidate.static.myPoints, theirPoints: candidate.static.theirPoints } }))
+    });
+  }
+
+  function build(view, options) {
+    const shown = options && options.market === false ? withoutMarket(view) : view;
+    return { version: VERSION, system: system(shown), user: `${facts(shown)}\n\nPick the best trades for my team.` };
   }
 
   NightOwl.aiPrompts = { VERSION, build, system, analystSystem, analystNote: ANALYST_NOTE, chatSystem, transcript, facts };

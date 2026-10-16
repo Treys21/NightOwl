@@ -10,10 +10,11 @@ const { values: options } = parseArgs({ options: {
   batch: { type: 'string', default: '3' },
   max: { type: 'string', default: '30' },
   kind: { type: 'string', default: 'all' },
-  tools: { type: 'boolean', default: false }
+  tools: { type: 'boolean', default: false },
+  nomarket: { type: 'boolean', default: false }
 } });
 
-const version = options.tools ? `${prompts.VERSION}-tools` : prompts.VERSION;
+const version = options.tools ? `${prompts.VERSION}-tools` : options.nomarket ? `${prompts.VERSION}-nomarket` : prompts.VERSION;
 const ENGINE = `cd ${join(import.meta.dirname, '..', '..')} && node tools/eval/engine.mjs`;
 const toolText = (caseId) => [
   'VERIFICATION TOOL (use it before you answer): run this in the shell, one deal per call:',
@@ -44,7 +45,7 @@ for (let index = 0; index < todo.length; index += size) {
     ''
   ];
   for (const entry of group) {
-    const built = prompts.build(entry.view);
+    const built = prompts.build(entry.view, options.nomarket ? { market: false } : undefined);
     parts.push(`=========== CASE ${entry.id} ===========`, `REPLY FILE: ${join(repliesDir, `${entry.id}.json`)}`, '--- SYSTEM ---', built.system, '--- DATA ---', built.user, '');
     if (options.tools) parts.push('--- TOOL ---', toolText(entry.id), '');
   }
