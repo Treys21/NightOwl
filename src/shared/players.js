@@ -3,11 +3,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const KEY = 'live.players.v4';
+  const KEY = 'live.players.v5';
   const TTL_MS = 24 * 3600000;
   const FANTASY = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 
-  const RETIRED_KEYS = ['live.players', 'live.players.v2', 'live.players.v3', 'playersCache'];
+  const RETIRED_KEYS = ['live.players', 'live.players.v2', 'live.players.v3', 'live.players.v4', 'playersCache'];
 
   let map = {};
   let ready = false;
@@ -28,7 +28,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         rawPlayer.number == null ? '' : String(rawPlayer.number),
         rawPlayer.injury_status || '',
         (rawPlayer.fantasy_positions || []).join(','),
-        rawPlayer.espn_id == null ? '' : String(rawPlayer.espn_id)
+        rawPlayer.espn_id == null ? '' : String(rawPlayer.espn_id),
+        rawPlayer.search_rank == null ? '' : rawPlayer.search_rank
       ];
     }
     return next;
@@ -67,11 +68,12 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     if (entry) {
       return {
         name: entry[0], pos: entry[1], team: entry[2], number: entry[3] || '',
-        injury: entry[4] || null, positions: entry[5] ? entry[5].split(',') : [entry[1]]
+        injury: entry[4] || null, positions: entry[5] ? entry[5].split(',') : [entry[1]],
+        searchRank: entry[7] === '' || entry[7] === undefined ? null : Number(entry[7])
       };
     }
     const def = NightOwl.teams.isDefenseId(playerId);
-    return { name: playerId, pos: def ? 'DEF' : '', team: def ? playerId : '', number: '', injury: null, positions: def ? ['DEF'] : [] };
+    return { name: playerId, pos: def ? 'DEF' : '', team: def ? playerId : '', number: '', injury: null, positions: def ? ['DEF'] : [], searchRank: null };
   }
 
   function list() {

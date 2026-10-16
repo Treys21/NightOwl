@@ -26,3 +26,11 @@ Model first pick minus static first pick: -0.3 (interval -8 to 3, p = 0.89), aga
 3. Engine tools in analyst mode; measure whether verified custom deals beat re-ranking.
 4. Self-consistency (several samples, vote) if noise is high.
 5. One check on the held-out set per milestone, then enable per league type in the extension.
+
+## Learned trade likelihood (dynasty)
+- A gradient-boosted model scores how much a deal looks like a trade real managers make, trained on about 5,000 real dynasty and keeper trades from 876 leagues against same-team single-swap alternatives. Fit and checked by whole league. On unseen leagues its AUC is 0.71 against 0.54 for value gap alone, and its probabilities are calibrated.
+- Ranking the real trade among 60 alternatives between the same two teams: top 5 in 58% of trades against 39% for the gap-only baseline.
+- It does not find better deals. Ranking by likelihood alone lowers the realized lineup gain; the model is used only as a gate that drops the least plausible 30% of candidates, which cost about 3 points in hindsight against picking by expected gain.
+- Redraft is too weak to ship (AUC about 0.59) and keeps the static likelihood.
+- The market feature is Sleeper's search rank, a snapshot that carries some end-of-season information, so live numbers may be slightly lower than the offline ones.
+- `src/ai/likelihood.js` featurizes and predicts; it matches the Python training pipeline to 1e-6 on stored fixtures (`test/likelihood.test.js`). `src/ai/likelihood-input.js` builds its input from live league facts.

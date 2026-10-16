@@ -17,6 +17,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     { id: 'future', label: 'Rebuild', title: 'Sell production for picks and youth' }
   ];
   const HISTORY_WAIT_MS = 8000;
+  const LEARNED_GATE = 0.3;
+  const MIN_AFTER_GATE = 4;
+  const LEARNED_LIKELY = 0.5;
+  const LEARNED_FAIR = 0.36;
   const tick = () => new Promise((resolve) => setTimeout(resolve));
   const sum = (numbers) => numbers.reduce((total, number) => total + number, 0);
 
@@ -110,6 +114,40 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return { id: roster.roster_id, pool: league.rep.pool(pool), assets, players: roster.players || [], count: (roster.players || []).length, capacity: league.capacity, w: contentionLevel, stance: NightOwl.redraftValues.stanceOf(teamWindow.odds), appetite };
     }
 
+    function learnedFacts(league) {
+      const weeksPlayed = Object.keys(league.weeklyPoints || {}).map(Number).sort((a, b) => a - b);
+      const rosterPlayers = new Map(league.raw.rosters.map((roster) => [roster.roster_id, (roster.players || []).filter((assetId) => !isPick(assetId))]));
+      return {
+        positions: league.raw.slots || [], season: league.raw.season, week: state.nfl ? state.nfl.week : weeksPlayed.length + 1, weeksPlayed,
+        pointsOf: (week, playerId) => (league.weeklyPoints[week] || {})[playerId],
+        infoOf: (playerId) => {
+          const info = players.info(playerId);
+          const entry = state.ktc && state.ktc.players[playerId];
+          return { pos: info.pos, searchRank: info.searchRank, age: entry && entry.a ? Math.floor(entry.a) : null };
+        },
+        rosterPlayers: (rosterId) => rosterPlayers.get(rosterId) || [],
+        standingsRanks: league.ranks
+      };
+    }
+
+    function withLearnedLikelihood(league, items) {
+      const model = NightOwl.likelihoodModels && NightOwl.likelihoodModels.dynasty;
+      if (!model || !league.weeklyPoints || !Object.keys(league.weeklyPoints).length) return items;
+      const facts = learnedFacts(league);
+      const scored = items.map((item) => {
+        try {
+          const input = NightOwl.likelihoodInput.build(facts, { myId: league.mine.roster_id, partnerId: item.partnerId, give: item.give, get: item.get });
+          return Object.assign({}, item, { learned: NightOwl.likelihood.likelihood(model, input).calibrated });
+        } catch (error) {
+          return item;
+        }
+      });
+      if (scored.some((item) => item.learned === undefined)) return items;
+      const cutoff = scored.map((item) => item.learned).sort((a, b) => a - b)[Math.floor(scored.length * LEARNED_GATE)];
+      const kept = scored.filter((item) => item.learned >= cutoff);
+      return kept.length >= MIN_AFTER_GATE ? kept : scored;
+    }
+
     async function run() {
       const token = ++finderState.token;
       const league = currentLeague();
@@ -147,8 +185,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         }
         found.sort((a, b) => b.score - a.score);
         const shortlist = variedDeals(found, CANDIDATES, (deal) => !hasPick(deal));
-        const items = await rankByOdds(league, shortlist, context.mode, token);
-        if (!items || token !== finderState.token) return;
+        const ranked = await rankByOdds(league, shortlist, context.mode, token);
+        if (!ranked || token !== finderState.token) return;
+        const items = isDynasty ? withLearnedLikelihood(league, ranked) : ranked;
         finderState.results = { items: variedDeals(items, SHOWN, (deal) => !hasPick(deal), false), windows: teamWindows, mode: context.mode, consensus: !!context.consensus, leagueId: league.leagueId };
         finderState.running = false;
         render();
@@ -303,8 +342,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const partner = league.raw.rosters.find((roster) => roster.roster_id === item.partnerId);
       const them = nameOf(league, partner);
       const partnerWindow = teamWindows.get(partner.roster_id);
-      const label = item.likelihood >= 0.62 ? 'Likely' : item.likelihood >= 0.42 ? 'Fair shot' : 'Long shot';
-      const tone = item.likelihood >= 0.62 ? 'high' : item.likelihood >= 0.42 ? 'mid' : 'low';
+      const [likelyAt, fairAt, chance] = item.learned === undefined ? [0.62, 0.42, item.likelihood] : [LEARNED_LIKELY, LEARNED_FAIR, item.learned];
+      const label = chance >= likelyAt ? 'Likely' : chance >= fairAt ? 'Fair shot' : 'Long shot';
+      const tone = chance >= likelyAt ? 'high' : chance >= fairAt ? 'mid' : 'low';
       const oddsReplay = item.odds;
       const marketOf = isDynasty ? leagueValues.blendedValue : leagueValues.redraftValue;
       const price = packageOf(isDynasty);
@@ -373,7 +413,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         league: { kind: isDynasty ? 'dynasty' : 'redraft', teams: league.raw.rosters.length, week: state.nfl ? state.nfl.week : 0, weeksLeft: league.weeks.length, playoffStart: league.raw.playoffStart || null, playoffTeams: league.playoffTeams || null, slots: league.raw.slots, superflex: Boolean(league.superflex), tightEndPremium: Boolean(league.tep), scoring: { reception: (league.raw.scoring && league.raw.scoring.rec) || 0, passTouchdown: (league.raw.scoring && league.raw.scoring.pass_td) || 4 } },
         me: rosterView(league.mine, 'me'),
         partners: partnerIds.map((partnerId) => rosterView(league.raw.rosters.find((roster) => roster.roster_id === partnerId))),
-        candidates: results.items.map((item, index) => ({ key: `c${index + 1}`, partnerId: item.partnerId, give: item.give, get: item.get, giveText: list(league, item.give), getText: list(league, item.get), static: { myPoints: Math.round(item.me.dPts * 10) / 10, theirPoints: Math.round(item.them.dPts * 10) / 10, fairnessToThem: Math.round(item.rawNetThem * 100) / 100, likelihood: Math.round(item.likelihood * 100) / 100 } }))
+        candidates: results.items.map((item, index) => ({ key: `c${index + 1}`, partnerId: item.partnerId, give: item.give, get: item.get, giveText: list(league, item.give), getText: list(league, item.get), static: { myPoints: Math.round(item.me.dPts * 10) / 10, theirPoints: Math.round(item.them.dPts * 10) / 10, fairnessToThem: Math.round(item.rawNetThem * 100) / 100, likelihood: Math.round((item.learned === undefined ? item.likelihood : item.learned) * 100) / 100 } }))
       };
     }
 
