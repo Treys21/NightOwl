@@ -34,3 +34,9 @@ Model first pick minus static first pick: -0.3 (interval -8 to 3, p = 0.89), aga
 - Redraft is too weak to ship (AUC about 0.59) and keeps the static likelihood.
 - The market feature is Sleeper's search rank, a snapshot that carries some end-of-season information, so live numbers may be slightly lower than the offline ones.
 - `src/ai/likelihood.js` featurizes and predicts; it matches the Python training pipeline to 1e-6 on stored fixtures (`test/likelihood.test.js`). `src/ai/likelihood-input.js` builds its input from live league facts.
+
+## Dynasty re-rank: confirmation and checks (suggest-v2, hindsight points over the rest of the season)
+- Held-out, run once, never used for tuning: 48 dynasty cases in 15 leagues. Model first pick minus static finder first pick: +13.6 [5.6, 22.3], p = 0.002 (model -1.7, static -16.0).
+- Tuning set, 30 cases in 11 leagues, two independent runs: +14.9 [4.1, 25.0] and +19.1 [5.9, 31.1]. The model picked the same first deal in both runs for 19 of 30 cases.
+- Giving the model the engine verification tool (`tools/eval/engine.mjs`) did not help: +6.1 [-3.5, 15.4]. Own deals stayed at 1% to 7% in every arm. The model re-ranks; it does not search.
+- The learned-likelihood gate (drop the least likely 30% of candidates) cost about 2 points on the first pick over 268 dynasty cases, and the dropped candidates were not worse in hindsight, so the finder only uses the learned score for its Likely, Fair shot and Long shot labels.
