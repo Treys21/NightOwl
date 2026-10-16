@@ -68,18 +68,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     }));
   }
 
-  function ktcRows(kind) {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('timed out: KeepTradeCut')), 40000);
-      chrome.runtime.sendMessage({ type: 'nightowl-ktc', kind }, (reply) => {
-        clearTimeout(timer);
-        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
-        else if (!reply || !reply.ok) reject(new Error((reply && reply.error) || 'KeepTradeCut unavailable'));
-        else resolve(reply.data);
-      });
-    });
-  }
-
   const positionsQuery = (positions) => (positions && positions.length ? positions : OFFENSE)
     .map((position) => `position[]=${encodeURIComponent(position)}`).join('&');
 
@@ -122,7 +110,6 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       getJson(`${SLEEPER_WEB}/stats/nfl/${season}?season_type=${seasonType}&position[]=DEF`),
     lines: () => getJson(`${SLEEPER_APP}/lines/available?sport=nfl`),
 
-    ktcRows,
 
     scoringPlays(eventId) {
       return new Promise((resolve, reject) => {

@@ -29,7 +29,7 @@ refresh arrow on Night Owl's card in `chrome://extensions`.
 ## Privacy
 
 Everything runs in your browser. There's no account and no tracking. Night Owl only
-reads public data from Sleeper, ESPN, KeepTradeCut and The Ringer (for draft rankings). It can send a desktop
+reads public data from Sleeper, ESPN and The Ringer (for draft rankings). It can send a desktop
 notification when one of your starters is ruled out before kickoff; you can turn that
 off in the popup.
 

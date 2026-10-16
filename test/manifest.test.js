@@ -38,7 +38,6 @@ test('only the hosts the extension actually calls', () => {
     'http://127.0.0.1/*',
     'https://api.sleeper.app/*',
     'https://api.sleeper.com/*',
-    'https://keeptradecut.com/*',
     'https://site.api.espn.com/*',
     'https://sleeper.com/*',
     'https://sports.core.api.espn.com/*',

@@ -6,7 +6,8 @@ require('../src/shared/numbers.js');
 require('../src/lineups/core.js');
 require('../src/season/core.js');
 require('../src/season/value.js');
-require('../src/shared/ktc.js');
+require('../src/shared/market-fit.js');
+require('../src/shared/market-values.js');
 require('../src/moves/values.js');
 const { nearestPickPerRound } = globalThis.NightOwl.moveValues;
 

@@ -51,7 +51,7 @@ docs/                  README images, brand assets (logo, avatar, social preview
 scripts/               check.mjs (static checks), package.mjs (release zip)
 src/
   background.js        ESPN fetch relay (allow-listed hosts only), lineup alerts,
-                       and a twice-daily refresh of KeepTradeCut and Ringer data
+                       and a twice-daily refresh of player and Ringer data
   shared/              storage, DOM helpers and styles loader, formatting,
                        league helpers, API client, account, team colors,
                        shared player directory
@@ -73,9 +73,9 @@ src/
                        boards and pick ownership), loader.js (fetch and cache)
   moves/               view.js (waivers, trade analyzer), finder-view.js (trade
                        finder), history-view.js, drafts-view.js, values.js (picks,
-                       KTC values, blended price, windows)
+                       market values, blended price, windows)
   styles/              panel, draft, common, live, bets, lineups, season, moves (.css)
-  shared/ktc.js        KeepTradeCut dynasty values (page parsed in the background worker)
+  shared/market-values.js  dynasty values from Sleeper's search rank, age and position (fitted on real trades; coefficients in market-fit.js)
   popup/               username, rankings editor, Ringer sync
 tools/preview/         preview server and shim (fault switches: fault=, nfl=, leagues=, status=)
 tools/backtest/        run.mjs: replays real trades through the finder's gates (npm run backtest -- --user <name>)

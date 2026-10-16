@@ -100,9 +100,9 @@
       getURL: (path) => `/${path}`,
       sendMessage: (message, callback) => message.type === 'nightowl-agent'
         ? setTimeout(() => callback(agentReply(message)), 600)
-        : (fault === 'espn' && message.type !== 'nightowl-ktc') || (fault === 'ktc' && message.type === 'nightowl-ktc')
+        : fault === 'espn'
         ? callback({ ok: false, error: 'Failed to fetch' })
-        : realFetch(message.type === 'nightowl-ktc' ? `/ktc?kind=${message.kind || 'dynasty'}` : message.type === 'nightowl-scoring-plays' ? `/plays?event=${message.eventId}` : `/relay?url=${encodeURIComponent(message.url)}`)
+        : realFetch(message.type === 'nightowl-scoring-plays' ? `/plays?event=${message.eventId}` : `/relay?url=${encodeURIComponent(message.url)}`)
         .then((response) => response.json())
         .then((data) => callback({ ok: true, data }), (err) => callback({ ok: false, error: String(err) }))
     },

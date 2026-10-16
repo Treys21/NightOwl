@@ -23,8 +23,7 @@
     "https://site.api.espn.com/*",
     "https://sports.core.api.espn.com/*",
     "https://sleeper.com/*",
-    "https://theringer.com/*",
-    "https://keeptradecut.com/*"
+    "https://theringer.com/*"
   ],
   "background": {
     "service_worker": "src/background.js"
@@ -54,7 +53,8 @@
         "src/shared/account.js",
         "src/shared/teams.js",
         "src/shared/players.js",
-        "src/shared/ktc.js",
+        "src/shared/market-fit.js",
+        "src/shared/market-values.js",
         "src/live/scoring.js",
         "src/draft/match-names.js",
         "src/live/week-review.js",

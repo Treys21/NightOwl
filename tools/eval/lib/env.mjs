@@ -10,7 +10,7 @@ const HTTP_DIR = join(EVAL_DIR, 'http');
 const SLEEPER_API = 'https://api.sleeper.app/v1';
 
 globalThis.NightOwl = {};
-for (const modulePath of ['shared/numbers', 'lineups/core', 'season/core', 'season/value', 'valuation/age-curves', 'valuation/redraft-values', 'season/finder', 'live/scoring', 'draft/match-names', 'shared/ktc', 'trades/history', 'moves/values']) require(`${ROOT}src/${modulePath}.js`);
+for (const modulePath of ['shared/numbers', 'lineups/core', 'season/core', 'season/value', 'valuation/age-curves', 'valuation/redraft-values', 'season/finder', 'live/scoring', 'draft/match-names', 'shared/market-fit', 'shared/market-values', 'trades/history', 'moves/values']) require(`${ROOT}src/${modulePath}.js`);
 export const nightOwl = globalThis.NightOwl;
 
 mkdirSync(HTTP_DIR, { recursive: true });
@@ -62,23 +62,13 @@ export async function loadWorld() {
       name: player.position === 'DEF' ? `${player.first_name} ${player.last_name}` : player.full_name || `${player.first_name || ''} ${player.last_name || ''}`.trim(),
       pos: player.position || '', team: player.team || '', age: player.age || null, searchRank: player.search_rank == null ? null : player.search_rank, positions
     };
-    if (['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(player.position)) sleeperList.push({ id: playerId, name: info[playerId].name, position: player.position, team: player.team });
+    if (['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(player.position)) sleeperList.push({ id: playerId, name: info[playerId].name, position: player.position, team: player.team, searchRank: player.search_rank == null ? null : player.search_rank, age: player.age || null });
   }
-  const text = async (url) => {
-    const file = join(HTTP_DIR, `${hashText(url)}.html`);
-    if (existsSync(file)) return readFileSync(file, 'utf8');
-    const body = await (await fetch(url)).text();
-    writeFileSync(file, body);
-    return body;
-  };
-  const [dynastyHtml, redraftHtml] = await Promise.all([text(nightOwl.ktc.URLS.dynasty), text(nightOwl.ktc.URLS.redraft)]);
-  const dynastyRows = nightOwl.ktc.parse(dynastyHtml);
-  const redraftRows = nightOwl.ktc.parse(redraftHtml);
+  const marketCache = new Map();
   const positionsOf = (playerId) => (info[playerId] && info[playerId].positions.length ? info[playerId].positions : /^[A-Z]{2,3}$/.test(playerId) ? ['DEF'] : []);
   return {
     info, positionsOf,
-    ktc: { players: nightOwl.ktc.matchAll(dynastyRows, sleeperList), picks: nightOwl.ktc.pickValues(dynastyRows) },
-    ktcRedraft: { players: nightOwl.ktc.matchAll(redraftRows, sleeperList) }
+    marketFor: (seasonYear) => { if (!marketCache.has(seasonYear)) marketCache.set(seasonYear, nightOwl.marketValues.build(sleeperList, seasonYear)); return marketCache.get(seasonYear); }
   };
 }
 

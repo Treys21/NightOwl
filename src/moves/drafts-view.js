@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { players, tradeDrafts, tradeHistory, ktc } = NightOwl;
+  const { players, tradeDrafts, tradeHistory, marketValues } = NightOwl;
   const { escape: escapeHtml, leagueSelect } = NightOwl.format;
 
   const GRADE_SCALE = 0.5;
@@ -14,9 +14,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const draftsState = state.drafts;
 
     function valueFn(league) {
-      if (leagueValues.usesKtc(league)) return (playerId) => leagueValues.dynastyValue(league, playerId);
+      if (leagueValues.usesMarket(league)) return (playerId) => leagueValues.dynastyValue(league, playerId);
       if (league.kind === 'redraft' && league.rep) return (playerId) => Math.round(leagueValues.seasonOverReplacement(league, playerId) * leagueValues.pointValue(league));
-      if (leagueValues.consensus(league)) return (playerId) => leagueValues.redraftValue(league, playerId);
       return null;
     }
 
@@ -61,14 +60,14 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     function board(league, draft) {
       const value = valueFn(league);
-      if (!value) return '<p class="empty muted">Draft grades need KeepTradeCut values, which are not loaded.</p>';
-      const chart = leagueValues.usesKtc(league) && state.ktc && state.ktc.picks;
-      const isKickerPlaceholder = (playerId) => leagueValues.usesKtc(league) && players.info(playerId).pos === 'K';
+      if (!value) return '<p class="empty muted">Draft grades need player values, which are not ready.</p>';
+      const chart = leagueValues.usesMarket(league) && state.market && state.market.picks;
+      const isKickerPlaceholder = (playerId) => leagueValues.usesMarket(league) && players.info(playerId).pos === 'K';
       const rookieDraft = tradeDrafts.rookieDraft(league.history.drafts, draft.season);
-      const swapped = leagueValues.usesKtc(league) && rookieDraft && rookieDraft.rounds < draft.rounds
+      const swapped = leagueValues.usesMarket(league) && rookieDraft && rookieDraft.rounds < draft.rounds
         ? tradeDrafts.swapPlaceholdersForRookiePicks(draft, rookieDraft, isKickerPlaceholder).draft
         : draft;
-      const b = tradeDrafts.board(swapped, value, chart ? ({ round, slot, teams }) => ktc.pickBaseline(chart, { round, slot, teams, superflex: league.superflex }) : null, isKickerPlaceholder);
+      const b = tradeDrafts.board(swapped, value, chart ? ({ round, slot, teams }) => marketValues.pickBaseline(chart, { round, slot, teams, superflex: league.superflex }) : null, isKickerPlaceholder);
       const slots = Array.from({ length: b.teams }, (_, i) => i + 1);
       const sorted = b.picks.filter((pick) => !pick.placeholder).map((pick) => pick.value).sort((left, right) => left - right);
       const medianValue = sorted[Math.floor(sorted.length / 2)] || 0;

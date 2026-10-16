@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { players, model, finder, ktc, value } = NightOwl;
+  const { players, model, finder, marketValues, value } = NightOwl;
   const { escape: escapeHtml, percent, delta: signed, leagueSelect } = NightOwl.format;
   const { isPick, pickOf, nearestPickPerRound } = NightOwl.moveValues;
 
@@ -75,29 +75,27 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return sorted.filter((deal) => chosen.has(deal));
     }
 
-    const dynasty = (league) => league.kind !== 'redraft' && leagueValues.usesKtc(league);
+    const dynasty = (league) => league.kind !== 'redraft' && leagueValues.usesMarket(league);
 
-    const packageOf = (isDynasty) => (values, picks) => ktc.packageValue(values.map((value, i) => ({ v: value, pick: !!(picks && picks[i]) })), isDynasty
-      ? { exponent: ktc.EXPONENT_PACKAGE, replacement: ktc.REPLACEMENT_DYNASTY }
-      : { exponent: ktc.EXPONENT_REDRAFT, replacement: ktc.REPLACEMENT_REDRAFT });
+    const packageOf = () => (values, picks) => marketValues.packageValue(values.map((value, i) => ({ v: value, pick: !!(picks && picks[i]) })),
+      { exponent: marketValues.EXPONENT_PACKAGE, replacement: marketValues.REPLACEMENT_DYNASTY });
 
     function buildContext(league) {
       const isDynasty = dynasty(league);
-      const hasConsensus = leagueValues.consensus(league);
       return {
         mode: isDynasty ? 'dynasty' : 'redraft',
-        consensus: hasConsensus,
+        consensus: false,
         slots: league.raw.slots,
         weeks: league.rep.weeks,
         positionsOf: league.rep.positionsOf,
         isVirtual: league.rep.isVirtual,
-        ageOf: (assetId) => { const entry = state.ktc && state.ktc.players[assetId]; return entry && entry.a; },
+        ageOf: (assetId) => { const entry = state.market && state.market.players[assetId]; return entry && entry.a; },
         isPick,
         canCut: isDynasty ? () => true : (assetId) => leagueValues.restOfSeasonPoints(league, assetId) <= 25,
-        rawOf: isDynasty ? (assetId) => leagueValues.blendedValue(league, assetId) : hasConsensus ? (assetId) => leagueValues.redraftValue(league, assetId) : (assetId) => leagueValues.overReplacement(league, assetId),
-        valueOf: isDynasty ? (team, assetId, contentionLevel) => leagueValues.valueFor(league, assetId, contentionLevel) : (team, assetId) => leagueValues.redraftValue(league, assetId),
-        sideValue: isDynasty || hasConsensus ? packageOf(isDynasty) : sum,
-        pointValue: isDynasty || hasConsensus ? leagueValues.pointValue(league) : 1,
+        rawOf: isDynasty ? (assetId) => leagueValues.blendedValue(league, assetId) : (assetId) => leagueValues.overReplacement(league, assetId),
+        valueOf: isDynasty ? (team, assetId, contentionLevel) => leagueValues.valueFor(league, assetId, contentionLevel) : () => 0,
+        sideValue: isDynasty ? packageOf() : sum,
+        pointValue: isDynasty ? leagueValues.pointValue(league) : 1,
         fairTolerance: isDynasty && league.trade ? league.trade.band.tolerance : null,
         params: { minPoints: { me: finder.DEFAULTS.minPoints.me * league.scale, them: finder.DEFAULTS.minPoints.them * league.scale } },
         goal: finderState.goal,
@@ -122,8 +120,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         pointsOf: (week, playerId) => (league.weeklyPoints[week] || {})[playerId],
         infoOf: (playerId) => {
           const info = players.info(playerId);
-          const entry = state.ktc && state.ktc.players[playerId];
-          return { pos: info.pos, searchRank: info.searchRank, age: entry && entry.a ? Math.floor(entry.a) : null };
+          return { pos: info.pos, searchRank: info.searchRank, age: info.age };
         },
         rosterPlayers: (rosterId) => rosterPlayers.get(rosterId) || [],
         standingsRanks: league.ranks
@@ -188,7 +185,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         const ranked = await rankByOdds(league, shortlist, context.mode, token);
         if (!ranked || token !== finderState.token) return;
         const items = isDynasty ? withLearnedLikelihood(league, ranked) : ranked;
-        finderState.results = { items: variedDeals(items, SHOWN, (deal) => !hasPick(deal), false), windows: teamWindows, mode: context.mode, consensus: !!context.consensus, leagueId: league.leagueId };
+        finderState.results = { items: variedDeals(items, SHOWN, (deal) => !hasPick(deal), false), windows: teamWindows, mode: context.mode, leagueId: league.leagueId };
         finderState.running = false;
         render();
       } catch (error) {
@@ -234,7 +231,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return slot ? `${pick.year} ${pick.round}.${String(slot).padStart(2, '0')}` : `${pick.year} ${leagueValues.pickTierOf(league, pick)} ${leagueValues.ordinalRound(pick.round)}`;
     };
     const list = (league, assetIds) => assetIds.map((assetId) => nameOfAsset(league, assetId)).join(' + ');
-    const ageOf = (assetId) => { const entry = state.ktc && state.ktc.players[assetId]; return entry && entry.a; };
+    const ageOf = (assetId) => { const entry = state.market && state.market.players[assetId]; return entry && entry.a; };
     const slotText = (slot) => NightOwl.leagues.slotLabel(slot);
     const oddsLabel = (probability) => (probability >= 0.995 ? '>99%' : probability > 0 && probability < 0.005 ? '<1%' : percent(probability));
 
@@ -250,7 +247,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       else if (isDynasty) out.push(`<b>You:</b> little change this season (${signed(item.me.dPts)} pts), more long-term value.`);
       if (item.them.starts.length) out.push(`<b>${escapeHtml(them)}:</b> ${escapeHtml(starts(item.them))} (${signed(item.them.dPts)} pts).`);
       else if (item.them.dPts > 0.5) out.push(`<b>${escapeHtml(them)}:</b> ${signed(item.them.dPts)} pts of depth.`);
-      const market = isDynasty || finderState.results.consensus;
+      const market = isDynasty;
       if (isDynasty) {
         const ageGive = avg(item.give.filter((assetId) => !isPick(assetId)).map(ageOf).filter(Boolean));
         const ageGet = avg(item.get.filter((assetId) => !isPick(assetId)).map(ageOf).filter(Boolean));
@@ -259,27 +256,15 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         if (partnerWindow.contention < 0.3 && (picksGive || (ageGive && ageGet && ageGive < ageGet - 1))) out.push(`<b>Fit:</b> ${escapeHtml(them)} is rebuilding (${partnerWindow.odds != null ? `${oddsLabel(partnerWindow.odds)} playoff odds` : 'bottom of the standings'}) and gets ${picksGive ? 'draft capital' : 'younger players'}.`);
         else if (partnerWindow.contention >= 0.7 && (picksGet || (ageGive && ageGet && ageGet < ageGive - 1))) out.push(`<b>Fit:</b> ${escapeHtml(them)} is contending and is paid in production, not futures.`);
         else if (partnerWindow.contention >= 0.7) out.push(`<b>Fit:</b> ${escapeHtml(them)} is contending (${partnerWindow.odds != null ? `${oddsLabel(partnerWindow.odds)} playoff odds` : 'top of the standings'}) and wants points now.`);
-      } else if (finderState.results.consensus && partnerWindow.contention < 0.25) {
-        out.push(`<b>Fit:</b> ${escapeHtml(them)} is out of the race${partnerWindow.odds != null ? ` (${oddsLabel(partnerWindow.odds)} playoff odds)` : ''}, so what counts for them is a fair price.`);
       } else if (!market) {
         out.push('<b>Pitch:</b> both lineups improve, so neither side is giving ground.');
       }
       if (market) {
         const gap = item.rawNetThem;
-        const name = isDynasty ? 'blended value' : 'consensus value';
+        const name = 'blended value';
         if (Math.abs(gap) < 0.04) out.push(`<b>Value:</b> within 4% on ${name}, an easy sell.`);
         else if (gap > 0) out.push(`<b>Value:</b> they win by ${Math.round(gap * 100)}% on ${name}, so it reads as a good deal for them.`);
         else out.push(`<b>Value:</b> they give up ${Math.round(-gap * 100)}% on ${name}${isDynasty ? ' and get the fit in return' : ' but gain real points'}.`);
-      }
-      if (!isDynasty && finderState.results.consensus) {
-        const valuePerPoint = leagueValues.pointValue(league);
-        const priced = (assetId) => state.ktcRedraft.players[assetId] && leagueValues.redraftValue(league, assetId) >= 1500 && leagueValues.overReplacement(league, assetId) >= 12;
-        const edge = (assetId) => (priced(assetId) ? (leagueValues.overReplacement(league, assetId) * valuePerPoint) / leagueValues.redraftValue(league, assetId) - 1 : 0);
-        const regular = new Set(item.me.starts.filter((start) => start.weeks >= 0.4 * league.weeks.length).map((start) => start.id));
-        const buy = item.get.filter((assetId) => regular.has(assetId)).map((assetId) => [assetId, edge(assetId)]).sort((a, b) => b[1] - a[1])[0];
-        const sell = item.give.filter((assetId) => !isPick(assetId)).map((assetId) => [assetId, edge(assetId)]).sort((a, b) => a[1] - b[1])[0];
-        if (buy && buy[1] >= 0.15) out.push(`<b>Edge:</b> ${escapeHtml(players.info(buy[0]).name)} projects ${Math.round(Math.min(buy[1], 0.6) * 100)}%${buy[1] > 0.6 ? '+' : ''} more points than his price suggests.`);
-        else if (sell && sell[1] <= -0.15) out.push(`<b>Edge:</b> you are selling ${escapeHtml(players.info(sell[0]).name)} above what he projects (${Math.round(Math.min(-sell[1], 0.6) * 100)}% less production than his price).`);
       }
       if (!isDynasty) {
         const formOfEach = (assetIds) => assetIds.filter((assetId) => !isPick(assetId)).map((assetId) => [assetId, leagueValues.formOf(league, assetId)]).filter(([, form]) => form);
@@ -313,7 +298,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     function assetRow(league, assetId, ownerRoster, isDynasty) {
       const valueText = isDynasty ? leagueValues.worth(leagueValues.blendedValue(league, assetId)) : `${Math.round(leagueValues.restOfSeasonPoints(league, assetId))} pts`;
-      const title = isDynasty ? `Value: KeepTradeCut (${leagueValues.worth(leagueValues.dynastyValue(league, assetId))}, for this league's format and scoring) mixed with projected points over a free agent` : `Projected points rest of season${finderState.results.consensus ? `; consensus value ${leagueValues.worth(leagueValues.redraftValue(league, assetId))}` : ''}`;
+      const title = isDynasty ? `Value: market (${leagueValues.worth(leagueValues.dynastyValue(league, assetId))}, for this league's format and scoring) mixed with projected points over a free agent` : 'Projected points rest of season';
       const who = isPick(assetId) ? deps.pickLabel(league, assetId, ownerRoster) : deps.label(assetId);
       const age = !isPick(assetId) && ageOf(assetId) ? `<i class="mv-age">${Math.round(ageOf(assetId))}y</i>` : '';
       return `<li>${who}${age}<span class="mv-ros" title="${title}">${valueText}</span></li>`;
@@ -346,8 +331,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const label = chance >= likelyAt ? 'Likely' : chance >= fairAt ? 'Fair shot' : 'Long shot';
       const tone = chance >= likelyAt ? 'high' : chance >= fairAt ? 'mid' : 'low';
       const oddsReplay = item.odds;
-      const marketOf = isDynasty ? leagueValues.blendedValue : leagueValues.redraftValue;
-      const price = packageOf(isDynasty);
+      const marketOf = isDynasty ? leagueValues.blendedValue : () => 0;
+      const price = packageOf();
       const rawGive = price(item.give.map((assetId) => marketOf(league, assetId)), item.give.map(isPick));
       const rawGet = price(item.get.map((assetId) => marketOf(league, assetId)), item.get.map(isPick));
       return `<article class="mv-card ${tone}">
@@ -363,7 +348,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         <div class="mv-kpis">
           <div class="kpi ${item.me.dPts >= 0 ? 'up' : 'down'}" title="Lineup points over replacement for the rest of the season; ${escapeHtml(them)}: ${signed(item.them.dPts)}"><b>${signed(item.me.dPts)}</b><span>pts for you</span></div>
           ${kpiOdds(oddsReplay, league, partner)}
-          ${isDynasty || finderState.results.consensus ? `<div class="kpi" title="Blended value, packages adjusted: you give ${leagueValues.worth(rawGive)}, you get ${leagueValues.worth(rawGet)}"><b>${leagueValues.worth(rawGive)}<i>⇄</i>${leagueValues.worth(rawGet)}</b><span>value</span></div>` : ''}
+          ${isDynasty ? `<div class="kpi" title="Blended value, packages adjusted: you give ${leagueValues.worth(rawGive)}, you get ${leagueValues.worth(rawGet)}"><b>${leagueValues.worth(rawGive)}<i>⇄</i>${leagueValues.worth(rawGet)}</b><span>value</span></div>` : ''}
         </div>
         ${why(league, item, partner, teamWindows)}
         <div class="mv-actions">
@@ -427,11 +412,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const league = currentLeague();
       if (!league) return '<p class="empty muted">No league with a regular season left to play.</p>';
       const isDynasty = dynasty(league);
-      const noValues = league.kind !== 'redraft' && !leagueValues.usesKtc(league)
-        ? '<p class="mv-warn small">KeepTradeCut isn\'t loading, so deals are priced on this season\'s points only.</p>' : '';
+      const noValues = league.kind !== 'redraft' && !leagueValues.usesMarket(league)
+        ? '<p class="mv-warn small">Player values aren\'t ready, so deals are priced on this season\'s points only.</p>' : '';
       const deadline = league.tradeDeadline && state.nfl && state.nfl.week > league.tradeDeadline
         ? `<p class="mv-warn small">This league's trade deadline (week ${league.tradeDeadline}) has passed.</p>` : '';
-      const kind = isDynasty ? 'Dynasty: priced on KeepTradeCut and each team\'s window.' : leagueValues.consensus(league) ? 'Redraft: lineup points for the rest of the season (playoffs weighted), with KeepTradeCut\'s redraft values as the price.' : 'Redraft: priced on lineup points for the rest of the season.';
+      const kind = isDynasty ? 'Dynasty: priced on a market value learned from real trades and each team\'s window.' : 'Redraft: priced on lineup points for the rest of the season.';
       let body;
       if (finderState.running && !finderState.results) body = `<div class="skel" role="status"><i></i><i></i></div><p class="muted small mv-note">${escapeHtml(finderState.progress || '')}</p>`;
       else if (finderState.error) body = `<p class="error">${escapeHtml(finderState.error)}</p>`;

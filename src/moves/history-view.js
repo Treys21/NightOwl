@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { players, tradeLoader, ktc } = NightOwl;
+  const { players, tradeLoader, marketValues } = NightOwl;
   const { escape: escapeHtml, leagueSelect } = NightOwl.format;
 
   const SHOWN = 12;
@@ -15,9 +15,9 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     const historyState = state.history;
 
     function pricing(league) {
-      if (!leagueValues.usesKtc(league)) return { sideValue: sum, assetValue: () => 0 };
+      if (!leagueValues.usesMarket(league)) return { sideValue: sum, assetValue: () => 0 };
       return {
-        sideValue: (values) => ktc.sideValue(values),
+        sideValue: (values) => marketValues.sideValue(values),
         assetValue: (a) => (a.pick ? leagueValues.pickAsset(league, a.pick) : leagueValues.dynastyValue(league, a.pid))
       };
     }
@@ -73,7 +73,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     function tradeCard(league, item) {
       const { trade, grades, real, owners } = item;
-      const isDynasty = leagueValues.usesKtc(league);
+      const isDynasty = leagueValues.usesMarket(league);
       const when = new Date(trade.at).toLocaleDateString([], { month: 'short', day: 'numeric' });
       const sides = Object.keys(trade.sides).map((rosterId) => {
         const grade = grades[rosterId];
@@ -100,7 +100,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         .sort((a, b) => b.profile.trades - a.profile.trades || b.profile.avgPct - a.profile.avgPct);
       if (!rows.length) return '';
       return `<table class="mv-table mv-managers"><thead><tr><th>Manager</th><th title="Trades across every season of the league">Deals</th><th title="Average value won (+) or given up (−) per deal, on today's market">Avg</th><th title="Share of what they trade that is draft picks">Picks</th></tr></thead><tbody>
-        ${rows.map(({ roster, profile }) => `<tr class="${roster.roster_id === league.mine.roster_id ? 'me' : ''}"><td>${roster.roster_id === league.mine.roster_id ? 'You' : escapeHtml(nameOfOwner(league, roster.owner_id))}</td><td class="num">${profile.trades}</td><td class="num ${profile.avgPct > 0.02 ? 'up' : profile.avgPct < -0.02 ? 'down' : ''}">${leagueValues.usesKtc(league) ? percentText(profile.avgPct) : '–'}</td><td class="num">${Math.round(profile.picksShare * 100)}%</td></tr>`).join('')}
+        ${rows.map(({ roster, profile }) => `<tr class="${roster.roster_id === league.mine.roster_id ? 'me' : ''}"><td>${roster.roster_id === league.mine.roster_id ? 'You' : escapeHtml(nameOfOwner(league, roster.owner_id))}</td><td class="num">${profile.trades}</td><td class="num ${profile.avgPct > 0.02 ? 'up' : profile.avgPct < -0.02 ? 'down' : ''}">${leagueValues.usesMarket(league) ? percentText(profile.avgPct) : '–'}</td><td class="num">${Math.round(profile.picksShare * 100)}%</td></tr>`).join('')}
       </tbody></table>`;
     }
 
@@ -118,13 +118,13 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         return `${select}<div class="skel" role="status"><i></i><i></i></div><p class="muted small mv-note">Reading this league's trades…</p>`;
       }
       if (!history.graded.length) return `${select}<p class="empty muted">No trades in this league${history.seasons.length > 1 ? ` in its ${history.seasons.length} seasons` : ' this season'}.</p>`;
-      const isDynasty = leagueValues.usesKtc(league);
+      const isDynasty = leagueValues.usesMarket(league);
       const band = history.band;
       const mine = history.graded.filter((gradedTrade) => gradedTrade.trade.sides[league.mine.roster_id] && gradedTrade.owners[league.mine.roster_id] === league.mine.owner_id);
       const myLetters = mine.slice(0, 8).map((gradedTrade) => gradedTrade.grades[league.mine.roster_id].letter).join(' ') + (mine.length > 8 ? ' …' : '');
       const shown = historyState.all ? history.graded : history.graded.slice(0, SHOWN);
       return `${select}
-        <p class="mv-kind muted small" title="${escapeHtml(isDynasty ? 'Graded on today\'s KeepTradeCut values and what the players started since; older deals carry hindsight.' : 'Graded on the points the players started for their new teams.')}">${history.graded.length} trade${history.graded.length === 1 ? '' : 's'} · ${escapeHtml(history.seasons[history.seasons.length - 1])}${history.seasons.length > 1 ? `–${escapeHtml(history.seasons[0])}` : ''}${band.medianAbsPct != null && isDynasty ? ` · typically ${Math.round(band.medianAbsPct * 100)}% off even` : ''}${mine.length ? ` · you ${escapeHtml(myLetters)}` : ''}</p>
+        <p class="mv-kind muted small" title="${escapeHtml(isDynasty ? 'Graded on today\'s market values and what the players started since; older deals carry hindsight.' : 'Graded on the points the players started for their new teams.')}">${history.graded.length} trade${history.graded.length === 1 ? '' : 's'} · ${escapeHtml(history.seasons[history.seasons.length - 1])}${history.seasons.length > 1 ? `–${escapeHtml(history.seasons[0])}` : ''}${band.medianAbsPct != null && isDynasty ? ` · typically ${Math.round(band.medianAbsPct * 100)}% off even` : ''}${mine.length ? ` · you ${escapeHtml(myLetters)}` : ''}</p>
         ${managersFold(league, history)}
         ${shown.map((gradedTrade) => tradeCard(league, gradedTrade)).join('')}
         ${!historyState.all && history.graded.length > SHOWN ? `<button type="button" class="mv-btn" data-history="more">Show all ${history.graded.length}</button>` : ''}`;

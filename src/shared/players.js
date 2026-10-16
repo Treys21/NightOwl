@@ -3,11 +3,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const KEY = 'live.players.v5';
+  const KEY = 'live.players.v6';
   const TTL_MS = 24 * 3600000;
   const FANTASY = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 
-  const RETIRED_KEYS = ['live.players', 'live.players.v2', 'live.players.v3', 'live.players.v4', 'playersCache'];
+  const RETIRED_KEYS = ['live.players', 'live.players.v2', 'live.players.v3', 'live.players.v4', 'live.players.v5', 'playersCache'];
 
   let map = {};
   let ready = false;
@@ -29,7 +29,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         rawPlayer.injury_status || '',
         (rawPlayer.fantasy_positions || []).join(','),
         rawPlayer.espn_id == null ? '' : String(rawPlayer.espn_id),
-        rawPlayer.search_rank == null ? '' : rawPlayer.search_rank
+        rawPlayer.search_rank == null ? '' : rawPlayer.search_rank,
+        rawPlayer.age == null ? '' : rawPlayer.age
       ];
     }
     return next;
@@ -69,18 +70,19 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       return {
         name: entry[0], pos: entry[1], team: entry[2], number: entry[3] || '',
         injury: entry[4] || null, positions: entry[5] ? entry[5].split(',') : [entry[1]],
-        searchRank: entry[7] === '' || entry[7] === undefined ? null : Number(entry[7])
+        searchRank: entry[7] === '' || entry[7] === undefined ? null : Number(entry[7]),
+        age: entry[8] === '' || entry[8] === undefined ? null : Number(entry[8])
       };
     }
     const def = NightOwl.teams.isDefenseId(playerId);
-    return { name: playerId, pos: def ? 'DEF' : '', team: def ? playerId : '', number: '', injury: null, positions: def ? ['DEF'] : [], searchRank: null };
+    return { name: playerId, pos: def ? 'DEF' : '', team: def ? playerId : '', number: '', injury: null, positions: def ? ['DEF'] : [], searchRank: null, age: null };
   }
 
   function list() {
     const out = [];
     for (const [playerId, entry] of Object.entries(map)) {
       const position = entry[1] || (entry[5] ? entry[5].split(',')[0] : '');
-      if (FANTASY.has(position)) out.push({ id: playerId, name: entry[0], position, team: entry[2] });
+      if (FANTASY.has(position)) out.push({ id: playerId, name: entry[0], position, team: entry[2], searchRank: entry[7] === '' || entry[7] === undefined ? null : Number(entry[7]), age: entry[8] === '' || entry[8] === undefined ? null : Number(entry[8]) });
     }
     return out;
   }

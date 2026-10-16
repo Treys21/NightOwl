@@ -11,7 +11,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
   const tick = () => new Promise((resolve) => setTimeout(resolve));
 
   function create({ state, values, label, pickLabel, render, active }) {
-    const { usesKtc, worth, dynastyValue, restOfSeasonPoints } = values;
+    const { usesMarket, worth, dynastyValue, restOfSeasonPoints } = values;
     const leagueValues = values;
 
     const tradeLeague = () => state.leagues.find((league) => league.leagueId === state.trade.leagueId) || null;
@@ -33,18 +33,18 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 
     function pickList(league, roster, chosen, kind) {
       const away = new Set([...(roster.reserve || []), ...(roster.taxi || [])]);
-      const rows = (roster.players || []).slice().sort((a, b) => (usesKtc(league) ? leagueValues.blendedValue(league, b) - leagueValues.blendedValue(league, a) : 0) || restOfSeasonPoints(league, b) - restOfSeasonPoints(league, a));
+      const rows = (roster.players || []).slice().sort((a, b) => (usesMarket(league) ? leagueValues.blendedValue(league, b) - leagueValues.blendedValue(league, a) : 0) || restOfSeasonPoints(league, b) - restOfSeasonPoints(league, a));
       const picks = (league.picks.get(roster.roster_id) || []).filter((playerId) => dynastyValue(league, playerId) > 0 || chosen.has(playerId));
-      const pickRows = usesKtc(league) ? picks.map((playerId) => `<label class="mv-pick${chosen.has(playerId) ? ' on' : ''}">
+      const pickRows = usesMarket(league) ? picks.map((playerId) => `<label class="mv-pick${chosen.has(playerId) ? ' on' : ''}">
           <input type="checkbox" data-${kind}="${escapeHtml(playerId)}"${chosen.has(playerId) ? ' checked' : ''}>
-          ${pickLabel(league, playerId, roster)}<span class="mv-ros" title="Draft pick value (KeepTradeCut, for this league's format)">${worth(dynastyValue(league, playerId))}</span>
+          ${pickLabel(league, playerId, roster)}<span class="mv-ros" title="Draft pick value (market, for this league's format)">${worth(dynastyValue(league, playerId))}</span>
         </label>`).join('') : '';
       return `<div class="mv-picks">${rows.map((playerId) => {
         const tag = (roster.reserve || []).includes(playerId) ? 'IR' : (roster.taxi || []).includes(playerId) ? 'taxi' : '';
         return `<label class="mv-pick${chosen.has(playerId) ? ' on' : ''}">
           <input type="checkbox" data-${kind}="${escapeHtml(playerId)}"${chosen.has(playerId) ? ' checked' : ''}>
-          ${label(playerId)}${usesKtc(league)
-            ? `<span class="mv-ros" title="Value: KeepTradeCut (${worth(dynastyValue(league, playerId))}, for this league's format and scoring) mixed with projected points over a free agent${tag ? `; on ${escapeHtml(tag)}` : ''}">${leagueValues.blendedValue(league, playerId) ? worth(leagueValues.blendedValue(league, playerId)) : '–'}</span>`
+          ${label(playerId)}${usesMarket(league)
+            ? `<span class="mv-ros" title="Value: market (${worth(dynastyValue(league, playerId))}, for this league's format and scoring) mixed with projected points over a free agent${tag ? `; on ${escapeHtml(tag)}` : ''}">${leagueValues.blendedValue(league, playerId) ? worth(leagueValues.blendedValue(league, playerId)) : '–'}</span>`
             : `<span class="mv-ros" title="Projected points rest of season">${away.has(playerId) ? escapeHtml(tag) : Math.round(restOfSeasonPoints(league, playerId))}</span>`}
         </label>`;
       }).join('')}${pickRows}</div>`;
@@ -76,12 +76,11 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       const get = sideValueOf(league, [...tradeState.get]);
       const net = get - send;
       const big = Math.max(send, get, 1);
-      const redraft = leagueValues.consensus(league);
       const unpriced = [...tradeState.give, ...tradeState.get].filter((playerId) => !leagueValues.marketValue(league, playerId)).length;
       const format = `${league.superflex ? 'Superflex' : '1QB'}${league.tep ? ` TE${'+'.repeat(league.tep)}` : ''}`;
-      let call = redraft ? 'Even on consensus value.' : 'Even by blended value.';
+      let call = 'Even by blended value.';
       if (Math.abs(net) / big >= 0.05) call = net > 0 ? `Favors you by ${worth(net)} (${Math.round(Math.abs(net) / big * 100)}%).` : `Favors ${escapeHtml(them)} by ${worth(-net)} (${Math.round(Math.abs(net) / big * 100)}%).`;
-      return { net, html: `<div class="mv-dyn" title="${redraft ? 'Consensus value (KeepTradeCut redraft)' : 'KeepTradeCut mixed with projected points'} · ${format} · this league's scoring · extra players count over a free agent${unpriced ? ` · ${unpriced} unpriced player${unpriced === 1 ? '' : 's'} counted as zero` : ''}">
+      return { net, html: `<div class="mv-dyn" title="Market value mixed with projected points · ${format} · this league's scoring · extra players count over a free agent${unpriced ? ` · ${unpriced} unpriced player${unpriced === 1 ? '' : 's'} counted as zero` : ''}">
         <div class="mv-dyn-n"><span>You send <b>${worth(send)}</b></span><span>You get <b>${worth(get)}</b></span>${valueDeltaHtml(net)}</div>
         <p class="mv-verdict">${call}</p>
       </div>` };
@@ -111,7 +110,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     function tradeNotesHtml(league, result) {
       const tradeState = state.trade;
       const describe = (playerId) => {
-        const entry = state.ktc && state.ktc.players[playerId];
+        const entry = state.market && state.market.players[playerId];
         return { name: players.info(playerId).name, age: entry ? entry.a : null, position: (league.rep.positionsOf(playerId) || [])[0] };
       };
       const notes = NightOwl.horizon.tradeNotes({
@@ -155,10 +154,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       if (theirCount > slots) warn.push(`${escapeHtml(them)} would need to drop ${theirCount - slots}.`);
       return `<div class="mv-result" title="Each lineup is re-set every remaining week on Sleeper's projections${league.kind !== 'redraft' ? '; later seasons use each player\'s per-game rate with an age curve for his position' : ''}. Odds replay the season ${model.SIMS.toLocaleString()} times with the trade done.">
         <div class="mv-sides">${sideCard(league, 'You', league.mine, result.impact.a, result.base, result.after, result.horizon && result.horizon.a)}${sideCard(league, them, partner, result.impact.b, result.base, result.after, result.horizon && result.horizon.b)}</div>
-        ${usesKtc(league) || leagueValues.consensus(league) ? marketLine(league, partner, them).html : ''}
-        <p class="mv-verdict mv-sub">${result.horizon ? `Lineups: ${dynastyVerdict(result.impact.a.delta, result.horizon.a, league.weeks.length)}` : `${usesKtc(league) || leagueValues.consensus(league) ? 'Lineups: ' : 'For this season: '}${verdict(result.impact.a, result.impact.b, them)}`}</p>
+        ${usesMarket(league) ? marketLine(league, partner, them).html : ''}
+        <p class="mv-verdict mv-sub">${result.horizon ? `Lineups: ${dynastyVerdict(result.impact.a.delta, result.horizon.a, league.weeks.length)}` : `${usesMarket(league) ? 'Lineups: ' : 'For this season: '}${verdict(result.impact.a, result.impact.b, them)}`}</p>
         ${result.horizon ? tradeNotesHtml(league, result) : league.kind === 'redraft' ? redraftNotesHtml(league) : ''}
-        ${league.kind !== 'redraft' && state.ktcError ? '<p class="muted small">Dynasty values unavailable right now (KeepTradeCut could not be reached).</p>' : ''}
+        ${league.kind !== 'redraft' && !state.market ? '<p class="muted small">Dynasty values are not ready yet.</p>' : ''}
         ${warn.length ? `<p class="mv-warn small">${warn.join(' ')}</p>` : ''}
       </div>`;
     }
@@ -199,10 +198,10 @@ globalThis.NightOwl = globalThis.NightOwl || {};
         a: { pool: league.rep.pool(model.activePool(league.mine)) }, b: { pool: league.rep.pool(model.activePool(partner)) },
         aGives: give, bGives: get
       });
-      const ktcAge = (playerId) => { const entry = state.ktc && state.ktc.players[playerId]; return entry ? entry.a : null; };
-      const horizonImpact = usesKtc(league)
+      const marketAge = (playerId) => { const entry = state.market && state.market.players[playerId]; return entry ? entry.a : null; };
+      const horizonImpact = usesMarket(league)
         ? NightOwl.horizon.horizonImpact({
-          slots: league.raw.slots, positionsOf: league.rep.positionsOf, ageOf: ktcAge, weeks: league.weeks, isVirtual: league.rep.isVirtual, replacementRate: league.rep.rate,
+          slots: league.raw.slots, positionsOf: league.rep.positionsOf, ageOf: marketAge, weeks: league.weeks, isVirtual: league.rep.isVirtual, replacementRate: league.rep.rate,
           a: { pool: league.rep.pool(model.activePool(league.mine)) }, b: { pool: league.rep.pool(model.activePool(partner)) }, aGives: give, bGives: get
         })
         : null;

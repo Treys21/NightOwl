@@ -2,7 +2,6 @@ importScripts(
   'shared/numbers.js',
   'shared/storage.js',
   'shared/leagues.js',
-  'shared/ktc.js',
   'shared/espn-plays.js',
   'shared/agent.js',
   'shared/api.js',
@@ -37,13 +36,6 @@ function relay(type, prepare) {
     return true;
   });
 }
-
-relay('nightowl-ktc', (message) => ({
-  url: globalThis.NightOwl.ktc.URLS[message.kind === 'redraft' ? 'redraft' : 'dynasty'],
-  timeout: 30000,
-  read: (response) => response.text().then(globalThis.NightOwl.ktc.parse),
-  failure: (response) => `KeepTradeCut ${response.status}`
-}));
 
 relay('nightowl-scoring-plays', (message) => {
   const { trimScoringPlays, summaryUrl, isEventId } = globalThis.NightOwlEspnPlays;
@@ -82,7 +74,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 const ALARM = 'night-owl-lineups';
 const SENT_KEY = 'alerts.sent';
 const { api, storage, players, lineups, alerts, bets, leagues, account } = globalThis.NightOwl;
-const ktcValues = globalThis.NightOwl.ktc;
 const LINES_KEY = 'bets.lines';
 const LINES_WINDOW_MS = 75 * 60000;
 
@@ -97,12 +88,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === REFRESH_ALARM) refreshData().catch((error) => console.warn('[Night Owl refresh]', error));
 });
 
-async function fetchKtc(kind) {
-  const response = await fetch(globalThis.NightOwl.ktc.URLS[kind], { credentials: 'omit', signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw new Error(`KeepTradeCut ${response.status}`);
-  return globalThis.NightOwl.ktc.parse(await response.text());
-}
-
 async function refreshData() {
   const settings = await storage.getSettings();
   if (!settings.username) return;
@@ -111,7 +96,6 @@ async function refreshData() {
     try { await work(); status.ok.push(name); } catch (error) { status.failed[name] = String((error && error.message) || error); }
   };
   await attempt('players', () => players.load());
-  for (const kind of ['dynasty', 'redraft']) await attempt(`ktc-${kind}`, () => ktcValues.load(kind, players.list(), fetchKtc));
   await attempt('ringer', async () => {
     const [current, synced] = await Promise.all([storage.getRankings(), storage.get('ringer.synced', null)]);
     if (!globalThis.NightOwl.ringer.isUntouched(current, synced)) return;

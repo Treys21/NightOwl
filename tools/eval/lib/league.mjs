@@ -104,27 +104,25 @@ export async function prepare(world, season, week, rosterPlayers) {
   const standings = standingsBefore(season, week);
   const fakeLeague = {
     kind, weeks, raw: { season: league.season, rosters, scoring: league.scoring_settings, slots },
-    superflex: nightOwl.ktc.isSuperflex(slots), tep: nightOwl.ktc.tepTier(league.scoring_settings),
+    superflex: nightOwl.marketValues.isSuperflex(slots), tep: nightOwl.marketValues.tepTier(league.scoring_settings),
     ranks: new Map([...standings.entries()].map(([rosterId, row]) => [rosterId, row.rank])), slots: null, picks: new Map()
   };
-  const moveValues = nightOwl.moveValues.create({ ktc: world.ktc, ktcRedraft: world.ktcRedraft, stats });
+  const moveValues = nightOwl.moveValues.create({ market: kind === 'redraft' ? null : world.marketFor(league.season), stats });
   return { slots, weeks, rosters, fakeLeague, moveValues, stats, kind, playoffStart, standings };
 }
 
-const packageRule = (isDynasty) => (isDynasty
-  ? { exponent: nightOwl.ktc.EXPONENT_PACKAGE, replacement: nightOwl.ktc.REPLACEMENT_DYNASTY }
-  : { exponent: nightOwl.ktc.EXPONENT_REDRAFT, replacement: nightOwl.ktc.REPLACEMENT_REDRAFT });
+const packageRule = () => ({ exponent: nightOwl.marketValues.EXPONENT_PACKAGE, replacement: nightOwl.marketValues.REPLACEMENT_DYNASTY });
 
 export function buildContext(world, preparation, goal = 'balanced') {
   const { fakeLeague, moveValues, slots, weeks, kind } = preparation;
   const isDynasty = kind !== 'redraft';
   return {
-    mode: isDynasty ? 'dynasty' : 'redraft', consensus: !isDynasty, slots, weeks, positionsOf: world.positionsOf,
+    mode: isDynasty ? 'dynasty' : 'redraft', consensus: false, slots, weeks, positionsOf: world.positionsOf,
     isPick: nightOwl.moveValues.isPick, canCut: () => true,
-    rawOf: isDynasty ? (playerId) => moveValues.dynastyValue(fakeLeague, playerId) : (playerId) => moveValues.redraftValue(fakeLeague, playerId),
-    valueOf: isDynasty ? (team, playerId, outlook) => moveValues.valueFor(fakeLeague, playerId, outlook) : (team, playerId) => moveValues.redraftValue(fakeLeague, playerId),
-    sideValue: (values, picks) => nightOwl.ktc.packageValue(values.map((value, index) => ({ v: value, pick: Boolean(picks && picks[index]) })), packageRule(isDynasty)),
-    pointValue: moveValues.pointValue(fakeLeague), goal, focus: {}
+    rawOf: isDynasty ? (playerId) => moveValues.dynastyValue(fakeLeague, playerId) : (playerId) => moveValues.overReplacement(fakeLeague, playerId),
+    valueOf: isDynasty ? (team, playerId, outlook) => moveValues.valueFor(fakeLeague, playerId, outlook) : () => 0,
+    sideValue: isDynasty ? (values, picks) => nightOwl.marketValues.packageValue(values.map((value, index) => ({ v: value, pick: Boolean(picks && picks[index]) })), packageRule()) : (values) => values.reduce((total, value) => total + value, 0),
+    pointValue: isDynasty ? moveValues.pointValue(fakeLeague) : 1, goal, focus: {}
   };
 }
 

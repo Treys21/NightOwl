@@ -4,7 +4,6 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-const ktc = createRequire(import.meta.url)('../../src/shared/ktc.js');
 const espnPlays = createRequire(import.meta.url)('../../src/shared/espn-plays.js');
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -29,12 +28,6 @@ export function startServer(port = 8765) {
       if (url.pathname === '/' || url.pathname === '/preview') {
         response.writeHead(200, { 'content-type': 'text/html', 'cache-control': 'no-store' });
         return response.end(await page());
-      }
-      if (url.pathname === '/ktc') {
-        const html = await (await fetch(ktc.URLS[url.searchParams.get('kind') === 'redraft' ? 'redraft' : 'dynasty'])).text();
-        const rows = ktc.parse(html);
-        response.writeHead(200, { 'content-type': 'application/json' });
-        return response.end(JSON.stringify(rows));
       }
       if (url.pathname === '/plays') {
         const eventId = url.searchParams.get('event');

@@ -3,7 +3,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
 (function (NightOwl) {
   'use strict';
 
-  const { api, players, storage, account, dom, projection, value, model, ktc, replacement } = NightOwl;
+  const { api, players, storage, account, dom, projection, value, model, marketValues, replacement } = NightOwl;
   const { isPlaying, mine: rosterOf, ownerNames } = NightOwl.leagues;
 
   const REFRESH_MS = 15 * 60000;
@@ -18,9 +18,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     nfl: null,
     stats: {},
     remainingOf: null,
-    ktc: null,
-    ktcRedraft: null,
-    ktcError: null,
+    market: null,
     leagues: [],
     targets: new Map(),
     open: new Set(),
@@ -123,21 +121,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
     ]);
     state.stats = stats;
     state.remainingOf = remainingOf;
-    state.ktcError = null;
-    if (leagues.some((league) => league.kind !== 'redraft')) {
-      try { state.ktc = await ktc.load('dynasty', players.list(), api.ktcRows); } catch (error) {
-        console.warn('[Night Owl moves] KeepTradeCut unavailable', error);
-        state.ktc = null;
-        state.ktcError = error.message || String(error);
-      }
-    }
-
-    if (leagues.some((league) => league.kind === 'redraft')) {
-      try { state.ktcRedraft = await ktc.load('redraft', players.list(), api.ktcRows); } catch (error) {
-        console.warn('[Night Owl moves] KeepTradeCut redraft values unavailable', error);
-        state.ktcRedraft = null;
-      }
-    }
+    state.market = leagues.some((league) => league.kind !== 'redraft') ? marketValues.build(players.list(), nflState.season) : null;
 
     const projected = new Set();
     for (const week of Object.values(stats)) for (const playerId of Object.keys(week)) projected.add(playerId);
@@ -152,8 +136,8 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       league.scale = pointScale(league);
       league.ranks = standingsRanks(league.raw.rosters);
       league.picks = league.kind === 'redraft' ? new Map() : ownedPicks(league);
-      league.superflex = ktc.isSuperflex(league.raw.slots);
-      league.tep = ktc.tepTier(league.raw.scoring);
+      league.superflex = marketValues.isSuperflex(league.raw.slots);
+      league.tep = marketValues.tepTier(league.raw.scoring);
       league.openSpots = Math.max(0, league.capacity - (league.mine.players || []).length);
     }
     state.leagues = leagues;
@@ -199,7 +183,7 @@ globalThis.NightOwl = globalThis.NightOwl || {};
       await tick();
       if (!root || generation !== state.generation) return;
       const pool = model.activePool(league.mine);
-      const droppable = leagueValues.usesKtc(league) ? pool.filter((playerId) => leagueValues.dynastyValue(league, playerId) < DROP_PROTECTED) : pool;
+      const droppable = leagueValues.usesMarket(league) ? pool.filter((playerId) => leagueValues.dynastyValue(league, playerId) < DROP_PROTECTED) : pool;
       state.targets.set(league.leagueId, value.waiverTargets({
         slots: league.raw.slots, pool, droppable, openSpots: league.openSpots,
         candidates: league.free, weeks: league.rep.weeks, positionsOf, minGain: WAIVER_MIN_GAIN * league.scale

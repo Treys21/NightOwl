@@ -84,18 +84,18 @@ test('shop and target: every proposal includes the player you are shopping or af
 
 const isDynasty = () => {
   const context = base('dynasty');
-  const ktc = { m_qb: 7000, m_rb1: 6000, m_rb2: 5200, m_rb3: 3000, m_rb4: 2500, m_wr1: 5000, m_wr2: 1500, t_qb: 6500, t_rb1: 4800, t_rb2: 1200, t_wr1: 6200, t_wr2: 4000, t_wr3: 3500, t_wr4: 3000, 'pick:2027:1:2': 5000, 'pick:2027:1:1': 5200 };
+  const prices = { m_qb: 7000, m_rb1: 6000, m_rb2: 5200, m_rb3: 3000, m_rb4: 2500, m_wr1: 5000, m_wr2: 1500, t_qb: 6500, t_rb1: 4800, t_rb2: 1200, t_wr1: 6200, t_wr2: 4000, t_wr3: 3500, t_wr4: 3000, 'pick:2027:1:2': 5000, 'pick:2027:1:1': 5200 };
   const ages = { m_rb1: 30, m_rb2: 29, t_wr1: 22, t_wr2: 23 };
-  context.rawOf = (playerId) => ktc[playerId] || 0;
+  context.rawOf = (playerId) => prices[playerId] || 0;
   context.valueOf = (team, playerId, outlook) => {
     const age = ages[playerId] || 26;
-    let value = ktc[playerId] || 0;
+    let value = prices[playerId] || 0;
     if (context.isPick(playerId)) value *= outlook > 0.6 ? 0.92 : outlook < 0.3 ? 1.12 : 1;
     else if (age > 27) value *= outlook < 0.3 ? Math.max(0.7, 1 - 0.05 * (age - 27)) : 1.03;
     return value;
   };
   context.sideValue = (values) => Math.round(Math.pow(values.reduce((total, value) => total + Math.pow(value, 1.5), 0), 1 / 1.5));
-  return { ctx: context, ktc };
+  return { ctx: context, prices };
 };
 
 test('dynasty: never asks them to take a loss on consensus value', () => {
