@@ -26,6 +26,16 @@ You can drag the panel anywhere and resize it from any edge.
 **Updating:** download the new zip, unzip it over the old folder, then click the
 refresh arrow on Night Owl's card in `chrome://extensions`.
 
+## AI trade ideas (optional, dynasty)
+
+Night Owl can ask an AI to re-rank the finder's dynasty trade ideas, explain them, and answer follow-up questions. Nothing leaves your computer except through an agent you run yourself:
+
+1. Install Node 20 or newer and Claude Code, and sign in to Claude Code once.
+2. In a terminal: `cd tools/local-agent`, `npm install`, `node server.mjs`.
+3. Open the Night Owl popup, paste the token from `~/.night-owl-agent/token` into the local agent card, and save.
+
+The agent listens on 127.0.0.1 only and checks the token on every request. In testing, its first pick beat the plain finder's first pick by 14 to 26 points over the rest of the season on dynasty leagues; redraft AI is off because it showed no gain. Details and numbers are in `docs/ai-design.md`.
+
 ## Privacy
 
 Everything runs in your browser. There's no account and no tracking. Night Owl only

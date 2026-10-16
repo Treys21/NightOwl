@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## 3.18.0
 
 - Prices no longer come from KeepTradeCut. Dynasty values are built from Sleeper's own search rank, age and position, with coefficients fitted on about 13,000 real dynasty trades, so the extension no longer contacts any other price site.
 - Redraft trades and the finder are priced on lineup points only; the separate redraft price list is gone.
-- Dynasty trade ideas can be re-ranked by a local AI agent and carry a Likely / Fair shot / Long shot label from a model fitted on real trades.
+- Dynasty trade ideas can be re-ranked by an optional local AI agent (see the README), which also explains each idea and answers follow-up questions. Its first pick beat the plain finder's by 14 to 26 points over the rest of the season in held-out dynasty tests.
+- Dynasty trade ideas carry a Likely / Fair shot / Long shot label from a model fitted on about 5,000 real trades; on leagues it never saw it tells real trades from look-alike swaps with an AUC of 0.71.
+- The extension may talk to a local agent at 127.0.0.1 if you run one; it adds no other network access.
 
 ## 3.17.9
 
